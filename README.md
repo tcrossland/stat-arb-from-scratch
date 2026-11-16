@@ -6,12 +6,25 @@ A daily statistical arbitrage pipeline for US equities, from raw market data to 
 
 None yet. Each phase review adds its findings here, whichever way they go.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    S["raw snapshots"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio rule<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
+    C["cost model"] --> P
+    C --> B
+    R["risk model"] --> P
+```
+
+Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price source, the factor model, the signal, the cost model, the portfolio rule and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
+
 ## Invariants
 
 Each phase holds to these:
 
 - **No look-ahead.** Every value used on a day must have been knowable that day. Every transform and every signal passes a test that perturbs later data and requires nothing earlier to change ([time discipline](docs/time-discipline.md)).
 - **Reproducible.** Every result reproduces exactly from its config and seed.
+- **Every trial counted.** Every configuration run is logged, and the best is judged against all of them with a deflated Sharpe ratio, never shown alone.
 - **No data committed.** No prices, volumes or per-ticker returns are committed, and reports hold statistics only.
 
 ## Reading path
@@ -34,8 +47,8 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 | 1 | Factor model and residuals | not started |
 | 2 | Reversal signal and backtest engine | not started |
 | 3 | Cost model | not started |
-| 4 | ML signal | not started |
-| 5 | Portfolio construction | not started |
+| 4 | Portfolio optimiser and a statistical factor model | not started |
+| 5 | ML signal | not started |
 | 6 | Daily paper-trading simulation | not started |
 
 ## Running it

@@ -9,7 +9,7 @@ Replace the flat cost assumption with a model that reflects how costs actually v
 ## Cost model components
 
 - **Spread.** Free daily data has no quotes. Estimate the effective spread from daily high, low and close (for example the Corwin-Schultz or Abdi-Ranaldo estimators). Pay half the spread per trade.
-- **Market impact.** Square-root model: impact ≈ *c* · σ · √(trade size / daily volume), with σ the daily volatility and *c* around 0.5 to 1 as a starting point. Run a notional book size sweep (for example $50k, $500k, $5m, $50m) to see where capacity runs out.
+- **Market impact.** Square-root model: impact ≈ *c* · σ · √(trade size / daily volume), with σ the daily volatility and *c* around 0.5 to 1 as a starting point. Run a notional book size sweep (for example $50k, $500k, $5m, $50m; the book trades in US dollars, so sizes are stated in dollars) to see where capacity runs out.
 - **Commission.** Use a published retail broker schedule (for example Interactive Brokers tiered pricing) as a config entry.
 - **Borrow.** Flat general-collateral rate for most names plus a higher rate for a "hard to borrow" bucket. Free data will not tell us which names are hard to borrow, so use a proxy (high short-term volatility, small size) and state it.
 

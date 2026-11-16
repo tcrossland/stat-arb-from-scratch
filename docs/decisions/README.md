@@ -5,3 +5,4 @@ Short records of decisions that change scope, data source or methodology: contex
 | Record | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-simulation-only-free-daily-data.md) | Simulation only, free daily data | accepted | 2026-11-16 |
+| [0002](0002-plan-revisions-before-phase-0.md) | Plan revisions before phase 0 | accepted | 2026-11-16 |

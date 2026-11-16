@@ -23,6 +23,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** the closest published version of this strategy, with a sample ending in 2007. Comparing residual properties and reversal strength gives an external reference point.
 - **Action:** add a section to each review explaining the gap, separating the later sample period, survivorship bias and method differences.
 
+### Multi-period optimiser
+
+- **Trigger:** phase 4 review.
+- **Why:** the phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book. Gârleanu and Pedersen (2013) show the multi-period answer: trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each signal decays. A fast-decaying reversal signal is the case where this matters most.
+- **Action:** if the phase 4 review shows costs still dominate after the turnover controls, implement the partial-adjustment rule as a variant behind the same portfolio interface and compare at matched turnover. Otherwise delete this item.
+
 ### Documentation site
 
 - **Trigger:** when the repository goes public, and not before phase 3.

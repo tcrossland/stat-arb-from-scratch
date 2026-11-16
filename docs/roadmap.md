@@ -10,15 +10,19 @@ The plan, phase by phase. The strategy, and why it is run on free daily data, is
 | 1 | Factor model and residuals | What part of each stock's move is idiosyncratic? | Daily residual returns, factor exposure diagnostics |
 | 2 | Baseline signal and backtest | Does simple residual reversal show any edge before and after costs? | Backtest engine, first P&L curve, metrics report |
 | 3 | Cost realism | How much of the edge survives realistic trading and shorting costs? | Cost model, cost-sensitivity analysis |
-| 4 | ML signal | Can a model learn when reversal works and when it does not? | Feature set, LightGBM model, walk-forward IC report |
-| 5 | Portfolio construction | Does an optimiser with neutrality and turnover control beat decile sorts? | cvxpy optimiser, comparison report |
-| 6 | Paper-trading simulation | Does the live, forward-running version behave like the backtest? | Daily scheduled run, simulated ledger, drift report |
+| 4 | Portfolio construction | Does an optimiser with neutrality and turnover control beat decile sorts? | Model B, cvxpy optimiser, comparison report |
+| 5 | ML signal | Can a model learn when reversal works, and does it add anything through the optimiser after costs? | Feature set, LightGBM model, walk-forward IC report |
+| 6 | Paper-trading simulation | Does the live, forward-running pipeline behave like the backtest? | Daily scheduled run, simulated ledger, drift report |
+
+Portfolio construction comes before the ML signal because trading costs are the binding constraint for this strategy (decision record 0002).
 
 ## Principles
 
 - Every phase ends with a written review before the next begins.
 - The baseline from phase 2 is kept running in every later comparison. A more complex method has to beat it after costs to earn its place.
 - Expect the edge to shrink at each phase. A result that improves dramatically is a reason to look for a bug, usually look-ahead.
+- From phase 2 onwards, log every backtest configuration in `reports/phase-NN/experiments.csv`. Judge the best result against the number of configurations tried.
+- Every signal goes through the same `Signal` interface and the same look-ahead test, so a new one reaches the cost model and the optimiser without changes to them.
 
 ## Out of scope for now
 
@@ -41,6 +45,7 @@ Grouped by the phase they inform. Magnitudes quoted here come from abstracts; ch
 - Lo, A. and MacKinlay, A. C. (1990). When are contrarian profits due to stock market overreaction? *Review of Financial Studies* 3(2). The contrarian portfolio construction that later papers reuse.
 - Blitz, D., Huij, J., Lansdorp, S. and Verbeek, M. (2013). Short-term residual reversal. *Journal of Financial Markets* 16(3), 477 to 504. [IDEAS](https://ideas.repec.org/a/eee/finmar/v16y2013i3p477-504.html). Residual reversal earns roughly twice the risk-adjusted return of plain reversal and survives costs in large caps after 1990. The academic version of the phase 2 baseline.
 - Collin-Dufresne, P. and Daniel, K. (preliminary). [Working paper](https://business.columbia.edu/sites/default/files-efs/pubfiles/11568/str1.pdf). Estimates a reversal half-life of about 2.5 days. Marked "do not quote", so treat as background for choosing *n* = 1 to 5.
+- Bailey, D. and López de Prado, M. (2014). The deflated Sharpe ratio: correcting for selection bias, backtest overfitting and non-normality. *Journal of Portfolio Management* 40(5). How to judge the best of many backtest configurations.
 
 ### Phase 3: costs and capacity
 
@@ -50,10 +55,14 @@ Grouped by the phase they inform. Magnitudes quoted here come from abstracts; ch
 - Frazzini, A., Israel, R. and Moskowitz, T. Trading costs of asset pricing anomalies. Ranks short-term reversal as the anomaly most constrained by trading costs.
 - Nagel, S. (2012). Evaporating liquidity. *Review of Financial Studies* 25(7). Reversal returns as compensation for providing liquidity. A useful lens on capacity.
 
-### Phase 4: ML signal and validation
+### Phase 4: portfolio construction
+
+- Gârleanu, N. and Pedersen, L. H. (2013). Dynamic trading with predictable returns and transaction costs. *Journal of Finance* 68(6). Multi-period trading towards an aim portfolio, weighted by signal decay. Basis for the multi-period item in the backlog.
+
+### Phase 5: ML signal and validation
 
 - López de Prado, M. (2018). *Advances in Financial Machine Learning*. Wiley. Chapter 7 on purged and embargoed cross-validation.
-- Krauss, C., Do, X. A. and Huck, N. (2017). Deep neural networks, gradient-boosted trees, random forests: statistical arbitrage on the S&P 500. *European Journal of Operational Research* 259(2). Daily S&P 500 stat arb with tree models, close to the phase 4 set-up.
+- Krauss, C., Do, X. A. and Huck, N. (2017). Deep neural networks, gradient-boosted trees, random forests: statistical arbitrage on the S&P 500. *European Journal of Operational Research* 259(2). Daily S&P 500 stat arb with tree models, close to the phase 5 set-up.
 - Guijarro-Ordonez, J., Pelger, M. and Zanotti, G. (2022). Deep learning statistical arbitrage. [arXiv:2106.04028](https://arxiv.org/abs/2106.04028).
 
 ### Code

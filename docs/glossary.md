@@ -11,16 +11,20 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | Symbol | Meaning | Phase |
 |---|---|---|
 | *t* | the trading day a decision is made on | all |
-| *m* | number of PCA components in Model B | 1 |
 | *n* | lookback: the days of residuals summed into the signal | 2 |
+| *k* | holding period: the days each decile portfolio is held | 2 |
 | *c* | impact coefficient of the square-root model | 3 |
 | σ | a stock's daily volatility | 3 |
-| λ | risk aversion: the weight on risk in the optimiser's objective | 5 |
-| κ | cost multiplier: the weight on trading cost in the optimiser's objective | 5 |
+| *m* | number of PCA components in Model B | 4 |
+| λ | risk aversion: the weight on risk in the optimiser's objective | 4 |
+| κ | cost multiplier: the weight on trading cost in the optimiser's objective | 4 |
+| *τ* | turnover budget: the cap on a day's turnover, as a share of gross | 4 |
 
 ## Data and universe
 
-**Universe.** The stocks the strategy may hold on a given day, chosen from a candidate list by liquidity.
+**Candidates.** Today's S&P 500 constituents. The universe is chosen from them.
+
+**Universe.** The stocks the strategy may hold on a given day: the 300 candidates with the highest median daily dollar volume over the trailing 60 trading days, ranked on the last trading day of each month with data up to that day, and used from the next trading day.
 
 **Dollar volume.** Close times shares traded on a day.
 
@@ -28,7 +32,11 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Split, dividend, ex-date.** Corporate actions that change the price without changing the holder's wealth. The ex-date is the first day a stock trades on the new basis after a split, or without the right to a dividend.
 
-**Adjusted prices.** Past prices rescaled so that a series runs smoothly across splits and dividends. Sources rescale the whole history after each new action.
+**Adjusted prices.** Past prices rescaled so that a series runs smoothly across splits and dividends. Sources rescale the whole history after each new action, so adjusted levels are derived here, never stored as the source of truth.
+
+**Unadjusted prices.** Prices as they traded on the day, with splits and dividends stored separately as corporate actions.
+
+**Dated sector.** A stock's GICS sector with the dates it applied, so a reclassification changes the sector from its effective date only.
 
 **Total return.** The day's return including any dividend going ex that day.
 
@@ -36,7 +44,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 ## Factor model and residuals
 
-**Factor model.** A regression that explains each stock's daily return by a few common factors, here the market and the stock's sector.
+**Factor model.** A model that explains each stock's daily return by a few common factors. **Model A** regresses it on the market (SPY) and the ETF of the stock's sector; **Model B** uses statistical factors from PCA.
 
 **Beta.** A stock's sensitivity to a factor: how much it tends to move per unit move of the factor.
 
@@ -44,11 +52,11 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Fitted return.** The part the factor model does explain.
 
-**PCA factors.** Statistical factors taken from the principal components of the stocks' returns, rather than from ETFs.
+**PCA factors.** Statistical factors taken from the principal components of the stocks' returns, rather than from ETFs (Model B).
 
 ## Signals and portfolios
 
-**Signal.** A number per stock per day that ranks expected moves.
+**Signal.** A number per stock per day that ranks expected moves. Every signal implements the `Signal` interface: it declares the tables it reads, scores each stock from those tables cut at *t*, and is chosen by name in config (decision record 0002).
 
 **Cross-sectional.** Across stocks on the same day, as opposed to along one stock's history.
 
@@ -57,6 +65,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Lookback (*n*).** The number of days of residuals summed into the signal.
 
 **Decile portfolio.** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted.
+
+**Holding period (*k*) and slices.** Each day's decile portfolio is held for *k* days. The book is the average of the last *k* daily portfolios, so 1/*k* of it is replaced each day.
+
+**Raw-return control.** The same portfolio built from total returns instead of residuals, to show what the factor model adds.
 
 **Baseline.** The simplest version of the strategy, built in phase 2, which every later method must beat after costs.
 
@@ -76,6 +88,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Slippage.** Any difference between the price assumed and the price obtained.
 
+**Placebo.** The signal shuffled among universe members each day. A correct engine earns nothing from it on average.
+
+**Experiment log.** One entry per backtest configuration run, in `reports/phase-NN/`, with its configuration, seed, git commit and headline metrics.
+
 **Gross and net return.** Gross is before trading and borrow costs; net is after them.
 
 ## Performance measures
@@ -87,6 +103,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Hit rate.** The share of days, or of positions, with positive P&L.
 
 **Break-even cost.** The flat one-way cost per dollar traded at which the net Sharpe ratio falls to zero.
+
+**Trial.** One distinct configuration run through the backtest. The best result is judged against how many were tried.
+
+**Deflated Sharpe ratio.** Bailey and López de Prado (2014): the probability that a strategy's true Sharpe ratio is above zero, allowing for the number of trials and the non-normality of returns.
 
 ## Costs
 
@@ -106,6 +126,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **No-trade zone.** A rule that trades a name only when its expected move pays for the trade.
 
+**Expected move, calibration.** A signal converted to return units, by regressing the realised residual move on the signal over a trailing window of pairs whose outcome was already known at *t*.
+
 ## Portfolio construction
 
 **Optimiser.** Chooses each day's book by maximising expected return minus a risk penalty minus a cost penalty, under constraints.
@@ -113,6 +135,12 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Risk aversion (λ).** The weight on risk in the optimiser's objective.
 
 **Cost multiplier (κ).** The weight on trading cost in the optimiser's objective.
+
+**Turnover budget (*τ*).** A hard cap on the sum of absolute weight changes in a day, as a share of gross.
+
+**Minimum trade size.** After solving, trades smaller than this many dollars are dropped.
+
+**Hold the previous book.** If the solver fails or the problem is infeasible on a day, the previous day's book is kept and the day logged. Constraints are never relaxed automatically.
 
 ## ML signal
 

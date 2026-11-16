@@ -1,57 +1,75 @@
-# Phase 4: ML signal
+# Phase 4: Portfolio construction
 
 Drafted at setup, and revised at the start of the phase with what earlier phases found.
 
 ## Goal
 
-Train a model that predicts next-day residual returns from a set of features, and find out whether it adds anything over the simple reversal signal once costs are included.
+Replace decile sorts with an optimiser that turns forecasts into positions while controlling risk exposures and trading costs, and measure whether it improves net results for the baseline signal. This comes before the ML signal because trading costs are the binding constraint for short-term reversal (decision record 0002).
 
-## Target
+## Model B
 
-Next-day residual return, cross-sectionally ranked or z-scored per day. Ranking makes the target robust to market-wide volatility shifts. Also try a 3-day horizon.
+The statistical factor model, moved here from phase 1 (decision record 0002): PCA on the rolling cross-section of standardised returns, using only data up to *t−1*, with the top *m* components as factors (try *m* = 5 to 15). It gives a residual table beside Model A's and a second risk model for the optimiser. It enters behind the `FactorModel` interface of phase 1, and the look-ahead test covers it as it covers Model A. Compare its residual properties with Model A's on the phase 1 diagnostics.
 
-## Features (all computed with data up to *t*)
+## Optimisation problem (per day)
 
-- Residual returns over 1, 3, 5 and 20 days.
-- Residual volatility over 20 and 60 days.
-- Volume relative to its 20-day average on the day of the move. Low-volume moves should reverse more.
-- High-low range relative to close.
-- Earnings or event flag from phase 1.
-- Distance from 20-day and 60-day high and low.
-- Market regime: SPY 20-day volatility, cross-sectional dispersion of returns.
-- Sector, as a categorical.
+Maximise: expected return − λ · risk − κ · trading cost, with λ the risk aversion and κ the cost multiplier
 
-Start with ten to fifteen features. Add more only when the validation process is trustworthy.
+- Expected return: the baseline signal converted to return units by regressing next-day residual return on the signal over a trailing window, using only data up to *t*. The conversion works on any `Signal` (phase 2), so phase 5's forecast reaches the optimiser unchanged.
+- Risk: factor covariance from Model A or Model B plus a diagonal specific-risk term, chosen in config.
+- Trading cost: linear half-spread plus a convex impact term (use a 3/2-power approximation of the square-root model so the problem stays convex).
 
-## Validation
+Subject to:
 
-- Walk-forward: train on an expanding or rolling window, predict the next block (for example three months), roll forward.
-- **Purge** observations whose target windows overlap the test block, and add an **embargo** of a few days after each test block. See López de Prado, *Advances in Financial Machine Learning*, chapter 7.
-- Metrics: daily rank information coefficient (IC) between prediction and realised target, its mean, standard deviation and t-statistic; IC by year; IC decay at horizons 1 to 5 days.
-- Hyperparameters chosen inside the training window only.
+- Dollar neutral.
+- Zero (or tightly bounded) exposure to market beta and each sector.
+- Position limits, for example ±2% of gross per name, and a cap relative to average daily volume.
+- Fixed gross exposure.
+
+Implement with cvxpy. Solve times for 300 names should be well under a second. Name the solver explicitly and pin its version alongside cvxpy's, with tolerances in config: a different solver or version can return slightly different weights, which would break exact reproducibility.
+
+If the problem is infeasible or the solver fails on a day, hold the previous day's book and log the day. Never relax constraints automatically. Report how many days this happened; phase 6 uses the same rule.
+
+## Turnover controls
+
+Run two ways of limiting trading and compare them:
+
+- **Cost penalty** (the problem above): turnover is controlled indirectly through the trading cost term and κ.
+- **Turnover budget:** the same objective with κ = 1, plus a hard constraint that daily turnover, the sum of |*w*(*t*) − *w*(*t−1*)| across names, is at most *τ* of gross. Sweep *τ* (for example 10%, 25%, 50% and 100%). The constraint is convex, and *τ* reads directly as a dial.
+
+Both variants apply a **minimum trade size** from config, in dollars: after solving, trades smaller than the minimum are dropped, and the resulting book is re-checked against the constraints. Report any residual breach of dollar or factor neutrality this causes. Do not cap the number of trades: that needs integer constraints and limits the wrong thing, since costs scale with traded value.
 
 ## Deliverables
 
-1. `src/statarb/models/` with feature builder, walk-forward splitter (with purge and embargo) and a LightGBM wrapper.
+1. `src/statarb/factors/` gains Model B; `src/statarb/portfolio/optimiser.py` and a decile-sort implementation behind the same interface.
 2. `reports/phase-04/`:
-   - IC of the model versus the plain reversal signal
-   - feature importance (gain and SHAP), with a short interpretation
-   - backtest of the model signal through the phase 3 cost model, alongside the baseline
-3. Tests: splitter produces no train-test overlap after purging; features at *t* do not change when data after *t* is perturbed.
+   - Model B's residual diagnostics beside Model A's
+   - net Sharpe, turnover and realised factor exposures for the baseline signal: decile sort (at the holding period chosen in phase 2) versus optimiser, under the phase 3 cost model, with each risk model
+   - comparison with the phase 3 no-trade-zone variant
+   - cost penalty versus turnover budget at matched average turnover
+   - sensitivity to λ, κ and *τ*
+   - effect of the minimum trade size on net Sharpe and on neutrality
+3. Tests:
+   - Model B's residuals on day *t* do not change when data after *t* is perturbed
+   - constraints satisfied on random inputs
+   - the turnover budget is never exceeded
+   - after the minimum-trade filter, no trade is below the minimum
+   - a forced solver failure holds the previous day's book
+   - with zero costs and no risk penalty the optimiser reproduces a sort-like portfolio
+   - the expected-return calibration on day *t* does not change when data after *t* is perturbed
 
 ## Acceptance criteria
 
-- Out-of-sample IC reported with a t-statistic, by year.
-- The model is compared with the baseline on net performance, not on IC alone.
+- Realised market and sector exposures are measurably closer to zero than with decile sorts.
+- Turnover falls without a proportional loss of gross alpha.
 
-## Known pitfalls
+## Out of scope
 
-- Overfitting through repeated experimentation. Keep a log of every configuration tried in `reports/phase-04/experiments.csv` and hold back the most recent year as a final test set touched only once.
-- Leakage through features that use the close of *t* when fills also happen at the close of *t*.
-- An IC of 0.02 to 0.05 is a realistic good result. Anything far above 0.1 almost certainly means a bug.
+New signals and ML forecasts (phase 5).
 
 ## Review questions
 
-- Does the model learn interpretable rules, such as weaker reversal after high-volume or earnings moves?
-- Does the higher IC survive costs, given that a model signal may trade more?
-- How much did the final holdout year differ from the walk-forward average?
+- Does Model B change the picture, as a residual or as a risk model?
+- Where does the improvement come from: lower turnover, better neutrality, or better use of forecast strength?
+- How sensitive are results to the cost multiplier? An optimiser that only works with a precisely tuned cost parameter is fragile.
+- At matched turnover, does the cost penalty or the turnover budget give better net results, and which is less sensitive to its parameter?
+- Does the optimiser beat the simple no-trade zone by enough to justify its complexity?
