@@ -1,0 +1,27 @@
+# Phase 0 data build settings. See docs/phases/phase-00/brief.md.
+
+[dates]
+start = 2016-01-01
+# No end date: the build runs to the latest available close.
+
+[source]
+# Chosen in a decision record before phase 0 (pending).
+name = ""
+
+[universe]
+size = 300
+liquidity_window_days = 60
+rebalance = "monthly"  # last trading day of the month, applied from the next trading day
+
+[factors]
+market = "SPY"
+sectors = ["XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"]
+
+[quality]
+max_abs_daily_return = 0.25
+min_live_coverage = 0.95
+
+[paths]
+raw = "data/raw"
+processed = "data/processed"
+reports = "reports"

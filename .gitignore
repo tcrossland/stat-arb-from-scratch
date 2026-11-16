@@ -1,0 +1,12 @@
+# Everything under data/ is local: downloads, derived tables, models, caches, the paper ledger.
+/data/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+.env
+# Claude Code's per-user settings.
+/.claude/settings.local.json

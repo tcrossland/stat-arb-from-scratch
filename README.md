@@ -23,9 +23,10 @@ Each stage is a function of the tables before it, cut at the decision date, whic
 Each phase holds to these:
 
 - **No look-ahead.** Every value used on a day must have been knowable that day. Every transform and every signal passes a test that perturbs later data and requires nothing earlier to change ([time discipline](docs/time-discipline.md)).
-- **Reproducible.** Every result reproduces exactly from its config and seed.
+- **Reproducible.** Every result reproduces exactly from its config and seed, in the environment fixed by `uv.lock`.
 - **Every trial counted.** Every configuration run is logged, and the best is judged against all of them with a deflated Sharpe ratio, never shown alone.
-- **No data committed.** No prices, volumes or per-ticker returns are committed, and reports hold statistics only.
+- **No data committed.** No prices, volumes or per-ticker returns are committed, and reports hold statistics only; tests run on synthetic fixtures with the network blocked.
+- **Licences checked.** A test reads the licence of every installed distribution, dependencies included.
 
 ## Reading path
 
@@ -53,7 +54,19 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 
 ## Running it
 
-Nothing to run yet. Phase 0 adds the first runner.
+Needs Python 3.14 and [uv](https://docs.astral.sh/uv/). No GPU is needed.
+
+### Run the tests
+
+The tests run on small synthetic fixtures committed under `tests/`. They need no download, no keys and no network.
+
+```
+uv sync
+uv run ruff check
+uv run pytest
+```
+
+Phase 0 adds the first runner.
 
 ## Disclaimer
 

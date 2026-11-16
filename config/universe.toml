@@ -1,0 +1,6 @@
+# Candidate set for the point-in-time universe: current S&P 500 constituents.
+# Filled in during phase 0, with the date the list was taken and where it came from.
+
+as_of = ""
+source = ""
+tickers = []

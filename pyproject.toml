@@ -1,0 +1,33 @@
+[project]
+name = "statarb"
+version = "0.1.0"
+description = "Daily-frequency cross-sectional residual mean reversion in US equities, simulation only"
+authors = [
+    { name = "Tomas Crossland", email = "759011+tcrossland@users.noreply.github.com" }
+]
+license = "MIT"
+requires-python = "==3.14.*"
+# Each library enters with the phase whose code first imports it, its licence
+# read from its own metadata and stated in that commit (docs/architecture.md).
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff==0.17.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests", "scripts"]
+# Strict config, markers, xfail and parametrisation ids.
+strict = true
+
+[tool.ruff]
+# Ruff's default rule set, with no exceptions so far; any added go under [tool.ruff.lint] with the reason.
+# `src` makes the test helpers and scripts first-party.
+src = ["src", "tests", "scripts"]

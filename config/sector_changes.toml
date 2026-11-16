@@ -1,0 +1,11 @@
+# Known GICS reclassifications applied on top of each ticker's current sector.
+# Filled in during phase 0. One entry per ticker move, for example:
+#
+# [[change]]
+# ticker = "V"
+# from = "Information Technology"
+# to = "Financials"
+# effective = 2023-03-17
+# note = "2023 GICS changes: payments companies moved to Financials"
+#
+# Dates must be checked against a primary source (S&P or MSCI) before use.
