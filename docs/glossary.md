@@ -22,7 +22,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 ## Data and universe
 
-**Candidates.** Today's S&P 500 constituents. The universe is chosen from them.
+**Candidates.** Today's S&P 500 constituents, taken from Wikipedia (decision record 0003). The universe is chosen from them.
 
 **Universe.** The stocks the strategy may hold on a given day: the 300 candidates with the highest median daily dollar volume over the trailing 60 trading days, ranked on the last trading day of each month with data up to that day, and used from the next trading day.
 
@@ -35,6 +35,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Adjusted prices.** Past prices rescaled so that a series runs smoothly across splits and dividends. Sources rescale the whole history after each new action, so adjusted levels are derived here, never stored as the source of truth.
 
 **Unadjusted prices.** Prices as they traded on the day, with splits and dividends stored separately as corporate actions.
+
+**Raw snapshot.** One download, kept in `data/raw/<source>/<download date>/` exactly as the source returned it and never modified. Builds read snapshots, never the network.
 
 **Dated sector.** A stock's GICS sector with the dates it applied, so a reclassification changes the sector from its effective date only.
 

@@ -5,8 +5,8 @@ start = 2016-01-01
 # No end date: the build runs to the latest available close.
 
 [source]
-# Chosen in a decision record before phase 0 (pending).
-name = ""
+# Decision record 0003. Keys come from the environment, never from this file.
+name = "alpaca"
 
 [universe]
 size = 300

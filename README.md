@@ -10,20 +10,20 @@ None yet. Each phase review adds its findings here, whichever way they go.
 
 ```mermaid
 flowchart LR
-    S["raw snapshots"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio rule<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
+    S["raw snapshots<br/>Alpaca, Wikipedia"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio rule<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
     C["cost model"] --> P
     C --> B
     R["risk model"] --> P
 ```
 
-Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price source, the factor model, the signal, the cost model, the portfolio rule and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
+Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price and constituent sources, the factor model, the signal, the cost model, the portfolio rule and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
 
 ## Invariants
 
 Each phase holds to these:
 
 - **No look-ahead.** Every value used on a day must have been knowable that day. Every transform and every signal passes a test that perturbs later data and requires nothing earlier to change ([time discipline](docs/time-discipline.md)).
-- **Reproducible.** Every result reproduces exactly from its config and seed, in the environment fixed by `uv.lock`.
+- **Reproducible.** Every result reproduces exactly from a pinned data snapshot, its config and seed, in the environment fixed by `uv.lock`. Raw snapshots are never modified.
 - **Every trial counted.** Every configuration run is logged, and the best is judged against all of them with a deflated Sharpe ratio, never shown alone.
 - **No data committed.** No prices, volumes or per-ticker returns are committed, and reports hold statistics only; tests run on synthetic fixtures with the network blocked.
 - **Licences checked.** A test reads the licence of every installed distribution, dependencies included.
@@ -66,7 +66,7 @@ uv run ruff check
 uv run pytest
 ```
 
-Phase 0 adds the first runner.
+Phase 0 adds the first runner. Downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account, set in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
 
 ## Disclaimer
 

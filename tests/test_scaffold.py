@@ -16,7 +16,7 @@ def test_repo_root_contains_pyproject() -> None:
 def test_data_config_loads_with_expected_types() -> None:
     cfg = load_config("data")
     assert cfg["dates"]["start"] == dt.date(2016, 1, 1)
-    assert isinstance(cfg["source"]["name"], str)
+    assert cfg["source"]["name"] == "alpaca"   # decision record 0003
     assert cfg["universe"]["size"] == 300
     assert cfg["factors"]["market"] == "SPY"
     assert len(cfg["factors"]["sectors"]) == 11
