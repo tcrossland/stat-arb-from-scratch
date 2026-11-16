@@ -21,7 +21,7 @@ TICKER = "ticker"
 PRICE_COLUMNS = ["open", "high", "low", "close"]
 
 # What a PriceSource returns for one ticker, on the basis it declares.
-# cash: cash distributions going ex that day.
+# cash: cash distributions going ex that day (dividends, and spin-offs valued as cash).
 # split_ratio: new shares per old share going ex that day; 1.0 when there is none.
 BAR_COLUMNS = [DATE, *PRICE_COLUMNS, "volume", "cash", "split_ratio"]
 

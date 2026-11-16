@@ -8,7 +8,7 @@ Statistics only: no price, volume or return of any ticker on any date.
 - Price source: alpaca, basis unadjusted, snapshot 2026-11-16, digest a28ff7224e60, bars before 2026-11-16
 - Trading days: 2733 (2016-01-04 to 2026-11-13)
 - Candidates: 503; tickers with prices: 515
-- Price rows: 1349238; returns: 1348723; split days: 108; days with cash: 16369
+- Price rows: 1349238; returns: 1348723; split days: 108; days with cash: 16399
 
 ## Tickers with no data
 
@@ -46,7 +46,7 @@ None.
 
 ## Daily total returns with absolute value above 25%
 
-256 returns across 130 tickers, counted by year: on a day with a split or cash, and while the ticker was in the universe.
+251 returns across 126 tickers, counted by year: on a day with a split or cash, and while the ticker was in the universe.
 
 | year | returns | tickers | on_action_days | while_member |
 |---|---|---|---|---|
@@ -56,15 +56,15 @@ None.
 | 2019 | 16 | 11 | 0 | 9 |
 | 2020 | 91 | 58 | 1 | 58 |
 | 2021 | 5 | 4 | 0 | 2 |
-| 2022 | 22 | 16 | 0 | 17 |
+| 2022 | 21 | 15 | 0 | 16 |
 | 2023 | 18 | 12 | 0 | 9 |
 | 2024 | 25 | 19 | 0 | 20 |
-| 2025 | 27 | 25 | 0 | 14 |
-| 2026 | 27 | 23 | 1 | 22 |
+| 2025 | 24 | 22 | 0 | 13 |
+| 2026 | 26 | 22 | 0 | 21 |
 
 ## Split days
 
-Split days: 108; with an absolute return above 25%: 2 (EQT, HON).
+Split days: 108; with an absolute return above 25%: 1 (EQT).
 
 ## Returns spanning missing trading days
 

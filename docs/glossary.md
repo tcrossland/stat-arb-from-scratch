@@ -52,9 +52,11 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Split ratio.** New shares per old share on a split's ex-date: 4 for a four-for-one split, 0.5 for a one-for-two reverse split, 1 on other days.
 
-**Cash.** Cash per share going ex on a day: dividends gross of withholding tax.
+**Cash.** Cash per share going ex on a day: dividends gross of withholding tax, plus any spin-off valued as cash.
 
 **Gross and net dividend.** The amount the issuer declares, and that amount less the tax its home country withholds. Returns use the gross amount (decision record 0004).
+
+**Spin-off.** A company distributing shares of a subsidiary to its own holders. The parent's price drops by the value distributed, which the return counts as cash.
 
 **Listing start.** The first date of a ticker's own trading, where the source's history begins earlier under another security or a pre-merger shell. Listed with sources in `config/listing_starts.toml`.
 

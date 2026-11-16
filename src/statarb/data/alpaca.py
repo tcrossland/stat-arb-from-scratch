@@ -1,18 +1,19 @@
 """Alpaca market data adapter (decision records 0003 and 0004).
 
 Daily bars come raw (`adjustment=raw`) from the consolidated feed (`feed=sip`),
-so the basis is unadjusted. Splits and dividends come from
+so the basis is unadjusted. Splits, dividends and spin-offs come from
 `/v1/corporate-actions`. A download keeps what Alpaca returns (`fetch_raw`):
-the ticker's bars and the action records under its symbol. The build turns
-them into the `cash` and `split_ratio` columns (`apply_rules`) by the rules in
-decision record 0004, so a changed rule or correction needs a rebuild, not a
-download:
+the ticker's bars, the action records under its symbol, and the bars of each
+security it spun off. The build turns them into the `cash` and
+`split_ratio` columns (`apply_rules`) by the rules in decision record 0004, so
+a changed rule or correction needs a rebuild, not a download:
 
 - the action query's `start` and `end` filter on the process date, usually the
   payable date, so it reaches `ACTION_MARGIN` beyond the bars' window and keeps
   actions by ex-date;
 - a dividend Alpaca reports net of withholding tax is grossed up from
-  `config/alpaca.toml`.
+  `config/alpaca.toml`;
+- a spin-off is cash: the share ratio times the spun-off security's close.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -42,6 +43,8 @@ DATA_HOST = "https://data.alpaca.markets"
 BARS, ACTIONS = "/v2/stocks/bars", "/v1/corporate-actions"
 KEY_ENV = ("APCA_API_KEY_ID", "APCA_API_SECRET_KEY")
 ACTION_MARGIN = dt.timedelta(days=90)     # process dates fall up to weeks after the ex-date, and sometimes before it
+SPIN_OFF_SEARCH = dt.timedelta(days=10)   # how far after the ex-date, or the payable date when later, to look for a close
+SPIN_OFF_FETCH = dt.timedelta(days=30)    # how far a download keeps a spun-off security's bars: past any search window
 MIN_INTERVAL = 60 / 190                   # seconds between requests: under the free plan's 200 a minute
 BAR_LIMIT, ACTION_LIMIT = 10_000, 1_000
 
@@ -49,6 +52,7 @@ SPLITS = ("forward_splits", "reverse_splits")
 DIVIDENDS, SPIN_OFFS, NAME_CHANGES = "cash_dividends", "spin_offs", "name_changes"
 
 Getter = Callable[[str, Mapping[str, str]], dict[str, Any]]
+SpinOffClose = Callable[[str, dt.date, dt.date], float]     # (symbol, first day, last day) -> first close
 Record = tuple[str, dict[str, Any]]                          # (kind, record) as Alpaca returns it
 
 
@@ -66,6 +70,10 @@ class WithholdingError(RuleError):
 
 class ActionDateError(RuleError):
     """An action going ex on a date inside the bars' window that has no bar."""
+
+
+class SpinOffPriceError(RuleError):
+    """No close yet for a spun-off security, so the parent's cash cannot be valued."""
 
 
 class MissingRawError(RuleError):
@@ -241,18 +249,35 @@ def action_columns(
     recs: list[tuple[str, dict[str, Any]]],
     ticker: str,
     withholding: Withholding,
+    spin_off_close: SpinOffClose,
+    end: dt.date,
 ) -> pd.DataFrame:
-    """cash and split_ratio by ex-date from a ticker's actions. Other kinds change no basis and are left out."""
-    rows = []     # (ex-date, cash per share, split ratio)
+    """cash and split_ratio by ex-date from a ticker's actions. Other kinds change no basis and are left out.
+
+    A spin-off is cash: the share ratio times the spun-off security's first
+    close from the ex-date, searched up to `SPIN_OFF_SEARCH` after the ex-date
+    or the payable date, whichever is later. The ratio counts the shares held at
+    the record date, so on an ex-date with a split the cash is per share before
+    it, and is divided by the split ratio to put it on today's shares (Honeywell,
+    2026-06-29: 0.5 HONA per share and a one-for-two reverse split).
+    """
+    rows = []     # (ex-date, cash per share after any split, cash per share before it, split ratio)
     for kind, rec in recs:
         ex = _date(rec["ex_date"])
         if kind == DIVIDENDS:
-            rows.append((ex, gross_dividend(withholding, ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 1.0))
+            rows.append((ex, gross_dividend(withholding, ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 0.0, 1.0))
         elif kind in SPLITS:
-            rows.append((ex, 0.0, float(rec["new_rate"]) / float(rec["old_rate"])))
-    frame = pd.DataFrame(rows, columns=[DATE, "cash", "split_ratio"])
+            rows.append((ex, 0.0, 0.0, float(rec["new_rate"]) / float(rec["old_rate"])))
+        elif kind == SPIN_OFFS:
+            ratio = float(rec["new_rate"]) / float(rec["source_rate"])
+            last = min(_search_from(rec) + SPIN_OFF_SEARCH, end)
+            rows.append((ex, 0.0, ratio * spin_off_close(rec["new_symbol"], ex, last), 1.0))
+    frame = pd.DataFrame(rows, columns=[DATE, "cash", "cash_before", "split_ratio"])
     frame[DATE] = pd.to_datetime(frame[DATE]).astype("datetime64[ns]")
-    return frame.groupby(DATE, as_index=False).agg(cash=("cash", "sum"), split_ratio=("split_ratio", "prod"))
+    daily = frame.groupby(DATE, as_index=False).agg(
+        cash=("cash", "sum"), cash_before=("cash_before", "sum"), split_ratio=("split_ratio", "prod")
+    )
+    return daily.assign(cash=daily["cash"] + daily["cash_before"] / daily["split_ratio"])[[DATE, "cash", "split_ratio"]]
 
 
 # Bars --------------------------------------------------------------------------------------------------
@@ -299,15 +324,26 @@ def join_actions(bars: pd.DataFrame, actions: pd.DataFrame, ticker: str) -> pd.D
 
 
 @dataclass(frozen=True)
+class SpinOffBars:
+    """A spun-off security's bars as Alpaca returned them, for New York dates from `first` to `end` (exclusive)."""
+
+    symbol: str
+    first: dt.date
+    end: dt.date
+    bars: tuple[Mapping[str, Any], ...]
+
+
+@dataclass(frozen=True)
 class RawTicker:
     """What a download keeps for one ticker, as Alpaca returned it.
 
     `actions` holds the records under the ticker's symbol, by symbol, before
-    any rule.
+    any rule; `spin_off_bars` the bars of each security spun off in the window.
     """
 
     bars: tuple[Mapping[str, Any], ...]
     actions: Mapping[str, tuple[Record, ...]] = MappingProxyType({})
+    spin_off_bars: tuple[SpinOffBars, ...] = ()
 
     @property
     def empty(self) -> bool:
@@ -315,8 +351,13 @@ class RawTicker:
 
 
 def raw_actions_json(raw: RawTicker) -> bytes:
-    """The action records of a `RawTicker`, as stable JSON."""
-    doc = {"actions": {s: [{"kind": k, "record": r} for k, r in recs] for s, recs in raw.actions.items()}}
+    """The action records and spin-off bars of a `RawTicker`, as stable JSON."""
+    doc = {
+        "actions": {s: [{"kind": k, "record": r} for k, r in recs] for s, recs in raw.actions.items()},
+        "spin_off_bars": [
+            {"symbol": f.symbol, "first": f.first.isoformat(), "end": f.end.isoformat(), "bars": list(f.bars)} for f in raw.spin_off_bars
+        ],
+    }
     return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode()
 
 
@@ -325,12 +366,30 @@ def raw_from(bars: list[Mapping[str, Any]], actions_json: bytes) -> RawTicker:
     return RawTicker(
         tuple(bars),
         MappingProxyType({s: tuple((e["kind"], e["record"]) for e in recs) for s, recs in doc["actions"].items()}),
+        tuple(SpinOffBars(f["symbol"], _date(f["first"]), _date(f["end"]), tuple(f["bars"])) for f in doc["spin_off_bars"]),
     )
 
 
 def _in_window(frame: pd.DataFrame, start: dt.date, end: dt.date) -> pd.DataFrame:
     keep = (frame[DATE] >= pd.Timestamp(start)) & (frame[DATE] < pd.Timestamp(end))
     return frame.loc[keep].reset_index(drop=True)
+
+
+def _search_from(rec: Mapping[str, Any]) -> dt.date:
+    """The day a spun-off security's close is searched from: the ex-date, or the payable date when later."""
+    ex = _date(rec["ex_date"])
+    return max(ex, _date(rec["payable_date"])) if rec.get("payable_date") else ex
+
+
+def stored_close(fetched: tuple[SpinOffBars, ...], symbol: str, ex: dt.date, last: dt.date) -> float:
+    """The first close of `symbol` from `ex` to `last` (exclusive) among the bars a download kept."""
+    for f in fetched:
+        if f.symbol == symbol and f.first <= ex and last <= f.end:
+            bars = _in_window(bar_frame(list(f.bars)), ex, last)
+            if bars.empty:
+                raise SpinOffPriceError(f"no close for spun-off {symbol} from {ex} to {last}")
+            return float(bars["close"].iloc[0])
+    raise MissingRawError(f"the download kept no bars of spun-off {symbol} from {ex}; download again")
 
 
 def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: dt.date) -> pd.DataFrame:
@@ -343,7 +402,11 @@ def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: 
         raise MissingRawError(f"{ticker}: the download kept no records under {ticker}; download again")
     recs = own_actions(list(raw.actions[ticker]), ticker)
     in_window = [(k, r) for k, r in recs if start <= _date(r["ex_date"]) < end]
-    actions = action_columns(in_window, ticker, rules.withholding)
+
+    def spin_off_close(symbol: str, ex: dt.date, last: dt.date) -> float:
+        return stored_close(raw.spin_off_bars, symbol, ex, last)
+
+    actions = action_columns(in_window, ticker, rules.withholding, spin_off_close, end)
     return join_actions(bars, actions, ticker)
 
 
@@ -367,12 +430,23 @@ class AlpacaSource:
         return apply_rules(self.fetch_raw(ticker, start, end), self.source_symbol(ticker), self._rules, start, end)
 
     def fetch_raw(self, ticker: str, start: dt.date, end: dt.date) -> RawTicker:
-        """What a download keeps: the ticker's bars and the records under its symbol."""
+        """What a download keeps: the ticker's bars, the records under its symbol, and spun-off bars.
+
+        The spun-off bars cover every spin-off in the window, from its ex-date
+        to `SPIN_OFF_FETCH` past the day the build searches from.
+        """
         symbol = self.source_symbol(ticker)
         bars = self._raw_bars(symbol, start, end)
         if not bars:
             return RawTicker(())
-        return RawTicker(tuple(bars), MappingProxyType({symbol: tuple(self._actions(symbol, start, end))}))
+        filed = {symbol: self._actions(symbol, start, end)}
+        wanted: dict[tuple[str, dt.date], dt.date] = {}
+        for kind, rec in own_actions(filed[symbol], symbol):
+            if kind == SPIN_OFFS and "new_symbol" in rec and rec.get("ex_date") and start <= _date(rec["ex_date"]) < end:
+                key = (rec["new_symbol"], _date(rec["ex_date"]))
+                wanted[key] = max(wanted.get(key, key[1]), min(_search_from(rec) + SPIN_OFF_FETCH, end))
+        spun = tuple(SpinOffBars(s, ex, last, tuple(self._raw_bars(s, ex, last))) for (s, ex), last in sorted(wanted.items()))
+        return RawTicker(tuple(bars), MappingProxyType({s: tuple(r) for s, r in filed.items()}), spun)
 
     def _raw_bars(self, symbol: str, start: dt.date, end: dt.date) -> list[Mapping[str, Any]]:
         params = {

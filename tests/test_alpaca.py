@@ -145,6 +145,51 @@ def test_stock_dividends_are_not_applied() -> None:
     assert (bars["split_ratio"] == 1.0).all()
 
 
+def _spin(parent: str, child: str, ex: str, rate: float, source_rate: float = 1, **extra) -> tuple[str, dict]:
+    return "spin_offs", {"id": f"{parent}-{child}", "source_symbol": parent, "source_rate": source_rate, "new_symbol": child,
+                         "new_rate": rate, "ex_date": ex, "process_date": ex, **extra}
+
+
+def test_spin_off_is_cash_at_the_new_security_close() -> None:
+    parent, child = truth(1), truth(2, price=20.0)
+    bars = source(fake_alpaca({"PAR": parent, "KID": child}, extra=[_spin("PAR", "KID", "2025-02-03", 0.5)])).fetch("PAR", START, END)
+    kid_close = float(child.loc[child["date"] == pd.Timestamp("2025-02-03"), "close"].iloc[0])
+    assert cash_on(bars, "2025-02-03") == pytest.approx(0.5 * kid_close)
+
+
+def test_spin_off_uses_first_close_after_ex_date_and_fails_without_one() -> None:
+    child = truth(2, price=20.0)
+    child = child.loc[child["date"] >= pd.Timestamp("2025-02-05")]
+    spin = _spin("PAR", "KID", "2025-02-03", 1, source_rate=2)
+    bars = source(fake_alpaca({"PAR": truth(1), "KID": child}, extra=[spin])).fetch("PAR", START, END)
+    assert cash_on(bars, "2025-02-03") == pytest.approx(0.5 * float(child["close"].iloc[0]))
+    with pytest.raises(alpaca.SpinOffPriceError):
+        source(fake_alpaca({"PAR": truth(1)}, extra=[spin])).fetch("PAR", START, END)
+
+
+def test_spin_off_with_a_split_on_its_ex_date_is_per_share_before_the_split() -> None:
+    # 0.5 of a new security per share held at the record date, and a one-for-two reverse split the same day.
+    parent, child = truth(1), truth(2, price=20.0)
+    split = ("reverse_splits", {"id": "rs", "symbol": "PAR", "ex_date": "2025-02-03", "process_date": "2025-02-03",
+                                "old_rate": 2, "new_rate": 1})
+    get = fake_alpaca({"PAR": parent, "KID": child}, extra=[_spin("PAR", "KID", "2025-02-03", 0.5), split])
+    bars = source(get).fetch("PAR", START, END)
+    kid_close = float(child.loc[child["date"] == pd.Timestamp("2025-02-03"), "close"].iloc[0])
+    day = bars.loc[bars["date"] == pd.Timestamp("2025-02-03")].iloc[0]
+    assert day["split_ratio"] == 0.5
+    # One old share is half a new share plus 0.5 KID: split_ratio * (close + cash) must equal that.
+    assert day["split_ratio"] * (day["close"] + day["cash"]) == pytest.approx(0.5 * day["close"] + 0.5 * kid_close)
+
+
+def test_spin_off_search_reaches_past_the_payable_date() -> None:
+    # Ex-date on the record date, distribution 17 days later, and no when-issued trading.
+    child = truth(2, price=20.0)
+    child = child.loc[child["date"] >= pd.Timestamp("2025-02-20")]
+    spin = _spin("PAR", "KID", "2025-02-03", 0.5, payable_date="2025-02-20")
+    bars = source(fake_alpaca({"PAR": truth(1), "KID": child}, extra=[spin])).fetch("PAR", START, END)
+    assert cash_on(bars, "2025-02-03") == pytest.approx(0.5 * float(child["close"].iloc[0]))
+
+
 def test_action_on_a_date_without_a_bar_fails() -> None:
     sparse = truth().drop(index=[5])
     missing = sparse["date"].min() + pd.tseries.offsets.BDay(5)
@@ -207,12 +252,13 @@ def _raw_snapshot(tmp_path, truths, extra, tickers):
 
 
 def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
-    truths = {"NEW": truth(1, cash={pd.Timestamp("2025-02-10"): 0.5})}
-    extra = [div("OTHER", "2025-01-08", 0.3)]
+    truths = {"NEW": truth(1, cash={pd.Timestamp("2025-02-10"): 0.5}), "KID": truth(2, price=20.0)}
+    extra = [div("OTHER", "2025-01-08", 0.3), _spin("NEW", "KID", "2025-02-03", 0.25)]
     src, snap = _raw_snapshot(tmp_path, truths, extra, ["NEW"])
     assert snap.raw and snap.tickers() == ["NEW"]
     stored = json.loads((snap.path / "actions" / "NEW.json").read_text())
     assert sorted(stored["actions"]) == ["NEW"]
+    assert [f["symbol"] for f in stored["spin_off_bars"]] == ["KID"]
     pd.testing.assert_frame_equal(snap.bars("NEW", Rules(NONE)), src.fetch("NEW", START, END))
 
 

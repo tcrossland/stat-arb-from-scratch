@@ -44,7 +44,7 @@ Splits and cash on their ex-dates. Key: `date`, `ticker`. Joins to `prices` on b
 | `date` | timestamp[ns] | ex-date |
 | `ticker` | string | ticker |
 | `split_ratio` | double | new shares per old share; 1 when none |
-| `cash` | double | cash per share going ex, gross of withholding (decision record 0004) |
+| `cash` | double | cash per share going ex, gross of withholding; spin-offs valued as cash (decision record 0004) |
 
 ## returns
 
