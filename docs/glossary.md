@@ -108,13 +108,17 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Lookback (*n*).** The number of days of residuals summed into the signal.
 
-**Decile portfolio.** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted.
+**Decile portfolio.** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted, half the gross on each side. Each leg holds the floor of 10% of the members with a signal.
 
 **Holding period (*k*) and slices.** Each day's decile portfolio is held for *k* days. The book is the average of the last *k* daily portfolios, so 1/*k* of it is replaced each day.
 
 **Raw-return control.** The same portfolio built from total returns instead of residuals, to show what the factor model adds.
 
 **s-score.** How far a stock's cumulated residual is from its equilibrium, in units of its equilibrium standard deviation, from an Ornstein-Uhlenbeck process fitted over a trailing window (Avellaneda and Lee, 2010). A threshold rule opens a position when it is far from zero and closes it near zero, so a position is held until the residual reverts. A phase 2 variant.
+
+**Portfolio rule.** What turns signals and universe membership into the book to hold: the decile sort with *k* slices, or the s-score's thresholds. It decides how often the book trades; the signal does not. A second seam beside the signal (`PortfolioRule`).
+
+**Threshold rule.** The s-score's portfolio rule: a position opens when the s-score crosses an opening threshold and is held unchanged until it crosses a closing one, the stock leaves the universe or its fit stops qualifying. Each position is hedged with its sector ETF and SPY at the betas of the day it opened.
 
 **Mean-reversion time.** In the s-score's fit, the trading days the cumulated residual takes to close 1 − 1/*e*, about 63%, of its distance to equilibrium, −1 / ln *b* for the AR(1) slope *b*. A stock trades only if it is under 30 days.
 
@@ -138,7 +142,13 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Placebo.** The signal shuffled among universe members each day. A correct engine earns nothing from it on average.
 
-**Experiment log.** `reports/phase-NN/experiments.jsonl`: one JSON object per backtest configuration run, with its configuration, seed, git commit and headline metrics.
+**Experiment log.** `reports/phase-NN/experiments.jsonl`: one JSON object per backtest configuration and cost level run, with its configuration and `config_id`, seed, run state and headline metrics ([data model](data-model.md#experiment-logs)).
+
+**Run state.** What an experiment log entry records beside the configuration: the git commit, whether the tree had changes, the config overlay and the price source and snapshot. It is kept out of the hashed configuration, so a configuration has one id whatever it ran on.
+
+**Config overlay.** A directory named in `STATARB_CONFIG_OVERLAY` whose TOML files are merged over those in `config/`, so an experiment changes a setting without editing a config file. It may set only keys the base file has.
+
+**Fill grid.** The fill times a backtest steps through, one per trading day: every close or every open. A book decided at the close of *t* is filled on the grid at *t* (same close), *t + 1* (next open or next close).
 
 **Gross and net return.** Gross is before trading and borrow costs; net is after them.
 
@@ -148,13 +158,13 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Maximum drawdown.** The largest fall in cumulative returns from a previous peak.
 
-**Hit rate.** The share of days, or of positions, with positive P&L.
+**Hit rate.** The share of days with positive net P&L (day hit rate), or of held position-days with positive gross P&L (position hit rate).
 
 **Break-even cost.** The flat one-way cost per dollar traded at which the net Sharpe ratio falls to zero.
 
-**Trial.** One distinct configuration run through the backtest. The best result is judged against how many were tried.
+**Trial.** One distinct position path run through the backtest: a configuration less its cost level, since costs change the P&L but not the positions. Counted across every experiment log in the repository; the best result is judged against how many there are.
 
-**Deflated Sharpe ratio.** Bailey and López de Prado (2014): the probability that a strategy's true Sharpe ratio is above zero, allowing for the number of trials and the non-normality of returns.
+**Deflated Sharpe ratio.** Bailey and López de Prado (2014): the probability that a strategy's true Sharpe ratio is above the best one expected by chance from that many trials with no edge, allowing for the non-normality of returns.
 
 ## Costs
 

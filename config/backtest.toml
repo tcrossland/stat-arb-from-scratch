@@ -1,0 +1,67 @@
+# Phase 2 backtest settings. See docs/phases/phase-02/brief.md.
+# Loaded by statarb.backtest.config, which rejects unknown or missing keys.
+# To try another setting, put it in a config overlay (STATARB_CONFIG_OVERLAY), never edit this file.
+
+[period]
+start = 2017-01-03           # first signal date: the first trading day of 2017; residuals begin 2016-10-04
+
+[run]
+seed = 0                     # seeds the placebo runs; nothing else in a backtest is random
+placebo_runs = 100           # shuffled-signal runs of the headline configuration in the report
+
+[portfolio]
+decile = 0.1                 # share of ranked members in each leg
+vol_window_days = 60         # for vol-scaled signals: rolling standard deviation of the series up to t
+vol_min_observations = 45
+
+[costs]
+levels_bps = [0, 2, 5, 10, 20]   # flat one-way cost per dollar traded
+headline_bps = 5
+# A realistic one-way cost for a retail account trading these stocks: commission-free
+# broker, half the quoted spread of a large, liquid US stock, no market impact at retail
+# size. An assumption until phase 3 builds a cost model.
+retail_bps = 5
+borrow_annual = 0.005        # flat rate on short notional
+
+[fills]
+timings = ["close_t", "open_t1", "close_t1"]
+headline = "open_t1"
+# Extra one-way slippage for filling at the same close the signal was computed from.
+# Stands in for trading a little before or after the close on a slightly stale signal.
+close_t_slippage_bps = 5
+
+[sweep]
+holding_days = [1, 2, 3, 5]
+
+[headline]
+signal = "residual"
+lookback_days = 1
+vol_scaled = false
+holding_days = 1
+
+# Decile reversal signals, each a registered signal chosen by name (statarb.signals.registry):
+# minus the series summed over the last lookback days, optionally divided by its rolling
+# volatility times sqrt(lookback). Each runs at every lookback, scaling and holding period.
+
+[[signals]]
+name = "residual"            # Model A residuals from phase 1
+lookbacks = [1, 3, 5]
+vol_scaled = [false, true]
+
+[[signals]]
+name = "raw"                 # total returns: the control for what the factor model adds
+lookbacks = [1, 3, 5]
+vol_scaled = [false, true]
+
+[sscore]
+# The registered signal "sscore" and its threshold rule: Avellaneda and Lee (2010),
+# section 4 and appendix. Each day, each stock's returns over the last window_days
+# (ending at t) are regressed on SPY and its sector ETF in excess of SPY; the cumulated
+# in-sample residual is fitted as an AR(1), read as an Ornstein-Uhlenbeck process.
+window_days = 60
+max_reversion_days = 30      # trade only if the mean-reversion time is under this many trading days
+open = 1.25                  # open long below -open, short above +open
+close_long = 0.50            # close a long once s rises above -close_long
+close_short = 0.75           # close a short once s falls below +close_short
+centre_means = true          # subtract the day's cross-sectional mean of m (their equation 18)
+position_weight = 0.01       # dollars per open stock position; returns are on gross, so the size does not matter

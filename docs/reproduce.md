@@ -58,7 +58,17 @@ Alpaca revises old data, so a snapshot taken later is not byte for byte the one 
    ```bash
    uv run python -m statarb.factors.sensitivity
    ```
-3. *(phase 2)* Run the baseline backtests.
+3. Run the phase 2 backtests from the phase 0 and 1 tables:
+
+   ```bash
+   uv run python -m statarb.backtest.run
+   ```
+
+   It reads `returns`, `prices`, `residuals`, `universe` and `sectors` from `data/derived/processed/` with `config/backtest.toml`, needs no network and stores no table. It runs every configuration of the sweep at each fill timing, appends one entry per configuration and cost level to `reports/phase-02/experiments.jsonl` with the run state beside it, and writes `reports/phase-02/backtest.md` and its charts. A rerun writes the same report and charts. Add `--no-log` to rebuild the report without adding entries; compare your entries with the committed ones by `config_id`. To try another setting, put it in a config overlay rather than editing `config/backtest.toml` ([architecture](architecture.md#data-flow)):
+
+   ```bash
+   STATARB_CONFIG_OVERLAY=path/to/overlay uv run python -m statarb.backtest.run
+   ```
 4. *(phase 3)* Run the cost model and its sweeps.
 5. *(phase 4)* Run the optimiser and Model B.
 6. *(phase 5)* Train the walk-forward models.
@@ -66,4 +76,4 @@ Alpaca revises old data, so a snapshot taken later is not byte for byte the one 
 
 ## Checking your results
 
-*(Phase 2 onwards)* Every result is logged with its configuration in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. Compare your reports with those, within the tolerance above.
+From phase 2, every backtest result is logged with its configuration and `config_id` in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. Compare your reports with those, within the tolerance above.

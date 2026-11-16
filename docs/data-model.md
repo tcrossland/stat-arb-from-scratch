@@ -2,7 +2,7 @@
 
 The stored tables, their columns and keys, and how they join. `tests/test_data_model_doc.py` checks the columns and types here against the tables the build writes.
 
-All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` by `statarb.factors.build` from them. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
+All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` by `statarb.factors.build` from them. Phase 2 stores no table: the backtest pivots these into dates by tickers panels in memory (`statarb.signals.tables`) and writes only its report and experiment log, below. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
 
 ## Raw snapshots
 
@@ -105,3 +105,18 @@ Model A's residual returns (phase 1): each candidate's daily return less what SP
 - `prices`, `actions`, `returns` and `residuals` join on `date` and `ticker`. Never rely on index alignment.
 - `universe` restricts any of them to members: an inner join on `date` and `ticker`. For residuals this happens at signal time, on the day a position would be formed, never in the table.
 - `sectors` joins on `ticker` with the date condition above, not on equality.
+
+## Experiment logs
+
+`reports/phase-NN/experiments.jsonl`, committed, append-only, one JSON object per line: one per backtest configuration and cost level each time a runner logs. Its fields:
+
+- `recorded_at`: the UTC time the entry was written, ISO 8601.
+- `git_commit`, `git_dirty`: the commit the code ran at, and whether the working tree had changes. The committed log comes from a clean tree.
+- `config_overlay`: the overlay directory (`STATARB_CONFIG_OVERLAY`) if one was set, else null.
+- `price_source`, `price_snapshot`: `[source] name` and `snapshot` of `config/data.toml` as the run read them.
+- `seed`: `[run] seed` of `config/backtest.toml`.
+- `config`: the configuration that set the positions and costs. In phase 2: `signal`, `source`, `lookback_days`, `vol_scaled`, `holding_days`, `fill`, `cost_bps`, `slippage_bps`, `borrow_annual`, `decile`, `start`, and for the s-score `sscore`, its settings.
+- `config_id`: the first 16 hex digits of the SHA-256 of `config` as JSON with sorted keys. The fields above it stay out of `config`, so the same configuration has the same id whatever code state, overlay or snapshot it ran on.
+- `metrics`: the headline metrics on gross exposure, annualised where the name says so; non-finite values are null.
+
+Key: none, since reruns repeat a `config_id`. A trial is a distinct `config_id` once `cost_bps` is removed from `config` (`statarb.backtest.trials`), counted across every phase's log.
