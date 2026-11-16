@@ -289,7 +289,8 @@ def test_repository_rules_parse_and_cite_their_sources() -> None:
     rules = alpaca.parse_rules(cfg)
     assert "ACN" in rules.withholding.net and "LIN" in rules.withholding.gross
     assert ("F", dt.date(2025, 2, 18)) in rules.corrections.repeats
-    for section in ("net", "repeat"):
+    assert rules.corrections.drops
+    for section in ("net", "repeat", "drop"):
         for entry in cfg.get(section, []):
             assert entry["source"].startswith("https://"), (section, entry)
 
@@ -302,6 +303,30 @@ def test_listed_repeats_are_separate_dividends() -> None:
     assert cash_on(source(get).fetch("XYZ", START, END), "2025-02-10") == 0.15
     with pytest.raises(ValueError, match="lacks"):
         alpaca.parse_repeats({"repeat": [{"symbol": "F", "ex_date": dt.date(2025, 2, 18)}]})
+
+
+# Hand-listed corrections -------------------------------------------------------------------------------
+
+SOURCE = {"note": "n", "source": "s"}
+
+
+def corrections(**sections) -> Corrections:
+    return alpaca.parse_corrections(sections)
+
+
+def test_listed_drops_remove_only_the_matching_record() -> None:
+    recs = [div("XYZ", "2025-02-10", 0.5), div("XYZ", "2025-02-10", 1.0625, rid="pref"), div("XYZ", "2025-02-20", 1.0625)]
+    fixes = corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), "rate": 1.0625, **SOURCE}])
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=recs), corrections=fixes).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-02-10") == 0.5 and cash_on(bars, "2025-02-20") == 1.0625
+
+
+def test_parse_corrections_validates() -> None:
+    entry = {"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), "rate": 0.5, **SOURCE}
+    with pytest.raises(ValueError, match="lacks"):
+        corrections(drop=[{k: v for k, v in entry.items() if k != "source"}])
+    with pytest.raises(ValueError, match="lacks"):
+        corrections(drop=[{k: v for k, v in entry.items() if k != "ex_date"}])
 
 
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------
@@ -322,6 +347,14 @@ def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
     assert sorted(stored["actions"]) == ["NEW", "OLD"]                    # every symbol the ticker has held
     assert [f["symbol"] for f in stored["spin_off_bars"]] == ["KID"]
     pd.testing.assert_frame_equal(snap.bars("NEW", Rules(NONE)), src.fetch("NEW", START, END))
+
+
+def test_a_correction_listed_after_the_download_needs_only_a_rebuild(tmp_path) -> None:
+    truths = {"XYZ": truth(1, cash={pd.Timestamp("2025-02-10"): 0.5})}
+    _, snap = _raw_snapshot(tmp_path, truths, [], ["XYZ"])
+    rules = Rules(NONE, corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), **SOURCE}]))
+    assert cash_on(snap.bars("XYZ", Rules(NONE)), "2025-02-10") == 0.5
+    assert cash_on(snap.bars("XYZ", rules), "2025-02-10") == 0.0
 
 
 def test_a_rule_failure_leaves_the_ticker_out_of_the_build_not_the_download(tmp_path) -> None:

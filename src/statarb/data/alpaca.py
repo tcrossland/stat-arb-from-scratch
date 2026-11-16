@@ -17,7 +17,8 @@ a changed rule or correction needs a rebuild, not a download:
 - a ticker's actions follow its name changes back, each symbol only for the
   dates the ticker held it;
 - a record seen twice is kept once, except the repeats `config/alpaca.toml`
-  lists as separate dividends.
+  lists as separate dividends;
+- `config/alpaca.toml` lists, each with its primary source, the records to drop.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -241,15 +242,40 @@ def parse_repeats(cfg: Mapping[str, Any]) -> frozenset[Repeat]:
 
 
 @dataclass(frozen=True)
+class Drop:
+    """A record Alpaca files that is not this security's action: by symbol, kind and ex-date, and amount when given."""
+
+    symbol: str
+    kind: str
+    ex_date: dt.date
+    rate: float | None = None
+
+    def matches(self, kind: str, rec: Mapping[str, Any]) -> bool:
+        return (
+            kind == self.kind
+            and action_symbol(kind, rec) == self.symbol
+            and bool(rec.get("ex_date"))
+            and _date(rec["ex_date"]) == self.ex_date
+            and (self.rate is None or abs(float(rec.get("rate", "nan")) - self.rate) < 1e-9)
+        )
+
+
+@dataclass(frozen=True)
 class Corrections:
     """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004)."""
 
     repeats: frozenset[Repeat] = frozenset()
+    drops: tuple[Drop, ...] = ()
 
 
 def parse_corrections(cfg: Mapping[str, Any]) -> Corrections:
-    """`config/alpaca.toml`: the `[[repeat]]` entries."""
-    return Corrections(parse_repeats(cfg))
+    """`config/alpaca.toml`: `[[repeat]]` and `[[drop]]`, each with its source."""
+    drops = []
+    for entry in cfg.get("drop", []):
+        _require("drop", entry, {"symbol", "kind", "ex_date", "note", "source"})
+        rate = None if entry.get("rate") is None else float(entry["rate"])
+        drops.append(Drop(entry["symbol"], entry["kind"], entry["ex_date"], rate))
+    return Corrections(parse_repeats(cfg), tuple(drops))
 
 
 @dataclass(frozen=True)
@@ -262,6 +288,13 @@ class Rules:
 
 def parse_rules(cfg: Mapping[str, Any]) -> Rules:
     return Rules(parse_withholding(cfg), parse_corrections(cfg))
+
+
+def corrected(symbol: str, recs: list[Record], corrections: Corrections) -> tuple[list[Record], list[Record]]:
+    """(records, dropped): the records filed under `symbol`, less the listed drops."""
+    dropped = [(k, r) for k, r in recs if any(d.matches(k, r) for d in corrections.drops)]
+    kept = [(k, r) for k, r in recs if not any(d.matches(k, r) for d in corrections.drops)]
+    return kept, dropped
 
 
 def records(responses: Iterable[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
@@ -513,7 +546,7 @@ def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: 
     def query(symbol: str) -> list[Record]:
         if symbol not in raw.actions:
             raise MissingRawError(f"{ticker}: the download kept no records under {symbol}; download again")
-        return list(raw.actions[symbol])
+        return corrected(symbol, list(raw.actions[symbol]), rules.corrections)[0]
 
     recs, _ = ticker_actions(query, ticker)
     recs, _ = dedupe(recs, rules.corrections.repeats)
@@ -550,8 +583,8 @@ class AlpacaSource:
 
         The symbols follow Alpaca's name changes back, as the build will. The
         spun-off bars cover every spin-off in the window under those symbols,
-        from its ex-date to `SPIN_OFF_FETCH` past the day the build searches
-        from.
+        before or after the corrections, from its ex-date to `SPIN_OFF_FETCH`
+        past the day the build searches from.
         """
         symbol = self.source_symbol(ticker)
         bars = self._raw_bars(symbol, start, end)
@@ -561,11 +594,12 @@ class AlpacaSource:
 
         def query(s: str) -> list[Record]:
             filed[s] = self._actions(s, start, end)
-            return filed[s]
+            return corrected(s, filed[s], self._rules.corrections)[0]
 
         found, _ = ticker_actions(query, symbol)
+        own = [(k, r) for s, recs in filed.items() for k, r in recs if action_symbol(k, r) == s]
         wanted: dict[tuple[str, dt.date], dt.date] = {}
-        for kind, rec in found:
+        for kind, rec in [*found, *own]:
             if kind == SPIN_OFFS and "new_symbol" in rec and rec.get("ex_date") and start <= _date(rec["ex_date"]) < end:
                 key = (rec["new_symbol"], _date(rec["ex_date"]))
                 wanted[key] = max(wanted.get(key, key[1]), min(_search_from(rec) + SPIN_OFF_FETCH, end))

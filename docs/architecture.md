@@ -65,7 +65,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
-| `alpaca.toml` | `statarb.data.alpaca` | Withholding on foreign dividends and repeated dividends in Alpaca's corporate actions, each with a primary source. |
+| `alpaca.toml` | `statarb.data.alpaca` | Withholding, repeated dividends and corrections to Alpaca's corporate actions, each with a primary source. |
 
 ## External libraries
 

@@ -22,6 +22,11 @@
 # are kept once. Each [[repeat]] is a symbol and ex-date whose records are
 # separate dividends, all kept.
 #
+# Corrections (rule 11). Each entry is filed under the symbol the security
+# held on its ex-date, as Alpaca's records are. [[drop]] removes a record
+# that is not the security's own, matched by symbol, kind, ex-date and, when
+# given, rate.
+
 gross = [
   "ACGL", "AMCR", "APTV", "BG", "CB", "CCL", "EG", "FERG", "GRMN", "IVZ",
   "JBL", "LIN", "LYB", "MRVL", "PFE", "PNR", "RCL", "SLB",
@@ -148,3 +153,98 @@ rate = 0.25
 start = 2023-06-29
 source = "https://www.sec.gov/Archives/edgar/data/1140536/000095017023035063/wtw-20230630.htm"
 note = "Form 10-Q: dividend paid 2023-07-17 to holders of record 2023-06-30; ex 2023-06-29 (T+2)."
+
+[[drop]]
+symbol = "LMT"
+kind = "cash_dividends"
+ex_date = 2021-03-09
+rate = 5.0
+note = "Aerojet Rocketdyne's special dividend before Lockheed Martin's planned acquisition (ex-date 2021-03-09, MIAX notice 48353), filed under LMT; LMT declared only its $2.60 regular dividend in the quarter"
+source = "https://www.sec.gov/Archives/edgar/data/936468/000093646821000044/lmt-20210328.htm"
+
+[[drop]]
+symbol = "MAA"
+kind = "cash_dividends"
+ex_date = 2021-09-14
+rate = 1.0625
+note = "the quarterly dividend on MAA's 8.50% Series I preferred shares ($50 liquidation preference), record 2021-09-15, filed under the common symbol"
+source = "https://www.sec.gov/Archives/edgar/data/912595/000095017021002470/maa-20210930.htm"
+
+[[drop]]
+symbol = "IR"
+kind = "reverse_splits"
+ex_date = 2020-03-02
+note = "the exchange ratio of 0.8824 Gardner Denver shares per share of Ingersoll Rand's industrial business, filed as a split; Gardner Denver's own shares, renamed Ingersoll Rand Inc., were not split"
+source = "https://investors.tranetechnologies.com/news-and-events/news-releases/news-release-details/2020/Trane-Technologies-Completes-Reverse-Morris-Trust-Transaction-and-Begins-Trading-Today-on-NYSE/default.aspx"
+
+[[drop]]
+symbol = "IR"
+kind = "cash_dividends"
+ex_date = 2020-03-12
+rate = 0.53
+note = "declared by Ingersoll-Rand plc, which became Trane Technologies (TT) on 2020-03-02 and has the record under TT too; Ingersoll Rand Inc. paid no dividend in 2020"
+source = "https://investors.tranetechnologies.com/news-and-events/news-releases/news-release-details/2020/Ingersoll-Rand-Reports-Results-of-Voting-from-Extraordinary-General-Meeting-and-Declares-Quarterly-Dividend/default.aspx"
+
+[[drop]]
+symbol = "AEE"
+kind = "cash_dividends"
+ex_date = 2016-04-20
+rate = 0.425
+note = "the Union Electric (Ameren Missouri) preferred dividends of record 2016-04-22, filed under AEE; Ameren's common dividends went ex 2016-03-07 and 2016-06-06, both in Alpaca"
+source = "https://ameren.mediaroom.com/2016-02-12-Ameren-Corporation-Directors-Declare-Quarterly-Dividend"
+
+[[drop]]
+symbol = "FOX"
+kind = "cash_dividends"
+ex_date = 2019-04-05
+rate = 0.18
+note = "Twenty-First Century Fox's contingent dividend of record 2019-04-08, filed under FOX; Fox Corporation's first dividend was $0.23 of record 2019-05-20"
+source = "https://investor.foxcorporation.com/news/corp-press-releases/2019/fox-corporation-announces-semi-annual-dividend/"
+
+[[drop]]
+symbol = "FOXA"
+kind = "cash_dividends"
+ex_date = 2019-04-05
+rate = 0.18
+note = "Twenty-First Century Fox's contingent dividend of record 2019-04-08, filed under FOXA; Fox Corporation's first dividend was $0.23 of record 2019-05-20"
+source = "https://investor.foxcorporation.com/news/corp-press-releases/2019/fox-corporation-announces-semi-annual-dividend/"
+
+[[drop]]
+symbol = "GRMN"
+kind = "cash_dividends"
+ex_date = 2016-03-11
+rate = 0.51
+note = "a copy at the superseded schedule's ex-date; the record date was set to 2016-03-16, and Alpaca also has the dividend going ex 2016-03-14"
+source = "https://www.sec.gov/Archives/edgar/data/0001121788/000161577416004235/s102663_ex99-1.htm"
+
+[[drop]]
+symbol = "LNT"
+kind = "cash_dividends"
+ex_date = 2019-08-14
+rate = 0.40625
+note = "the quarterly rate on Wisconsin Power and Light's 6.50% preferred, redeemed in full on 2013-03-20; Alliant's dividend that quarter went ex 2019-07-30, in Alpaca"
+source = "https://www.sec.gov/Archives/edgar/data/0000107832/000119312513055634/d486026dex991.htm"
+
+[[drop]]
+symbol = "QCOM"
+kind = "cash_dividends"
+ex_date = 2018-02-15
+rate = 0.57
+note = "a copy at the wrong ex-date; the dividend was of record 2018-02-28, and Alpaca also has it going ex 2018-02-27"
+source = "https://investor.qualcomm.com/news-events/press-releases/news-details/2018/Qualcomm-Announces-Quarterly-Cash-Dividend-01-12-2018/default.aspx"
+
+[[drop]]
+symbol = "SRE"
+kind = "cash_dividends"
+ex_date = 2016-12-07
+rate = 0.375
+note = "the SoCalGas preferred dividend rate, filed under SRE; Sempra's common dividend that quarter was $0.755 of record 2016-12-29"
+source = "https://sempra.mediaroom.com/2016-12-16-Sempra-Energy-Declares-Common-Dividend"
+
+[[drop]]
+symbol = "TMUS"
+kind = "cash_dividends"
+ex_date = 2016-08-30
+rate = 0.6875
+note = "the dividend on T-Mobile's 5.50% mandatory convertible preferred, Series A, of record 2016-09-01; T-Mobile had never paid a dividend on its common stock"
+source = "https://www.sec.gov/Archives/edgar/data/1283699/000128369917000010/tmus12312016form10-k.htm"

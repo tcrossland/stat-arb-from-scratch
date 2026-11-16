@@ -8,7 +8,7 @@ Statistics only: no price, volume or return of any ticker on any date.
 - Price source: alpaca, basis unadjusted, snapshot 2026-11-16, digest a28ff7224e60, bars before 2026-11-16
 - Trading days: 2733 (2016-01-04 to 2026-11-13)
 - Candidates: 503; tickers with prices: 515
-- Price rows: 1349238; returns: 1348723; split days: 110; days with cash: 16652
+- Price rows: 1349238; returns: 1348723; split days: 109; days with cash: 16641
 
 ## Tickers with no data
 
@@ -64,7 +64,7 @@ None.
 
 ## Split days
 
-Split days: 110; with an absolute return above 25%: 1 (EQT).
+Split days: 109; with an absolute return above 25%: 1 (EQT).
 
 ## Returns spanning missing trading days
 

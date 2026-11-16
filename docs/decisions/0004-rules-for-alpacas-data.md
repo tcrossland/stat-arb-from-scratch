@@ -5,9 +5,9 @@
 
 ## Context
 
-Decision record 0003 makes Alpaca the only price source and says the rules for using its data are found while building phase 0 and recorded in a record of their own. Alpaca returns daily bars and corporate-action records separately. Turning them into unadjusted bars with a `cash` and a `split_ratio` column on each ex-date, the form the canonical step and the return calculation expect, needs choices about which bars and records to trust and how to read them. A few of its records need information Alpaca does not give.
+Decision record 0003 makes Alpaca the only price source and says the rules for using its data are found while building phase 0 and recorded in a record of their own. Alpaca returns daily bars and corporate-action records separately. Turning them into unadjusted bars with a `cash` and a `split_ratio` column on each ex-date, the form the canonical step and the return calculation expect, needs choices about which bars and records to trust and how to read them. Some of Alpaca's records are wrong or missing, and a few need information Alpaca does not give.
 
-Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.apply_rules`, called from `statarb.data.snapshot`), never at download time, so a changed rule needs a rebuild, not a new download. The rules that need data, such as withholding periods and repeated dividends, live in `config/alpaca.toml`.
+Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.apply_rules`, called from `statarb.data.snapshot`), never at download time, so a changed rule or correction needs a rebuild, not a new download. The rules that need data, such as withholding periods and corrections, live in `config/alpaca.toml`.
 
 ## Decision
 
@@ -21,6 +21,7 @@ Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.app
 8. **Spin-offs.** A spin-off is valued as cash to the parent's holders: the share ratio times the spun-off security's first close on or after the ex-date (or the payable date, when later), searched for ten days. On an ex-date that also has a split, the ratio counts shares held before the split, so the cash is divided by the split ratio.
 9. **Symbols.** A ticker's actions follow its name changes back. Each symbol counts only for the dates the ticker held it, from the name change into it to the change away from it, because Alpaca reuses symbols across securities and a ticker can hold the same symbol twice.
 10. **Duplicates.** Records with the same id are one record. Records equal in everything but how they were filed (id, CUSIP, the special flag, and the process, payable, record and redemption dates) are one event and kept once. Config lists the symbol and ex-date pairs whose identical records are separate dividends, all kept.
+11. **Corrections need primary sources.** `config/alpaca.toml` drops records that are not the security's own (matched by symbol, kind, ex-date and, when given, amount). Every entry cites the issuer's announcement or filing, or the exchange: never another price source.
 
 ## Consequences
 
