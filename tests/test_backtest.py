@@ -235,6 +235,9 @@ def test_report_and_charts_are_identical_on_a_rerun(tmp_path) -> None:
     for f in files[1:]:
         data = (tmp_path / "a" / "phase-02" / f).read_bytes()
         assert b"Software" not in data and b"Creation Time" not in data
+    text = (tmp_path / "a" / "phase-02" / "backtest.md").read_text()
+    for section in ("## By year", "## By sector", "## By size", "## Placebo", "## Configurations tried"):
+        assert section in text
 
 
 def test_targets_and_pnl_have_no_look_ahead() -> None:
