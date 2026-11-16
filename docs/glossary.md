@@ -56,6 +56,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Gross and net dividend.** The amount the issuer declares, and that amount less the tax its home country withholds. Returns use the gross amount (decision record 0004).
 
+**Listing start.** The first date of a ticker's own trading, where the source's history begins earlier under another security or a pre-merger shell. Listed with sources in `config/listing_starts.toml`.
+
 **New York date.** The calendar date in New York, where the exchanges are. Trading dates and a download's cut-off use it, whatever the machine's time zone.
 
 **Dated sector.** A stock's GICS sector with the dates it applied, so a reclassification changes the sector from its effective date only.

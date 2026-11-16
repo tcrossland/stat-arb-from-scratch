@@ -29,7 +29,7 @@ from statarb.config import load_config, raw_store, repo_root, resolve_path
 from statarb.data import cache, snapshot
 from statarb.data.alpaca import AlpacaSource, Rules, parse_rules
 from statarb.data.canonical import to_unadjusted
-from statarb.data.clean import clean_bars
+from statarb.data.clean import clean_bars, parse_listing_starts
 from statarb.data.quality import QualityInputs, render_report
 from statarb.data.returns import total_returns
 from statarb.data.schema import DATE, TICKER, exchange_today
@@ -164,6 +164,7 @@ def build(
     changes: list[dict[str, Any]],
     constituent_source: ConstituentSource,
     price_source_name: str,
+    listing_starts: list[dict[str, Any]] | None = None,
     rules: Rules | None = None,
 ) -> BuildOutputs:
     """The phase 0 tables and quality report, from the snapshots under `raw_root` alone."""
@@ -197,7 +198,7 @@ def build(
     calendar = pd.DatetimeIndex(sorted(raw_bars.loc[raw_bars[TICKER] == market, DATE].unique()))
     if len(calendar) == 0:
         raise ValueError(f"no bars for the market instrument {market}")
-    bars, drops = clean_bars(raw_bars, calendar)
+    bars, drops = clean_bars(raw_bars, calendar, listing_starts=parse_listing_starts(listing_starts or []))
 
     prices = bars[[DATE, TICKER, "open", "high", "low", "close", "volume"]].astype({"volume": "int64"})
     actions = bars.loc[(bars["split_ratio"] != 1.0) | (bars["cash"] != 0.0), [DATE, TICKER, "split_ratio", "cash"]]
@@ -267,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config("data", root)
     universe_cfg = load_config("universe", root)
     changes = load_config("sector_changes", root).get("change", [])
+    listing_starts = load_config("listing_starts", root).get("start", [])
     raw_root = raw_store(cfg["paths"]["raw"], root)
     name = cfg["source"]["name"]
     if name not in PRICE_SOURCES:
@@ -283,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         d = cfg["download"]
         download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], today, d["pause_seconds"], d["retries"])
 
-    out = build(raw_root, cfg, universe_cfg, changes, constituents, name, rules)
+    out = build(raw_root, cfg, universe_cfg, changes, constituents, name, listing_starts, rules)
     write_outputs(out, resolve_path(cfg["paths"]["processed"], root), resolve_path(cfg["paths"]["reports"], root))
     _log("build complete")
     return 0
