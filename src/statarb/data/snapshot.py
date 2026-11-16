@@ -2,8 +2,8 @@
 
 A snapshot of a source with `layout = "raw"` (Alpaca, decision record 0004)
 keeps what the source returned: `bars/<ticker>.parquet` with the source's own
-bar fields, and `actions/<ticker>.json` with the action records under its
-symbol and the bars of the securities it spun off. Its
+bar fields, and `actions/<ticker>.json` with the action records under each
+symbol the ticker has held and the bars of the securities it spun off. Its
 bars are made here, by the source's rules as they stand in config, so a
 changed rule or correction needs a rebuild, not a download. A ticker whose
 raw data fails a rule is left out and reported, as a failed download is.

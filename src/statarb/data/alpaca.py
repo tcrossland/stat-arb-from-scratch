@@ -3,8 +3,8 @@
 Daily bars come raw (`adjustment=raw`) from the consolidated feed (`feed=sip`),
 so the basis is unadjusted. Splits, dividends and spin-offs come from
 `/v1/corporate-actions`. A download keeps what Alpaca returns (`fetch_raw`):
-the ticker's bars, the action records under its symbol, and the bars of each
-security it spun off. The build turns them into the `cash` and
+the ticker's bars, the action records under each symbol it has held, and the
+bars of each security it spun off. The build turns them into the `cash` and
 `split_ratio` columns (`apply_rules`) by the rules in decision record 0004, so
 a changed rule or correction needs a rebuild, not a download:
 
@@ -13,7 +13,9 @@ a changed rule or correction needs a rebuild, not a download:
   actions by ex-date;
 - a dividend Alpaca reports net of withholding tax is grossed up from
   `config/alpaca.toml`;
-- a spin-off is cash: the share ratio times the spun-off security's close.
+- a spin-off is cash: the share ratio times the spun-off security's close;
+- a ticker's actions follow its name changes back, each symbol only for the
+  dates the ticker held it.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -240,9 +242,59 @@ def _date(value: str) -> dt.date:
     return dt.date.fromisoformat(value)
 
 
-def own_actions(recs: list[tuple[str, dict[str, Any]]], symbol: str) -> list[tuple[str, dict[str, Any]]]:
-    """The records filed under `symbol` that are its own actions, with an ex-date."""
-    return [(kind, rec) for kind, rec in recs if kind != NAME_CHANGES and action_symbol(kind, rec) == symbol and rec.get("ex_date")]
+@dataclass(frozen=True)
+class SymbolWindow:
+    """A symbol the ticker held, for ex-dates from `start` (inclusive) to `end` (exclusive); None is open."""
+
+    symbol: str
+    start: dt.date | None
+    end: dt.date | None
+
+    def holds(self, ex: dt.date) -> bool:
+        return (self.start is None or ex >= self.start) and (self.end is None or ex < self.end)
+
+
+def renames_into(recs: list[tuple[str, dict[str, Any]]], symbol: str, before: dt.date | None) -> list[tuple[str, dt.date]]:
+    """(old symbol, date) of each name change into `symbol`, before `before` when given."""
+    out = []
+    for kind, rec in recs:
+        if kind == NAME_CHANGES and rec.get("new_symbol") == symbol and rec.get("old_symbol") != symbol:
+            day = _date(rec["process_date"])
+            if before is None or day < before:
+                out.append((rec["old_symbol"], day))
+    return sorted(out, key=lambda c: c[1])
+
+
+def ticker_actions(
+    query: Callable[[str], list[tuple[str, dict[str, Any]]]], ticker: str
+) -> tuple[list[tuple[str, dict[str, Any]]], list[SymbolWindow]]:
+    """Every action of `ticker`, following its name changes back.
+
+    `query(symbol)` returns the records filed under a symbol. A symbol's own
+    records count only while the ticker held it: from the latest name change
+    into it (earlier records under the same symbol belong to another security)
+    until the change away from it. A ticker can hold a symbol more than once
+    (FISV, then FI, then FISV again), so each holding is its own window; every
+    step goes to an earlier date, so the walk ends.
+    """
+    found: list[tuple[str, dict[str, Any]]] = []
+    windows: list[SymbolWindow] = []
+    pending: list[tuple[str, dt.date | None]] = [(ticker, None)]
+    filed: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    while pending:
+        symbol, until = pending.pop()
+        if symbol not in filed:
+            filed[symbol] = query(symbol)
+        recs = filed[symbol]
+        changes = renames_into(recs, symbol, until)
+        window = SymbolWindow(symbol, changes[-1][1] if changes else None, until)
+        windows.append(window)
+        found += [
+            (kind, rec) for kind, rec in recs
+            if kind != NAME_CHANGES and action_symbol(kind, rec) == symbol and rec.get("ex_date") and window.holds(_date(rec["ex_date"]))
+        ]
+        pending += changes
+    return found, windows
 
 
 def action_columns(
@@ -337,8 +389,9 @@ class SpinOffBars:
 class RawTicker:
     """What a download keeps for one ticker, as Alpaca returned it.
 
-    `actions` holds the records under the ticker's symbol, by symbol, before
-    any rule; `spin_off_bars` the bars of each security spun off in the window.
+    `actions` holds the records under each symbol the ticker has held, by that
+    symbol, before any rule; `spin_off_bars` the bars of each security spun off
+    in the window.
     """
 
     bars: tuple[Mapping[str, Any], ...]
@@ -398,9 +451,12 @@ def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: 
     if bars.empty:
         return normalise_bars(bars.assign(cash=0.0, split_ratio=1.0))
 
-    if ticker not in raw.actions:
-        raise MissingRawError(f"{ticker}: the download kept no records under {ticker}; download again")
-    recs = own_actions(list(raw.actions[ticker]), ticker)
+    def query(symbol: str) -> list[Record]:
+        if symbol not in raw.actions:
+            raise MissingRawError(f"{ticker}: the download kept no records under {symbol}; download again")
+        return list(raw.actions[symbol])
+
+    recs, _ = ticker_actions(query, ticker)
     in_window = [(k, r) for k, r in recs if start <= _date(r["ex_date"]) < end]
 
     def spin_off_close(symbol: str, ex: dt.date, last: dt.date) -> float:
@@ -430,18 +486,26 @@ class AlpacaSource:
         return apply_rules(self.fetch_raw(ticker, start, end), self.source_symbol(ticker), self._rules, start, end)
 
     def fetch_raw(self, ticker: str, start: dt.date, end: dt.date) -> RawTicker:
-        """What a download keeps: the ticker's bars, the records under its symbol, and spun-off bars.
+        """What a download keeps: the ticker's bars, the records under each symbol it has held, and spun-off bars.
 
-        The spun-off bars cover every spin-off in the window, from its ex-date
-        to `SPIN_OFF_FETCH` past the day the build searches from.
+        The symbols follow Alpaca's name changes back, as the build will. The
+        spun-off bars cover every spin-off in the window under those symbols,
+        from its ex-date to `SPIN_OFF_FETCH` past the day the build searches
+        from.
         """
         symbol = self.source_symbol(ticker)
         bars = self._raw_bars(symbol, start, end)
         if not bars:
             return RawTicker(())
-        filed = {symbol: self._actions(symbol, start, end)}
+        filed: dict[str, list[Record]] = {}
+
+        def query(s: str) -> list[Record]:
+            filed[s] = self._actions(s, start, end)
+            return filed[s]
+
+        found, _ = ticker_actions(query, symbol)
         wanted: dict[tuple[str, dt.date], dt.date] = {}
-        for kind, rec in own_actions(filed[symbol], symbol):
+        for kind, rec in found:
             if kind == SPIN_OFFS and "new_symbol" in rec and rec.get("ex_date") and start <= _date(rec["ex_date"]) < end:
                 key = (rec["new_symbol"], _date(rec["ex_date"]))
                 wanted[key] = max(wanted.get(key, key[1]), min(_search_from(rec) + SPIN_OFF_FETCH, end))

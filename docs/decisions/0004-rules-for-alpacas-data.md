@@ -19,6 +19,7 @@ Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.app
 6. **Failures.** A ticker whose data breaks a rule (an action going ex on a day inside its window with no bar, a spin-off with no close, or an unlisted foreign dividend) is left out of the build and listed in the quality report with the reason, as a failed download is. The build never guesses.
 7. **Histories and listing starts.** Some tickers carry bars from before their own listing: when-issued trading, a SPAC's shell, or another security that held the symbol. Those bars have real volume, so no rule on the bars finds them: `config/listing_starts.toml` gives each such ticker's first date with its source, and cleaning drops the bars before it.
 8. **Spin-offs.** A spin-off is valued as cash to the parent's holders: the share ratio times the spun-off security's first close on or after the ex-date (or the payable date, when later), searched for ten days. On an ex-date that also has a split, the ratio counts shares held before the split, so the cash is divided by the split ratio.
+9. **Symbols.** A ticker's actions follow its name changes back. Each symbol counts only for the dates the ticker held it, from the name change into it to the change away from it, because Alpaca reuses symbols across securities and a ticker can hold the same symbol twice.
 
 ## Consequences
 

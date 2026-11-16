@@ -45,6 +45,10 @@ def div(symbol: str, ex: str, rate: float, foreign: bool = False, rid: str | Non
     return "cash_dividends", rec
 
 
+def rename(old: str, new: str, day: str) -> tuple[str, dict]:
+    return "name_changes", {"id": f"{old}-{new}", "old_symbol": old, "new_symbol": new, "process_date": day}
+
+
 def cash_on(bars: pd.DataFrame, day: str) -> float:
     return float(bars.loc[bars["date"] == pd.Timestamp(day), "cash"].iloc[0])
 
@@ -198,6 +202,35 @@ def test_action_on_a_date_without_a_bar_fails() -> None:
         source(fake_alpaca({"XYZ": sparse}, extra=[rec])).fetch("XYZ", START, END)
 
 
+def test_actions_follow_renames_and_drop_a_reused_symbol() -> None:
+    # The ticker took NEW on 2025-02-01. Before that, NEW was another security's symbol, and the ticker's
+    # actions were filed under OLD; after it, OLD's actions belong to no one we hold.
+    recs = [
+        rename("OLD", "NEW", "2025-02-01"),
+        div("OLD", "2025-01-15", 0.3),
+        div("OLD", "2025-02-12", 9.9),
+        div("NEW", "2025-01-20", 0.05),
+        div("NEW", "2025-02-14", 0.35),
+    ]
+    bars = source(fake_alpaca({"NEW": truth()}, extra=recs)).fetch("NEW", START, END)
+    paid = bars.loc[bars["cash"] > 0, ["date", "cash"]]
+    assert paid["date"].dt.strftime("%Y-%m-%d").tolist() == ["2025-01-15", "2025-02-14"]
+    assert paid["cash"].tolist() == [0.3, 0.35]
+
+
+def test_a_ticker_can_hold_a_symbol_twice() -> None:
+    # XYZ became ABC on 2025-02-01 and took XYZ back on 2025-02-15.
+    recs = [
+        rename("XYZ", "ABC", "2025-02-01"),
+        rename("ABC", "XYZ", "2025-02-15"),
+        div("XYZ", "2025-01-15", 0.1),
+        div("ABC", "2025-02-05", 0.2),
+        div("XYZ", "2025-02-20", 0.3),
+    ]
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=recs)).fetch("XYZ", START, END)
+    assert bars.loc[bars["cash"] > 0, "cash"].tolist() == [0.1, 0.2, 0.3]
+
+
 # Withholding -------------------------------------------------------------------------------------------
 
 
@@ -253,11 +286,11 @@ def _raw_snapshot(tmp_path, truths, extra, tickers):
 
 def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
     truths = {"NEW": truth(1, cash={pd.Timestamp("2025-02-10"): 0.5}), "KID": truth(2, price=20.0)}
-    extra = [div("OTHER", "2025-01-08", 0.3), _spin("NEW", "KID", "2025-02-03", 0.25)]
+    extra = [rename("OLD", "NEW", "2025-01-20"), div("OLD", "2025-01-08", 0.3), _spin("NEW", "KID", "2025-02-03", 0.25)]
     src, snap = _raw_snapshot(tmp_path, truths, extra, ["NEW"])
     assert snap.raw and snap.tickers() == ["NEW"]
     stored = json.loads((snap.path / "actions" / "NEW.json").read_text())
-    assert sorted(stored["actions"]) == ["NEW"]
+    assert sorted(stored["actions"]) == ["NEW", "OLD"]                    # every symbol the ticker has held
     assert [f["symbol"] for f in stored["spin_off_bars"]] == ["KID"]
     pd.testing.assert_frame_equal(snap.bars("NEW", Rules(NONE)), src.fetch("NEW", START, END))
 
