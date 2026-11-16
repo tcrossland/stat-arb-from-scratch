@@ -111,6 +111,7 @@ def test_report_writes_identical_bytes_with_no_chart_metadata(tmp_path) -> None:
     assert f"to {FACTOR_CAL[-1].date()}" in text
     assert "## Residuals in March 2020 compared with 2020" in text
     assert "| Information Technology |" in text          # a sector with five names a day has a row
+    assert "| year | lag-1 daily rank mean | t | raw returns mean | raw returns t | days |" in text
 
 
 def test_report_config_rejects_unknown_keys() -> None:

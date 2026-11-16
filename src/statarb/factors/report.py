@@ -84,10 +84,10 @@ def daily_rank_correlation(x: pd.Series, y: pd.Series, keys: list[pd.Series], mi
 
 
 def summarise(daily: pd.Series) -> dict[str, float]:
-    """Mean of a daily series, with a t-statistic that treats days as independent."""
+    """Mean and standard deviation of a daily series, with a t-statistic that treats days as independent."""
     n = len(daily)
     mean, sd = daily.mean(), daily.std()
-    return {"mean": mean, "t": mean / (sd / np.sqrt(n)) if n > 1 and sd > 0 else np.nan, "days": n}
+    return {"mean": mean, "sd": sd, "t": mean / (sd / np.sqrt(n)) if n > 1 and sd > 0 else np.nan, "days": n}
 
 
 def average_pairwise_correlation(panel: pd.DataFrame) -> float:
@@ -231,7 +231,7 @@ def diagnostics(
         pooled = members["residual"].corr(lead_k)
         s = summarise(daily_rank_correlation(members["residual"], lead_k, by_date))
         lag_rows.append((k, fmt(pooled), fmt(s["mean"], 4), fmt(s["t"], 1)))
-    raw1 = _lag1(members, "ret", "ret_lead1")
+    res1, raw1 = _lag1(members), _lag1(members, "ret", "ret_lead1")
     out += [
         "## Residual autocorrelation",
         "",
@@ -240,15 +240,18 @@ def diagnostics(
         "",
         table(pd.DataFrame(lag_rows, columns=["lag", "pooled Pearson", "daily rank mean", "daily rank t"])),
         "",
-        f"For comparison, raw returns at lag 1: daily rank mean {raw1['mean']:.4f} (t {raw1['t']:.1f}).",
+        f"For comparison, raw returns at lag 1: daily rank mean {raw1['mean']:.4f} (t {raw1['t']:.1f}). The daily",
+        f"values' standard deviation is {res1['sd']:.4f} for residuals and {raw1['sd']:.4f} for raw returns.",
         "",
     ]
     yearly_rows, yearly_means = [], []
     for year, grp in members.groupby("year"):
-        s = _lag1(grp)
-        yearly_rows.append((year, fmt(s["mean"], 4), fmt(s["t"], 1), s["days"]))
+        s, r = _lag1(grp), _lag1(grp, "ret", "ret_lead1")
+        yearly_rows.append((year, fmt(s["mean"], 4), fmt(s["t"], 1), fmt(r["mean"], 4), fmt(r["t"], 1), s["days"]))
         yearly_means.append(float(fmt(s["mean"], 4) or "nan"))   # the bar is the value the table prints
-    yearly_ac = pd.DataFrame(yearly_rows, columns=["year", "lag-1 daily rank mean", "t", "days"])
+    yearly_ac = pd.DataFrame(
+        yearly_rows, columns=["year", "lag-1 daily rank mean", "t", "raw returns mean", "raw returns t", "days"]
+    )
     fig = Figure(figsize=(9, 3.5))
     ax = fig.subplots()
     ax.bar(yearly_ac.year, yearly_means)
