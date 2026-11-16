@@ -1,8 +1,8 @@
-# Rules for Alpaca's corporate actions (decision record 0004).
+# Rules and corrections for Alpaca's corporate actions (decision record 0004).
 # Loaded by statarb.data.alpaca.parse_rules and applied by the build to the raw
 # snapshot, so a change here needs a rebuild, not a download. Every value is
-# from the issuer, its filings or the tax authority, never from another price
-# source.
+# from the issuer, its filings, the fund sponsor or the exchange, never from
+# another price source.
 #
 # Withholding (rule 4). Alpaca flags dividends of foreign issuers `foreign`, but
 # the flag does not say whether the amount is net of withholding tax: from 2023
@@ -18,10 +18,20 @@
 # Dutch Tax Administration,
 # https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/dividendbelasting/als_u_dividend_uitkeert
 #
+# Repeated dividends (rule 10). Records that differ only in how they were filed
+# are kept once. Each [[repeat]] is a symbol and ex-date whose records are
+# separate dividends, all kept.
+#
 gross = [
   "ACGL", "AMCR", "APTV", "BG", "CB", "CCL", "EG", "FERG", "GRMN", "IVZ",
   "JBL", "LIN", "LYB", "MRVL", "PFE", "PNR", "RCL", "SLB",
 ]
+
+[[repeat]]
+symbol = "F"
+ex_date = 2025-02-18
+note = "a regular dividend of $0.15 and a supplemental dividend of $0.15, both of record on 2025-02-18; Alpaca files them as two records that differ only in the special flag"
+source = "https://www.sec.gov/Archives/edgar/data/37996/000003799626000015/f-20251231.htm"
 
 [[net]]
 ticker = "ACN"

@@ -15,6 +15,7 @@ from statarb.data import alpaca
 from statarb.data.alpaca import (
     AlpacaSource,
     Client,
+    Corrections,
     MissingCredentialsError,
     NetPeriod,
     Rules,
@@ -30,8 +31,11 @@ START, END = dt.date(2025, 1, 1), dt.date(2025, 3, 1)
 NONE = Withholding({}, frozenset())
 
 
-def source(get, withholding: Withholding = NONE) -> AlpacaSource:
-    return AlpacaSource(Rules(withholding), get=get)
+NO_CORRECTIONS = Corrections()
+
+
+def source(get, withholding: Withholding = NONE, corrections: Corrections = NO_CORRECTIONS) -> AlpacaSource:
+    return AlpacaSource(Rules(withholding, corrections), get=get)
 
 
 def truth(seed: int = 1, **kwargs) -> pd.DataFrame:
@@ -202,6 +206,19 @@ def test_action_on_a_date_without_a_bar_fails() -> None:
         source(fake_alpaca({"XYZ": sparse}, extra=[rec])).fetch("XYZ", START, END)
 
 
+def test_repeated_records_are_kept_once() -> None:
+    same_id = div("XYZ", "2025-02-03", 0.4, rid="one")
+    regular, special = div("XYZ", "2025-02-10", 90.0, rid="a", special=False), div("XYZ", "2025-02-10", 90.0, rid="b", special=True)
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=[same_id, same_id, regular, special])).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-02-03") == 0.4 and cash_on(bars, "2025-02-10") == 90.0
+
+
+def test_a_dividend_filed_under_two_cusips_is_kept_once() -> None:
+    old, new = div("XYZ", "2025-02-10", 1.06, rid="a", cusip="111"), div("XYZ", "2025-02-10", 1.06, rid="b", cusip="222")
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=[old, new])).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-02-10") == 1.06
+
+
 def test_actions_follow_renames_and_drop_a_reused_symbol() -> None:
     # The ticker took NEW on 2025-02-01. Before that, NEW was another security's symbol, and the ticker's
     # actions were filed under OLD; after it, OLD's actions belong to no one we hold.
@@ -271,8 +288,20 @@ def test_repository_rules_parse_and_cite_their_sources() -> None:
     cfg = load_config("alpaca")
     rules = alpaca.parse_rules(cfg)
     assert "ACN" in rules.withholding.net and "LIN" in rules.withholding.gross
-    for entry in cfg.get("net", []):
-        assert entry["source"].startswith("https://"), entry
+    assert ("F", dt.date(2025, 2, 18)) in rules.corrections.repeats
+    for section in ("net", "repeat"):
+        for entry in cfg.get(section, []):
+            assert entry["source"].startswith("https://"), (section, entry)
+
+
+def test_listed_repeats_are_separate_dividends() -> None:
+    regular, supplemental = div("XYZ", "2025-02-10", 0.15, rid="a", special=False), div("XYZ", "2025-02-10", 0.15, rid="b", special=True)
+    get = fake_alpaca({"XYZ": truth()}, extra=[regular, supplemental])
+    listed = source(get, corrections=Corrections(repeats=frozenset({("XYZ", dt.date(2025, 2, 10))}))).fetch("XYZ", START, END)
+    assert cash_on(listed, "2025-02-10") == pytest.approx(0.30)
+    assert cash_on(source(get).fetch("XYZ", START, END), "2025-02-10") == 0.15
+    with pytest.raises(ValueError, match="lacks"):
+        alpaca.parse_repeats({"repeat": [{"symbol": "F", "ex_date": dt.date(2025, 2, 18)}]})
 
 
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------

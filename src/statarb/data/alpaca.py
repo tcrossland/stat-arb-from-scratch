@@ -15,7 +15,9 @@ a changed rule or correction needs a rebuild, not a download:
   `config/alpaca.toml`;
 - a spin-off is cash: the share ratio times the spun-off security's close;
 - a ticker's actions follow its name changes back, each symbol only for the
-  dates the ticker held it.
+  dates the ticker held it;
+- a record seen twice is kept once, except the repeats `config/alpaca.toml`
+  lists as separate dividends.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -52,6 +54,9 @@ BAR_LIMIT, ACTION_LIMIT = 10_000, 1_000
 
 SPLITS = ("forward_splits", "reverse_splits")
 DIVIDENDS, SPIN_OFFS, NAME_CHANGES = "cash_dividends", "spin_offs", "name_changes"
+# Fields that describe how a record was filed, not the event; records equal apart from them are one event.
+# The CUSIP is among them: Alpaca files some dividends twice, under a security's old and new CUSIP.
+FILING_FIELDS = frozenset({"id", "cusip", "special", "process_date", "payable_date", "record_date", "due_bill_redemption_date"})
 
 Getter = Callable[[str, Mapping[str, str]], dict[str, Any]]
 SpinOffClose = Callable[[str, dt.date, dt.date], float]     # (symbol, first day, last day) -> first close
@@ -217,15 +222,46 @@ def gross_dividend(withholding: Withholding, ticker: str, ex: dt.date, rate: flo
 
 # Corporate actions -------------------------------------------------------------------------------------
 
+Repeat = tuple[str, dt.date]    # a symbol and ex-date whose repeated records are separate events
+
+
+def _require(section: str, entry: Mapping[str, Any], keys: set[str]) -> None:
+    missing = keys - set(entry)
+    if missing:
+        raise ValueError(f"{section} entry {entry.get('symbol', entry.get('new_symbol'))} lacks {sorted(missing)}")
+
+
+def parse_repeats(cfg: Mapping[str, Any]) -> frozenset[Repeat]:
+    """`config/alpaca.toml`: the `[[repeat]]` entries, each a symbol and ex-date with a note and a source."""
+    out = set()
+    for entry in cfg.get("repeat", []):
+        _require("repeat", entry, {"symbol", "ex_date", "note", "source"})
+        out.add((entry["symbol"], entry["ex_date"]))
+    return frozenset(out)
+
+
+@dataclass(frozen=True)
+class Corrections:
+    """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004)."""
+
+    repeats: frozenset[Repeat] = frozenset()
+
+
+def parse_corrections(cfg: Mapping[str, Any]) -> Corrections:
+    """`config/alpaca.toml`: the `[[repeat]]` entries."""
+    return Corrections(parse_repeats(cfg))
+
+
 @dataclass(frozen=True)
 class Rules:
-    """Everything `config/alpaca.toml` sets: the withholding rules."""
+    """Everything `config/alpaca.toml` sets: the withholding rules and the corrections."""
 
     withholding: Withholding
+    corrections: Corrections = Corrections()
 
 
 def parse_rules(cfg: Mapping[str, Any]) -> Rules:
-    return Rules(parse_withholding(cfg))
+    return Rules(parse_withholding(cfg), parse_corrections(cfg))
 
 
 def records(responses: Iterable[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
@@ -236,6 +272,29 @@ def records(responses: Iterable[Mapping[str, Any]]) -> list[tuple[str, dict[str,
 def action_symbol(kind: str, rec: Mapping[str, Any]) -> str | None:
     """The symbol whose holders an action applies to."""
     return rec.get("source_symbol") if kind == SPIN_OFFS else rec.get("symbol")
+
+
+def dedupe(
+    recs: list[tuple[str, dict[str, Any]]], repeats: frozenset[Repeat] = frozenset()
+) -> tuple[list[tuple[str, dict[str, Any]]], list[tuple[str, dict[str, Any]]]]:
+    """(kept, dropped): one record per id, then one per event (records equal apart from FILING_FIELDS),
+    except for the symbols and ex-dates in `repeats`, whose records are all separate events."""
+    kept: list[tuple[str, dict[str, Any]]] = []
+    dropped: list[tuple[str, dict[str, Any]]] = []
+    ids: set[str] = set()
+    events: set[tuple[Any, ...]] = set()
+    for kind, rec in recs:
+        event = (kind, *sorted((k, json.dumps(v)) for k, v in rec.items() if k not in FILING_FIELDS))
+        if rec.get("id") in ids:
+            continue                      # the same record from another page or query
+        ids.add(rec.get("id"))
+        listed = (action_symbol(kind, rec), _date(rec["ex_date"]) if rec.get("ex_date") else None) in repeats
+        if event in events and not listed:
+            dropped.append((kind, rec))
+            continue
+        events.add(event)
+        kept.append((kind, rec))
+    return kept, dropped
 
 
 def _date(value: str) -> dt.date:
@@ -457,6 +516,7 @@ def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: 
         return list(raw.actions[symbol])
 
     recs, _ = ticker_actions(query, ticker)
+    recs, _ = dedupe(recs, rules.corrections.repeats)
     in_window = [(k, r) for k, r in recs if start <= _date(r["ex_date"]) < end]
 
     def spin_off_close(symbol: str, ex: dt.date, last: dt.date) -> float:

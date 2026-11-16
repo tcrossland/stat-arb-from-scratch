@@ -7,7 +7,7 @@
 
 Decision record 0003 makes Alpaca the only price source and says the rules for using its data are found while building phase 0 and recorded in a record of their own. Alpaca returns daily bars and corporate-action records separately. Turning them into unadjusted bars with a `cash` and a `split_ratio` column on each ex-date, the form the canonical step and the return calculation expect, needs choices about which bars and records to trust and how to read them. A few of its records need information Alpaca does not give.
 
-Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.apply_rules`, called from `statarb.data.snapshot`), never at download time, so a changed rule needs a rebuild, not a new download. The rules that need data, such as withholding periods, live in `config/alpaca.toml`.
+Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.apply_rules`, called from `statarb.data.snapshot`), never at download time, so a changed rule needs a rebuild, not a new download. The rules that need data, such as withholding periods and repeated dividends, live in `config/alpaca.toml`.
 
 ## Decision
 
@@ -20,6 +20,7 @@ Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.app
 7. **Histories and listing starts.** Some tickers carry bars from before their own listing: when-issued trading, a SPAC's shell, or another security that held the symbol. Those bars have real volume, so no rule on the bars finds them: `config/listing_starts.toml` gives each such ticker's first date with its source, and cleaning drops the bars before it.
 8. **Spin-offs.** A spin-off is valued as cash to the parent's holders: the share ratio times the spun-off security's first close on or after the ex-date (or the payable date, when later), searched for ten days. On an ex-date that also has a split, the ratio counts shares held before the split, so the cash is divided by the split ratio.
 9. **Symbols.** A ticker's actions follow its name changes back. Each symbol counts only for the dates the ticker held it, from the name change into it to the change away from it, because Alpaca reuses symbols across securities and a ticker can hold the same symbol twice.
+10. **Duplicates.** Records with the same id are one record. Records equal in everything but how they were filed (id, CUSIP, the special flag, and the process, payable, record and redemption dates) are one event and kept once. Config lists the symbol and ex-date pairs whose identical records are separate dividends, all kept.
 
 ## Consequences
 
