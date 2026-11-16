@@ -24,7 +24,12 @@ Three price sources were considered.
 
 **Stooq:** rejected. Its CSV endpoint now answers with a JavaScript proof-of-work browser check instead of data, and an API key is reported to need a CAPTCHA. Automated use would mean defeating bot detection, which this project will not do.
 
-For the candidate list, the Wikipedia page "List of S&P 500 companies" has the current constituents in one table with symbol, GICS sector and sub-industry, date added and CIK. Its text is published under CC BY-SA 4.0 according to Wikipedia's terms of use (not yet read from its own pages; to be confirmed there before phase 0 keeps anything from the page). The list of symbols and sectors is factual; the page itself is kept as a raw snapshot and never committed.
+For the candidate list, the Wikipedia page "List of S&P 500 companies" has the current constituents in one table with symbol, GICS sector and sub-industry, date added and CIK. The Wikimedia Foundation's terms of use (read on its own page, revision 598588, on 2026-11-16) set the conditions:
+
+- Section 7: contributed text is licensed under both CC BY-SA 4.0 and the GFDL, and a reuser may comply with either, except for text imported under CC BY-SA alone. Reusing the text needs attribution and a licence notice, and modified versions carry the same licence.
+- Section 7 also waives contributors' database rights covered by CC BY-SA 4.0, so the facts on the page (symbols, sectors, dates added, CIKs) may be reused freely without attribution.
+- Section 4 forbids automated use that is abusive or disruptive, breaks the applicable usage policies or has not been approved by the Wikimedia community, and anything that puts an undue burden on an API.
+- Section 12 binds API users to the User-Agent policy, the Robot policy and the API etiquette page, which are not yet read.
 
 ## Decision
 
@@ -33,7 +38,7 @@ For the candidate list, the Wikipedia page "List of S&P 500 companies" has the c
 - **Raw snapshots are never modified.** Every download is kept exactly as Alpaca returned it, as a dated snapshot under `data/raw/alpaca/`. The build applies the project's rules and any listed corrections to the snapshot, so a changed rule or correction needs a rebuild, not a new download. Rebuilds read the cache, never the network. Alpaca revises old data, so a snapshot is also the only way to reproduce a result exactly.
 - **Rules for Alpaca's data** (which bars and actions to use, and how) are found while building phase 0, and recorded in a decision record of their own as they are found. A correction to Alpaca's records is listed in config with its primary source: the issuer's announcement, filing or tax form, never another price source.
 - **Keys** are read from the environment (`APCA_API_KEY_ID`, `APCA_API_SECRET_KEY`), never from the repository, a config file or a scheduler file. The adapter calls only the market data host, `data.alpaca.markets`, never the trading API, and a test checks the URLs it builds. Tests never call the API: they run the adapter on synthetic responses.
-- **Wikipedia for the candidates** and their current GICS sectors, behind the `ConstituentSource` interface. The raw page is saved in `data/raw/`, and its retrieval date and revision ID are pinned in `config/universe.toml`.
+- **Wikipedia for the candidates** and their current GICS sectors, behind the `ConstituentSource` interface. The raw page is saved in `data/raw/`, and its retrieval date and revision ID are pinned in `config/universe.toml`. Only the facts are kept: the page's text is never committed or redistributed, so no CC BY-SA text enters the repository. The adapter fetches the pinned revision once per download through the MediaWiki API, never on a schedule, and follows the policies section 12 of the terms names.
 - **GICS reclassifications** are maintained by hand in `config/sector_changes.toml`, each checked against an S&P or MSCI announcement.
 
 ## Consequences
@@ -42,4 +47,5 @@ For the candidate list, the Wikipedia page "List of S&P 500 companies" has the c
 - A reader's own snapshot, taken later, will differ slightly from the one behind the published results, because Alpaca revises old data. How closely results match is measured and stated before publication.
 - No delisted names, so survivorship bias remains as decision record 0001 and the phase 0 brief describe.
 - Wikipedia is editable by anyone. Pinning the revision ID makes the candidate list reproducible.
+- Before the Wikipedia adapter's first download, phase 0 reads the User-Agent policy, the Robot policy and the API etiquette page from their own pages, and records anything that changes the adapter here.
 - A second price source for cross-checking would need terms that allow automated collection, so it cannot be Yahoo, and a decision record of its own.
