@@ -44,13 +44,17 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Manifest.** `manifest.json` in a snapshot: the source, basis, dates and tickers of the download, which tickers had no data or failed, and the SHA-256 of every file with the snapshot's digest. It is written last, so a snapshot without one is incomplete and never read.
 
+**Pinned snapshot, pinned revision.** The price snapshot named by date and digest in `[source]` of `config/data.toml`, and the Wikipedia revision id with its snapshot's date and digest in `config/universe.toml`, that a build reads. Pinning them makes a rebuild exact, and the digest makes it refuse a snapshot that changed.
+
 **Price basis.** What a source's prices are adjusted for: unadjusted, split-adjusted or fully adjusted (for splits and dividends). The canonical step turns the first two into unadjusted prices; fully adjusted prices cannot be turned back and are refused.
 
-**Corporate action.** An event that changes what a share is or pays: a split, cash dividend, spin-off or name change.
+**Corporate action.** An event that changes what a share is or pays: a split, cash dividend, spin-off or name change. Alpaca reports each as a record with an ex-date and a **process date**, the day it handled the event, usually near the payable date.
 
 **Split ratio.** New shares per old share on a split's ex-date: 4 for a four-for-one split, 0.5 for a one-for-two reverse split, 1 on other days.
 
 **Cash.** Cash per share going ex on a day: the dividends going ex.
+
+**New York date.** The calendar date in New York, where the exchanges are. Trading dates and a download's cut-off use it, whatever the machine's time zone.
 
 **Dated sector.** A stock's GICS sector with the dates it applied, so a reclassification changes the sector from its effective date only.
 

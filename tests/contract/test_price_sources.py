@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from helpers import SplitAdjustedSource, truth_fixture
+from helpers import SplitAdjustedSource, fake_alpaca, truth_fixture
+from statarb.data.alpaca import AlpacaSource
 from statarb.data.canonical import to_unadjusted
 from statarb.data.returns import total_returns
 from statarb.data.schema import BAR_COLUMNS
@@ -25,6 +26,7 @@ class UnadjustedReference:
 
     name = "reference"
     basis = PriceBasis.UNADJUSTED
+    layout = "bars"
 
     def __init__(self, truth: pd.DataFrame) -> None:
         self._truth = truth
@@ -37,7 +39,12 @@ class UnadjustedReference:
         return t.loc[(t["date"] >= pd.Timestamp(start)) & (t["date"] < pd.Timestamp(end))].reset_index(drop=True)
 
 
+def _alpaca(truth: pd.DataFrame) -> AlpacaSource:
+    return AlpacaSource(get=fake_alpaca({TICKER: truth}))
+
+
 ADAPTERS = {
+    "alpaca": _alpaca,
     "reference": UnadjustedReference,
     "split-adjusted": lambda truth: SplitAdjustedSource({TICKER: truth}),
 }
@@ -51,6 +58,7 @@ def adapter(request):
 def test_declares_an_eligible_basis(adapter) -> None:
     assert isinstance(adapter.basis, PriceBasis)
     assert adapter.basis is not PriceBasis.FULLY_ADJUSTED
+    assert adapter.layout in ("bars", "raw")
 
 
 def test_bars_have_schema_and_normalised_dates(adapter) -> None:

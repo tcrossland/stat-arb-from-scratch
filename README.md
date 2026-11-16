@@ -66,7 +66,16 @@ uv run ruff check
 uv run pytest
 ```
 
-Phase 0 adds the first runner. Downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account, set in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
+### Build the data
+
+The phase 0 build turns pinned raw snapshots (in `data/raw/`, or the shared store named by `STATARB_RAW`) into the tables of [the data model](docs/data-model.md) and a quality report. The first build in a fresh clone downloads the snapshot; downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`, and only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
+
+```
+uv run python -m statarb.data.build --download
+uv run python -m statarb.data.build
+```
+
+[Reproducing the results](docs/reproduce.md) covers pinning the snapshot and what each step reads and writes.
 
 ## Disclaimer
 

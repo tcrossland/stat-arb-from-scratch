@@ -65,6 +65,7 @@ class SplitAdjustedSource:
 
     name = "synthetic"
     basis = PriceBasis.SPLIT_ADJUSTED
+    layout = "bars"
 
     def __init__(self, truths: dict[str, pd.DataFrame]) -> None:
         self._truths = truths
@@ -99,3 +100,59 @@ def fake_wikipedia_api(html: str, revid: int = 123456):
 
     api.calls = calls  # type: ignore[attr-defined]
     return api
+
+
+def fake_alpaca(truths: dict[str, pd.DataFrame], extra: list[tuple[str, dict]] | None = None, page_size: int = 10_000):
+    """A getter for AlpacaSource(get=...) that serves bars and corporate actions from unadjusted truth data.
+
+    Dividends and splits in the truth become action records processed 14 days
+    after their ex-date, and the action query filters on the process date, as
+    Alpaca's does. `extra` adds (kind, record) pairs. Requests are kept in `calls`.
+    """
+    extra = extra or []
+    calls: list[tuple[str, dict[str, str]]] = []
+
+    def stamp(day: pd.Timestamp) -> str:
+        return pd.Timestamp(day).tz_localize("America/New_York").tz_convert("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def truth_actions(symbol: str, truth: pd.DataFrame) -> list[tuple[str, dict]]:
+        out = []
+        for row in truth.itertuples():
+            ex = row.date.date()
+            processed = (ex + dt.timedelta(days=14)).isoformat()
+            if row.cash:
+                out.append(("cash_dividends", {"id": f"{symbol}-d-{ex}", "symbol": symbol, "ex_date": ex.isoformat(),
+                                               "process_date": processed, "rate": row.cash, "foreign": False}))
+            if row.split_ratio != 1.0:
+                out.append(("forward_splits", {"id": f"{symbol}-s-{ex}", "symbol": symbol, "ex_date": ex.isoformat(),
+                                               "process_date": processed, "old_rate": 1.0, "new_rate": row.split_ratio}))
+        return out
+
+    def mentions(rec: dict, symbol: str) -> bool:
+        return symbol in {rec.get(k) for k in ("symbol", "source_symbol", "new_symbol", "old_symbol")}
+
+    def get(path: str, params: dict[str, str]) -> dict:
+        calls.append((path, dict(params)))
+        symbol = params["symbols"]
+        start, end = pd.Timestamp(params["start"]), pd.Timestamp(params["end"])
+        offset = int(params.get("page_token") or 0)
+        if path == "/v2/stocks/bars":
+            truth = truths.get(symbol)
+            bars = [] if truth is None else [
+                {"t": stamp(r.date), "o": r.open, "h": r.high, "l": r.low, "c": r.close, "v": r.volume, "n": 1, "vw": r.close}
+                for r in truth.itertuples() if start <= r.date <= end
+            ]
+            page = bars[offset : offset + page_size]
+            token = str(offset + page_size) if offset + page_size < len(bars) else None
+            return {"bars": {symbol: page} if page else {}, "next_page_token": token}
+        recs = (truth_actions(symbol, truths[symbol]) if symbol in truths else []) + [(k, r) for k, r in extra if mentions(r, symbol)]
+        recs = [(k, r) for k, r in recs if start <= pd.Timestamp(r["process_date"]) <= end]
+        page = recs[offset : offset + page_size]
+        grouped: dict[str, list[dict]] = {}
+        for kind, rec in page:
+            grouped.setdefault(kind, []).append(rec)
+        token = str(offset + page_size) if offset + page_size < len(recs) else None
+        return {"corporate_actions": grouped, "next_page_token": token}
+
+    get.calls = calls  # type: ignore[attr-defined]
+    return get

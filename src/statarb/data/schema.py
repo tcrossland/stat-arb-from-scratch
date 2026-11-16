@@ -7,7 +7,13 @@ trading date.
 
 from __future__ import annotations
 
+import datetime as dt
+from zoneinfo import ZoneInfo
+
 import pandas as pd
+
+# All dates in the project are New York trading dates. See docs/time-discipline.md.
+EXCHANGE_TZ = "America/New_York"
 
 DATE = "date"
 TICKER = "ticker"
@@ -38,6 +44,17 @@ GICS_SECTORS = frozenset(
 # Sectors that existed earlier in the history but not today. Telecommunication
 # Services was broadened and renamed Communication Services in September 2018.
 FORMER_GICS_SECTORS = frozenset({"Telecommunication Services"})
+
+
+def exchange_today(now: dt.datetime | None = None) -> dt.date:
+    """Today's date in New York, whatever the machine's time zone.
+
+    ``now`` must be time zone aware; it defaults to the current time.
+    """
+    now = dt.datetime.now(dt.UTC) if now is None else now
+    if now.tzinfo is None:
+        raise ValueError("now must be time zone aware")
+    return now.astimezone(ZoneInfo(EXCHANGE_TZ)).date()
 
 
 def normalise_bars(frame: pd.DataFrame) -> pd.DataFrame:

@@ -37,6 +37,7 @@ def test_module_table_matches_the_package() -> None:
 def test_runner_table_lists_the_modules_with_a_main() -> None:
     runners = {name for name, text in _modules().items() if "def main(" in text}
     assert _first_cells("Runners") == runners
+    assert re.search(r"^\| `statarb\.data\.build` \| 0 \|", _section("Runners"), flags=re.MULTILINE)
 
 
 def test_config_table_lists_every_config_file() -> None:

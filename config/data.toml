@@ -2,11 +2,20 @@
 
 [dates]
 start = 2016-01-01
-# No end date: the build runs to the latest available close.
+# No end date: the build runs to the last session before the snapshot's download date.
 
 [source]
 # Decision record 0003. Keys come from the environment, never from this file.
 name = "alpaca"
+# The price snapshot the build reads, by download date (YYYY-MM-DD) and digest (from its manifest).
+# The build refuses a snapshot whose files no longer match the digest. Both empty means the latest
+# complete snapshot, for trying a new download before pinning it.
+snapshot = "2026-11-16"
+digest = "a28ff7224e60599b20218863e3543936e8da5a601c536519bd61c0b58a92b54a"
+
+[download]
+pause_seconds = 0.3   # between tickers, on top of the adapter's own pacing
+retries = 3
 
 [universe]
 size = 300
@@ -17,6 +26,7 @@ rebalance = "monthly"  # last trading day of the month, applied from the next tr
 [factors]
 market = "SPY"
 sectors = ["XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"]
+
 
 [quality]
 max_abs_daily_return = 0.25

@@ -2,6 +2,21 @@
 
 The packages, runners and config files, what each reads and writes, and the external libraries each enters through. `tests/test_architecture_doc.py` checks the module, runner and config tables against the code.
 
+## Data flow in phase 0
+
+```mermaid
+flowchart LR
+    W["Wikipedia<br/>constituent page"] -->|--download| RW["raw store<br/>wikipedia/&lt;date&gt;/"]
+    A["Alpaca<br/>bars and corporate actions"] -->|--download| RA["raw store<br/>alpaca/&lt;date&gt;/"]
+    RW --> B["statarb.data.build"]
+    RA --> B
+    C["config/*.toml"] --> B
+    B --> P["data/derived/processed/*.parquet"]
+    B --> Q["reports/phase-00/data_quality.md"]
+```
+
+Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time.
+
 **Where data lives.** The raw store, `data/raw/` or the absolute path in `STATARB_RAW`, holds the raw snapshots: kept, read-only once complete and backed up outside the repository. Worktrees set `STATARB_RAW` to the main checkout's `data/raw/`, so there is one store. `data/derived/` holds everything rebuilt from it and can be deleted. Nothing under `data/` is committed or versioned: snapshots are versioned by convention instead, by date and content digest pinned in config.
 
 ## Modules
@@ -13,21 +28,25 @@ The packages, runners and config files, what each reads and writes, and the exte
 | `statarb.testing` | 0 | Helpers for tests that the package itself also provides. |
 | `statarb.testing.lookahead` | 0 | The look-ahead check: perturb data after a cut-off, assert outputs up to it are unchanged. |
 | `statarb.data` | 0 | The data build. |
-| `statarb.data.schema` | 0 | Column names, the bar schema and GICS sector names. |
+| `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
 | `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
+| `statarb.data.snapshot` | 0 | Reads a price snapshot as bars whatever its layout, applying a raw snapshot's rules. |
+| `statarb.data.alpaca` | 0 | The Alpaca price source and the rules of decision record 0004. |
 | `statarb.data.wikipedia` | 0 | The Wikipedia constituent source, with the request policies of decision record 0003. |
 | `statarb.data.canonical` | 0 | Converts a source's declared basis to unadjusted bars. |
 | `statarb.data.clean` | 0 | Cleaning rules, each dropped row logged with its reason. |
 | `statarb.data.returns` | 0 | Daily total returns from unadjusted bars, splits and cash. |
 | `statarb.data.universe` | 0 | Monthly universe from trailing median dollar volume. |
 | `statarb.data.sectors` | 0 | Dated GICS sectors from current sectors and recorded changes. |
+| `statarb.data.quality` | 0 | The data quality report: statistics only. |
+| `statarb.data.build` | 0 | Runner: downloads snapshots on request, builds the tables and the report. |
 
 ## Seams
 
 | Protocol | Implementations | Chosen by |
 |---|---|---|
-| `PriceSource` | synthetic sources in `tests/helpers.py` | the test |
+| `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 
 `tests/contract/` runs every implementation of each protocol through the same checks.
@@ -36,13 +55,14 @@ The packages, runners and config files, what each reads and writes, and the exte
 
 | Runner | Phase | Reads | Writes |
 |---|---|---|---|
+| `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`; with `--download` also Wikipedia and Alpaca | `data/derived/processed/*.parquet`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | the phase 0 build, not yet written | Start date, price source, universe, factor ETFs, quality thresholds, paths. |
-| `universe.toml` | the phase 0 build, not yet written | The Wikipedia revision to pin. |
+| `data.toml` | `statarb.data.build` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths. |
+| `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 
 ## External libraries

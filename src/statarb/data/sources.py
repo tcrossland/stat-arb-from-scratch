@@ -1,6 +1,7 @@
 """Source interfaces. Adapters fetch; shared code converts and derives.
 
-See docs/phases/phase-00/brief.md, "Source interfaces".
+See docs/phases/phase-00/brief.md, "Source interfaces". The build looks a price
+source up by the name in config/data.toml.
 """
 
 from __future__ import annotations
@@ -31,6 +32,9 @@ class IneligibleSourceError(ValueError):
 class PriceSource(Protocol):
     name: str
     basis: PriceBasis
+    # "bars": a snapshot keeps fetch's output as it is. "raw": it keeps what the source returned
+    # (fetch_raw), and the build applies the source's rules to it (statarb.data.snapshot).
+    layout: str
 
     def source_symbol(self, ticker: str) -> str:
         """Map a project ticker (S&P style, e.g. BRK.B) to the source's symbol."""
