@@ -22,6 +22,9 @@ max_abs_daily_return = 0.25
 min_live_coverage = 0.95
 
 [paths]
+# Raw snapshots: kept, never changed, backed up outside the repository. The environment variable
+# STATARB_RAW, an absolute path, overrides this, so worktrees share the main checkout's store.
 raw = "data/raw"
-processed = "data/processed"
+# Everything rebuilt from raw snapshots; safe to delete at any time.
+processed = "data/derived/processed"
 reports = "reports"

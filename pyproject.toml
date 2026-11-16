@@ -9,7 +9,11 @@ license = "MIT"
 requires-python = "==3.14.*"
 # Each library enters with the phase whose code first imports it, its licence
 # read from its own metadata and stated in that commit (docs/architecture.md).
-dependencies = []
+dependencies = [
+    "numpy>=2.5.4",                 # phase 0
+    "pandas>=3",                    # long-format tables, phase 0
+    "pyarrow>=26.0.1",              # parquet, phase 0; listed directly because the build must write byte-identical files
+]
 
 [dependency-groups]
 dev = [

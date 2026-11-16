@@ -1,5 +1,5 @@
 # Pin for the candidate set: current S&P 500 constituents from Wikipedia (decision record 0003).
-# Only the pin lives here. The extracted list is data: data/processed/candidates.parquet.
+# Only the pin lives here. The extracted list is data: data/derived/processed/candidates.parquet.
 # Filled in during phase 0.
 
 page = "List_of_S&P_500_companies"

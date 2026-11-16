@@ -36,7 +36,21 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Unadjusted prices.** Prices as they traded on the day, with splits and dividends stored separately as corporate actions.
 
-**Raw snapshot.** One download, kept in `data/raw/<source>/<download date>/` exactly as the source returned it and never modified. Builds read snapshots, never the network.
+**Raw snapshot.** One download, kept in the raw store at `<source>/<download date>/` exactly as the source returned it, read-only and never modified. Builds read snapshots, never the network.
+
+**Raw store, derived data.** The raw store (`data/raw/`, or the path in `STATARB_RAW`) holds raw snapshots, the only data that cannot be replaced; it is backed up privately and never committed. Derived data (`data/derived/`) is everything rebuilt from it, and can be deleted at any time.
+
+**Snapshot digest.** The SHA-256 of a snapshot's `path hash` lines, one per file, sorted by path. It identifies a snapshot by content, where its date alone does not.
+
+**Manifest.** `manifest.json` in a snapshot: the source, basis, dates and tickers of the download, which tickers had no data or failed, and the SHA-256 of every file with the snapshot's digest. It is written last, so a snapshot without one is incomplete and never read.
+
+**Price basis.** What a source's prices are adjusted for: unadjusted, split-adjusted or fully adjusted (for splits and dividends). The canonical step turns the first two into unadjusted prices; fully adjusted prices cannot be turned back and are refused.
+
+**Corporate action.** An event that changes what a share is or pays: a split, cash dividend, spin-off or name change.
+
+**Split ratio.** New shares per old share on a split's ex-date: 4 for a four-for-one split, 0.5 for a one-for-two reverse split, 1 on other days.
+
+**Cash.** Cash per share going ex on a day: the dividends going ex.
 
 **Dated sector.** A stock's GICS sector with the dates it applied, so a reclassification changes the sector from its effective date only.
 
