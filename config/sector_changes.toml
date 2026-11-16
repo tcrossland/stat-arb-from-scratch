@@ -2,9 +2,11 @@
 # (statarb.data.sectors). One entry per ticker move. `effective` is the first
 # trading day in the new sector.
 #
-# Scope: the three structural GICS changes since 2016. Dates are S&P Dow Jones
-# Indices' implementation in its indices, which the SPDR sector ETFs follow,
-# rather than the GICS Direct date where the two differ.
+# Scope: the three structural GICS changes since 2016, and the company-level
+# moves of the candidates found in phase 1 (at the end of the file). For the
+# structural changes, dates are S&P Dow Jones Indices' implementation in its
+# indices, which the SPDR sector ETFs follow, rather than the GICS Direct date
+# where the two differ.
 #
 # - 2016: Real Estate separated from Financials (mortgage REITs stayed).
 #   GICS Direct after the close on 2016-08-31; S&P indices after the close on
@@ -29,9 +31,12 @@
 # month. Tickers that were not members at the time are included where their
 # whole sub-industry moved, and say so in the note.
 #
-# Not covered: company-level reclassifications at other times, and tickers
-# whose sector before a structural change is unknown, taken up in the
-# phase 1 brief ("Company-level GICS reclassifications").
+# Company-level moves were found by comparing the pinned Wikipedia revision
+# with one at each year end since 2016, and each is dated from a primary
+# source. A move no primary source dates stays on today's sector and is
+# listed in the phase 1 review. Not covered: moves of a ticker before it
+# entered the S&P 500, which the comparison cannot see, and tickers whose
+# sector before a structural change is unknown.
 
 # 2016: Financials to Real Estate
 
@@ -430,3 +435,72 @@ from = "Consumer Discretionary"
 to = "Consumer Staples"
 effective = 2023-03-20
 note = "2023: general merchandise stores to Consumer Staples Merchandise Retail"
+
+# Company-level reclassifications (phase 1). Dates are the GICS change date in
+# MSCI's change notice, "as of the close of" a day, so effective the next
+# trading day. No S&P Dow Jones Indices notice was found for any of them, so
+# the index date is taken to be the same. Each entry cites its notice.
+
+[[change]]
+ticker = "LHX"
+from = "Information Technology"
+to = "Industrials"
+effective = 2018-01-02
+note = "Communications Equipment to Aerospace & Defense; Harris, ticker HRS at the time"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=wbBJfsfvd7g%3D&lang=en&format=html"
+
+[[change]]
+ticker = "CVS"
+from = "Consumer Staples"
+to = "Health Care"
+effective = 2018-05-01
+note = "Drug Retail to Health Care Services"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=kLbKKsmlBfI%3D&lang=en&format=html"
+
+[[change]]
+ticker = "LDOS"
+from = "Information Technology"
+to = "Industrials"
+effective = 2021-03-01
+note = "IT Consulting & Other Services to Research & Consulting Services"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=ec8i7koGwNY%3D&lang=en&format=html"
+
+[[change]]
+ticker = "TDY"
+from = "Industrials"
+to = "Information Technology"
+effective = 2021-09-01
+note = "Aerospace & Defense to Electronic Equipment & Instruments"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=mJJG2rhaVeQ%3D&lang=en&format=html"
+
+[[change]]
+ticker = "ROP"
+from = "Industrials"
+to = "Information Technology"
+effective = 2022-05-02
+note = "Industrial Conglomerates to Application Software"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=dJ8PmmJy8xk%3D&lang=en&format=html"
+
+[[change]]
+ticker = "CSGP"
+from = "Industrials"
+to = "Real Estate"
+effective = 2023-07-03
+note = "Research & Consulting Services to Real Estate Services, apart from the March 2023 changes; sector before 2018 not checked, not an S&P 500 member then"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=%2FjloM10JP6g%3D&lang=en&format=html"
+
+[[change]]
+ticker = "APP"
+from = "Information Technology"
+to = "Communication Services"
+effective = 2026-08-03
+note = "Application Software to Advertising"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=vy22KGhm2eA%3D&lang=en&format=html"
+
+[[change]]
+ticker = "DD"
+from = "Materials"
+to = "Industrials"
+effective = 2026-08-03
+note = "Specialty Chemicals to Industrial Conglomerates; DuPont's results for the second quarter of 2026 give the same date"
+source = "https://app2.msci.com/webapp/index_ann/DocGet?pub_key=%2FTpUZm0PCUw%3D&lang=en&format=html"

@@ -2,7 +2,7 @@
 
 The packages, runners and config files, what each reads and writes, and the external libraries each enters through. `tests/test_architecture_doc.py` checks the module, runner and config tables against the code.
 
-## Data flow in phase 0
+## Data flow
 
 ```mermaid
 flowchart LR
@@ -11,8 +11,12 @@ flowchart LR
     RW --> B["statarb.data.build"]
     RA --> B
     C["config/*.toml"] --> B
-    B --> P["data/derived/processed/*.parquet"]
+    B --> P["data/derived/processed/<br/>phase 0 tables"]
     B --> Q["reports/phase-00/data_quality.md"]
+    P --> F["statarb.factors.build"]
+    CF["config/factors.toml"] --> F
+    F --> RS["data/derived/processed/<br/>residuals.parquet"]
+    F --> FR["reports/phase-01/<br/>diagnostics.md and charts"]
 ```
 
 Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time.
@@ -41,6 +45,13 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.sectors` | 0 | Dated GICS sectors from current sectors and recorded changes. |
 | `statarb.data.quality` | 0 | The data quality report: statistics only. |
 | `statarb.data.build` | 0 | Runner: downloads snapshots on request, builds the tables and the report. |
+| `statarb.factors` | 1 | Factor models and residual returns. |
+| `statarb.factors.rolling` | 1 | Rolling least squares on a dates by stocks panel, each window ending the day before. |
+| `statarb.factors.model` | 1 | The `FactorModel` protocol and Model A, the ETF regression. |
+| `statarb.factors.events` | 1 | The crude event flag: volume over its trailing median, on one share basis. |
+| `statarb.factors.report` | 1 | The diagnostics report and its charts: statistics only, computed apart from writing them. |
+| `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report. |
+| `statarb.factors.sensitivity` | 1 | Runner: Model A at 60, 126 and 252 days compared on common rows; feeds nothing later. |
 
 ## Seams
 
@@ -48,32 +59,37 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 |---|---|---|
 | `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
+| `FactorModel` | `EtfFactorModel` (Model A); Model B joins in phase 4 | fixed in phase 1 |
 
-`tests/contract/` runs every implementation of each protocol through the same checks.
+`tests/contract/` runs every implementation of each protocol through the same checks. `FactorModel` has one implementation until phase 4, so its checks are in `tests/test_factors.py` until then.
 
 ## Runners
 
 | Runner | Phase | Reads | Writes |
 |---|---|---|---|
-| `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`, `config/listing_starts.toml`, `config/alpaca.toml`; with `--download` also Wikipedia and Alpaca | `data/derived/processed/*.parquet`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
+| `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`, `config/listing_starts.toml`, `config/alpaca.toml`; with `--download` also Wikipedia and Alpaca | the phase 0 tables in `data/derived/processed/`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
+| `statarb.factors.build` | 1 | `returns`, `sectors`, `prices`, `candidates` and `universe` in `data/derived/processed/`, `config/data.toml`, `config/factors.toml` | `data/derived/processed/residuals.parquet`, `reports/phase-01/diagnostics.md` and its charts |
+| `statarb.factors.sensitivity` | 1 | the same tables and config as `statarb.factors.build` | `reports/phase-01/window_sensitivity.md` |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | `statarb.data.build` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths. |
+| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths. |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
 | `alpaca.toml` | `statarb.data.alpaca` | Withholding, repeated dividends and corrections to Alpaca's corporate actions, each with a primary source. |
+| `factors.toml` | `statarb.factors.build`, `statarb.factors.sensitivity` | Model A's window, minimum history and sector factor, the ETF of each GICS sector, the event flag's settings and the report's buckets, lags and calm year. |
 
 ## External libraries
 
 | Library | Licence | Enters through | Used for |
 |---|---|---|---|
-| pandas | BSD-3-Clause | every `statarb.data` module | long-format tables |
-| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead` | array arithmetic and seeded noise |
+| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module | long-format tables |
+| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model` | array arithmetic, seeded noise and the rolling regression |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
 | lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
+| matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report` | charts, drawn with the object interface and saved with no date or software metadata |
 
 The HTTP clients use the standard library (`urllib`), so no client library is pinned. Each later phase adds its libraries to `pyproject.toml` and to this table when it first uses them.

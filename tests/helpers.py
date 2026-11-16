@@ -156,3 +156,53 @@ def fake_alpaca(truths: dict[str, pd.DataFrame], extra: list[tuple[str, dict]] |
 
     get.calls = calls  # type: ignore[attr-defined]
     return get
+
+
+# Phase 1: a synthetic panel for the factor model.
+
+FACTOR_CAL = pd.bdate_range("2020-01-01", periods=260)
+
+
+def factor_panel(seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Returns, prices and sector intervals for SPY, two sector ETFs and four stocks, on FACTOR_CAL.
+
+    AAA is IT throughout; BBB moves from IT to Financials halfway; CCC is in a
+    sector with no ETF; DDD has a gap in its history. Betas are known: AAA 0.9
+    to the market and 0.8 to its sector factor, BBB 1.1 and 1.2.
+    """
+    cal = FACTOR_CAL
+    rng = np.random.default_rng(seed)
+    n = len(cal)
+    spy = rng.normal(0, 0.01, n)
+    xlk = spy + rng.normal(0, 0.006, n)
+    xlf = spy + rng.normal(0, 0.006, n)
+    switch = cal[130]
+    bbb_etf = np.where(cal < switch, xlk, xlf)
+    series = {
+        "SPY": spy,
+        "XLK": xlk,
+        "XLF": xlf,
+        "AAA": 0.9 * spy + 0.8 * (xlk - spy) + rng.normal(0, 0.002, n),
+        "BBB": 1.1 * spy + 1.2 * (bbb_etf - spy) + rng.normal(0, 0.002, n),
+        "CCC": 1.0 * spy + rng.normal(0, 0.002, n),
+        "DDD": 1.2 * spy + 0.5 * (xlk - spy) + rng.normal(0, 0.002, n),
+    }
+    rows = []
+    for ticker, ret in series.items():
+        for i, day in enumerate(cal):
+            if ticker == "DDD" and 50 <= i < 70:
+                continue
+            rows.append((day, ticker, ret[i], 1.0))
+    returns = pd.DataFrame(rows, columns=["date", "ticker", "ret", "split_ratio"])
+    prices = returns[["date", "ticker"]].assign(close=100.0, volume=1e6 * np.exp(rng.normal(0, 0.2, len(returns))))
+    sectors = pd.DataFrame(
+        [
+            ("AAA", "Information Technology", cal[0], pd.NaT),
+            ("BBB", "Information Technology", cal[0], switch),
+            ("BBB", "Financials", switch, pd.NaT),
+            ("CCC", "Utilities", cal[0], pd.NaT),
+            ("DDD", "Information Technology", cal[0], pd.NaT),
+        ],
+        columns=["ticker", "sector", "valid_from", "valid_to"],
+    ).astype({"valid_from": "datetime64[ns]", "valid_to": "datetime64[ns]"})
+    return returns, prices, sectors

@@ -22,15 +22,15 @@ Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md),
 
 ## Universe
 
-The candidates are today's S&P 500 constituents, from a pinned revision of Wikipedia's list. On the last trading day of each month the most liquid of them, ranked on median dollar volume over a trailing window and needing most of that window to rank, form the universe from the next trading day (`[universe]` in `config/data.toml`). Sectors are dated from the structural GICS changes since 2016, so a reclassification applies from the day it happened; company-level moves are checked in phase 1. Using today's constituents leaves survivorship bias, which the [phase 0 review](phases/phase-00/review.md#review-questions) states.
+The candidates are today's S&P 500 constituents, from a pinned revision of Wikipedia's list. On the last trading day of each month the most liquid of them, ranked on median dollar volume over a trailing window and needing most of that window to rank, form the universe from the next trading day (`[universe]` in `config/data.toml`). Sectors are dated from the structural GICS changes since 2016 and, from phase 1, the company-level moves of the candidates, so a reclassification applies from the day it happened. Using today's constituents leaves survivorship bias, which the [phase 0 review](phases/phase-00/review.md#review-questions) states.
 
 Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md). Package: [`src/statarb/data/`](../src/statarb/data/) (`universe`, `sectors`).
 
 ## Residuals
 
-Each stock's return split into the part explained by the market and its sector and an idiosyncratic residual, the raw material for every signal. Model A regresses on SPY and the sector ETF over a rolling window estimated before *t*. Model B, statistical factors from PCA, arrives in phase 4 as the optimiser's second risk model.
+Each stock's return split into the part explained by the market and its sector and an idiosyncratic residual, the raw material for every signal. Model A regresses each candidate's daily return on SPY and on its sector ETF's return less SPY's, over the year of trading days ending the day before *t*, so nothing from *t* reaches the betas; a stock that changes sector keeps its window, each day using the ETF of its sector that day, and a sector with no ETF falls back to SPY alone. A crude flag marks volume spikes for the event-driven moves that phase 5 will study. Universe membership is applied at signal time, not in the table. The diagnostics report measures how far the residuals remove common moves and how much they reverse, by year, sector, size and event days; a window sensitivity check compares the year-long window with shorter ones. Model B, statistical factors from PCA, arrives in phase 4 as the optimiser's second risk model.
 
-Phase 1: [brief](phases/phase-01/brief.md); Model B in phase 4: [brief](phases/phase-04/brief.md). Package: `src/statarb/factors/`.
+Phase 1: [brief](phases/phase-01/brief.md), [review](phases/phase-01/review.md), [diagnostics](../reports/phase-01/diagnostics.md), [window sensitivity](../reports/phase-01/window_sensitivity.md); Model B in phase 4: [brief](phases/phase-04/brief.md). Package: [`src/statarb/factors/`](../src/statarb/factors/); the table in the [data model](data-model.md#residuals).
 
 ## Signal
 

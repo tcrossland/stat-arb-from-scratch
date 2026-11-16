@@ -15,9 +15,11 @@ from helpers import (
     fake_wikipedia_api,
     synthetic_truth,
 )
-from statarb.config import repo_root
+from statarb.config import load_config, repo_root
 from statarb.data import build as b
 from statarb.data.wikipedia import WikipediaConstituents
+from statarb.factors.build import build_residuals, stocks_to_model
+from statarb.io import read_parquet, write_parquet
 
 DOC = (repo_root() / "docs" / "data-model.md").read_text()
 ARROW_NAMES = {"large_string": "string"}
@@ -46,10 +48,21 @@ def written(tmp_path_factory) -> dict[str, list[tuple[str, str]]]:
         "source": {"name": "synthetic", "snapshot": ""},
         "universe": {"size": 3, "liquidity_window_days": 20, "liquidity_min_observations": 18, "rebalance": "monthly"},
         "factors": {"market": "SPY", "sectors": []},
-            "quality": {"max_abs_daily_return": 0.25, "min_live_coverage": 0.95},
+        "quality": {"max_abs_daily_return": 0.25, "min_live_coverage": 0.95},
     }
     out = b.build(tmp / "raw", cfg, {"revision_id": 1}, [], constituents, "synthetic")
-    b.write_outputs(out, tmp / "processed", tmp / "reports")
+    processed = tmp / "processed"
+    b.write_outputs(out, processed, tmp / "reports")
+    # Phase 1's residuals from those tables, with a window short enough for the fixture to have rows.
+    factors = load_config("factors")
+    factors = {**factors, "model": {**factors["model"], "window_days": 40, "min_observations": 30}}
+    returns = read_parquet(processed / "returns.parquet")
+    stocks = stocks_to_model(read_parquet(processed / "candidates.parquet"), returns)
+    residuals = build_residuals(
+        returns, read_parquet(processed / "sectors.parquet"), read_parquet(processed / "prices.parquet"), stocks, factors, "SPY"
+    )
+    assert not residuals.empty
+    write_parquet(residuals, processed / "residuals.parquet", ["date", "ticker"])
     return {
         p.stem: [(f.name, ARROW_NAMES.get(str(f.type), str(f.type))) for f in pq.read_schema(p)]
         for p in (tmp / "processed").glob("*.parquet")

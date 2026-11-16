@@ -1,0 +1,43 @@
+# Phase 1 factor model settings. See docs/phases/phase-01/brief.md.
+# The market ETF and the list of sector ETFs are in [factors] of config/data.toml.
+
+[model]
+# Model A: rolling regression of each stock's daily return on the market ETF
+# and the ETF of the stock's sector on each day, with an intercept.
+window_days = 252             # trading days in the estimation window, ending at t-1
+min_observations = 189        # 75% of the window; fewer means no residual for that day
+# With [dates] start of config/data.toml, the minimum sets the first residual date:
+# 2016-10-04 on the pinned snapshot.
+# "excess": the sector factor is the sector ETF's return minus the market's,
+# which removes most of the collinearity between the two regressors. "raw": the ETF's return.
+sector_factor = "excess"
+# The intercept is estimated, so drift does not bias the betas, but it is not
+# subtracted: residual = ret - beta_market * market - beta_sector * sector.
+
+[sector_etfs]
+# Current GICS sectors and their SPDR ETFs. A sector missing here (the former
+# Telecommunication Services) has no ETF, and its days fall back to the market
+# alone, flagged in the output.
+"Communication Services" = "XLC"
+"Consumer Discretionary" = "XLY"
+"Consumer Staples" = "XLP"
+"Energy" = "XLE"
+"Financials" = "XLF"
+"Health Care" = "XLV"
+"Industrials" = "XLI"
+"Information Technology" = "XLK"
+"Materials" = "XLB"
+"Real Estate" = "XLRE"
+"Utilities" = "XLU"
+
+[events]
+# Crude event flag for earnings and similar news: volume on day t at least
+# `volume_ratio` times its median over the previous `lookback_days` days.
+lookback_days = 20
+volume_ratio = 3.0
+
+[report]
+# reports/phase-01/diagnostics.md
+size_buckets = 5              # quintiles of trailing 60-day median dollar volume
+autocorrelation_lags = 5
+calm_year = 2017              # compared with March 2020

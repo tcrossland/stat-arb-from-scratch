@@ -74,9 +74,27 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Beta.** A stock's sensitivity to a factor: how much it tends to move per unit move of the factor.
 
-**Residual.** The part of a stock's return that the factor model does not explain: the return minus betas times factor returns.
+**Estimation window.** The trading days whose returns a stock's betas on day *t* are estimated from: the 252 ending the day before *t*, at least 189 of them with a return (`[model]` of `config/factors.toml`). With fewer, the stock has no residual that day.
+
+**Sector factor.** In Model A, the return of the stock's sector ETF less SPY's return on the same day, so the market and sector regressors overlap little. Each day in the window uses the ETF of the sector the stock was in that day.
+
+**Intercept (alpha).** The constant in the window's regression. It is estimated, so drift does not bias the betas, but not subtracted from the residual.
+
+**Market-only row.** A residual from SPY alone, because the stock's sector had no ETF on the day (Telecommunication Services before 2018) or too few days in the window had one. Flagged `market_only` in the residual table.
+
+**Volume ratio, event flag.** The volume ratio is a day's volume over its median over the previous 20 trading days, both put on one share basis with the split ratios. A day with a ratio of at least 3 is flagged as an event: a crude stand-in for earnings and other news (`[events]` of `config/factors.toml`).
+
+**Residual.** The part of a stock's return that the factor model does not explain: the return on *t* minus the betas estimated before *t* times the factor returns on *t*.
 
 **Fitted return.** The part the factor model does explain.
+
+**Daily rank correlation.** The Spearman correlation of two values across stocks on one day, such as a residual and the same stock's residual a day later, averaged over days. Its t-statistic treats days as independent. It is the cross-sectional quantity a reversal signal trades.
+
+**Average pairwise correlation.** The correlation of two stocks' daily values over a year, averaged over every pair of stocks. Residuals that remove the common factors have one near zero.
+
+**Size bucket.** A stock's quintile of trailing 60-day median dollar volume among universe members on a day, 1 the smallest. The free data has no shares outstanding, so size here means trading size, not market value.
+
+**ETF self-inclusion.** A sector ETF holds the stocks regressed on it, so a large stock's own move is partly in its sector factor and its residual is understated.
 
 **PCA factors.** Statistical factors taken from the principal components of the stocks' returns, rather than from ETFs (Model B).
 
@@ -95,6 +113,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Holding period (*k*) and slices.** Each day's decile portfolio is held for *k* days. The book is the average of the last *k* daily portfolios, so 1/*k* of it is replaced each day.
 
 **Raw-return control.** The same portfolio built from total returns instead of residuals, to show what the factor model adds.
+
+**s-score.** How far a stock's cumulated residual is from its equilibrium, in units of its equilibrium standard deviation, from an Ornstein-Uhlenbeck process fitted over a trailing window (Avellaneda and Lee, 2010). A threshold rule opens a position when it is far from zero and closes it near zero, so a position is held until the residual reverts. A phase 2 variant.
 
 **Baseline.** The simplest version of the strategy, built in phase 2, which every later method must beat after costs.
 

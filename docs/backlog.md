@@ -11,15 +11,9 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ## Items
 
-### s-score threshold trading rule
-
-- **Trigger:** phase 2.
-- **Why:** Avellaneda and Lee (2010) enter and exit on thresholds of an Ornstein-Uhlenbeck s-score rather than sorting into daily deciles. It trades much less than a daily decile rebalance, which matters once costs bite.
-- **Action:** run as a variant alongside the decile baseline through the same engine and cost settings.
-
 ### Benchmark against Avellaneda and Lee
 
-- **Trigger:** phase 1 and phase 2 reviews.
+- **Trigger:** phase 2 review.
 - **Why:** the closest published version of this strategy, with a sample ending in 2007. Comparing residual properties and reversal strength gives an external reference point.
 - **Action:** add a section to each review explaining the gap, separating the later sample period, survivorship bias and method differences.
 
@@ -37,6 +31,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### A second price source for cross-checking
 
-- **Trigger:** phase 1 review, or sooner if a quality report shows unexplained large returns.
+- **Trigger:** phase 2 review, or sooner if a quality report or the residuals show unexplained large returns.
 - **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
 - **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.
+
+### Sector factor excluding the stock
+
+- **Trigger:** phase 2 review.
+- **Why:** sector ETFs hold the stocks regressed on them, and the largest names are a large share of their ETF, so their residuals are understated. Phase 1 found weaker lag-1 reversal in the top size bucket, which this may explain in part.
+- **Action:** if the phase 2 P&L by size shows the largest names behaving differently, build the sector factor from universe members' returns excluding the stock itself, as a second `FactorModel`, and compare reversal by size bucket. Otherwise move it to the phase 4 brief, where Model B gives a second answer to the same question.

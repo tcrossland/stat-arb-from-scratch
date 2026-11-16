@@ -18,6 +18,17 @@ Build a backtest engine and run the simplest version of the strategy through it.
 
   Opens are put on the same adjustment basis as closes. The sweep shows how much edge is lost per day of execution delay.
 
+## Variant: s-score thresholds
+
+From the phase 1 backlog walk. Avellaneda and Lee (2010) enter and exit on thresholds rather than sorting into daily deciles, so a position is held until its residual has reverted. It trades much less than a daily decile rebalance, which matters once costs bite. Run it alongside the decile baseline through the same engine, costs and fill-timing sweep, with their settings as the starting point:
+
+- Fit an Ornstein-Uhlenbeck process to each stock's cumulated residual over the last 60 trading days up to *t*, as an AR(1) on the cumulated residuals.
+- Keep a stock only if its mean reversion is fast against the window: a mean-reversion time under 30 trading days, half the window.
+- The s-score is the distance of the cumulated residual from its equilibrium in units of the equilibrium standard deviation, with the equilibrium means centred across stocks each day, as they found works better.
+- Open long below −1.25 and short above +1.25; close a long once the s-score rises above −0.50 and a short once it falls below +0.75.
+
+Their residuals come from a 60-day regression, this project's from 252 days (phase 1's window sensitivity report compares the two). The s-score's own 60-day window is separate from the factor model's, so the variant needs no new residuals. The signal is the s-score; the thresholds and the holding they imply are a portfolio rule, so the variant needs a portfolio rule that carries state from day to day, behind the same interface as the decile rule.
+
 ## The `Signal` interface
 
 Every signal, from the first, is behind one interface (decision record 0002), a `typing.Protocol`:
@@ -48,6 +59,7 @@ How often a book trades stays with the portfolio rule, not the signal. The look-
    - break-even cost: the one-way cost at which net Sharpe falls to zero
    - net Sharpe by fill timing
    - net Sharpe and turnover by holding period *k*, at each cost level
+   - the s-score variant beside the decile baseline: net Sharpe, turnover and average holding period, at each cost level
    - `experiments.jsonl`
 4. Tests:
    - a hand-built three-stock, five-day example with known P&L
