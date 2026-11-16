@@ -8,3 +8,4 @@ Short records of decisions that change scope, data source or methodology: contex
 | [0002](0002-plan-revisions-before-phase-0.md) | Plan revisions before phase 0 | accepted | 2026-11-16 |
 | [0003](0003-data-sources-alpaca-and-wikipedia.md) | Data sources: Alpaca for prices, Wikipedia for the candidate list | accepted | 2026-11-16 |
 | [0004](0004-rules-for-alpacas-data.md) | Rules for Alpaca's data | accepted | 2026-11-16 |
+| [0005](0005-spread-as-a-stated-assumption.md) | The spread is a stated assumption, not an estimate | accepted | 2026-11-16 |
