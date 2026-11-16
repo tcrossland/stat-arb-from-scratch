@@ -38,7 +38,7 @@ Start with ten to fifteen features. Add more only when the validation process is
 
 ## Deliverables
 
-1. `src/statarb/models/` with feature builder, walk-forward splitter (with purge and embargo) and a LightGBM wrapper. Trained models are saved in LightGBM's native text format, never pickle, under `data/models/` (git-ignored), named by training window, with a SHA-256 hash of each file logged alongside its run in `experiments.jsonl`.
+1. `src/statarb/models/` with feature builder, walk-forward splitter (with purge and embargo) and a LightGBM wrapper. Trained models are saved in LightGBM's native text format, never pickle, under `data/derived/models/` (git-ignored, rebuilt by retraining), named by training window, with a SHA-256 hash of each file logged alongside its run in `experiments.jsonl`.
 2. `reports/phase-05/`:
    - IC of the model versus the plain reversal signal
    - feature importance (gain and SHAP), with a short interpretation

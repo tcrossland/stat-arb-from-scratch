@@ -21,7 +21,7 @@ Compute residuals for every candidate with enough history. Universe membership i
 ## Deliverables
 
 1. `src/statarb/factors/` with a `FactorModel` interface and Model A.
-2. `data/processed/residuals.parquet`: date, ticker, raw return, fitted return, residual, betas, factor set used.
+2. `data/derived/processed/residuals.parquet`: date, ticker, raw return, fitted return, residual, betas, factor set used.
 3. `reports/phase-01/`:
    - distribution of betas over time
    - average pairwise correlation of raw returns versus residuals (residuals should be far less correlated)
