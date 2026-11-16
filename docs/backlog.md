@@ -31,7 +31,7 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### An independent short-term reversal series
 
-- **Trigger:** phase 3 review.
+- **Trigger:** phase 4 review.
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
 

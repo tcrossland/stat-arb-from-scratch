@@ -69,7 +69,13 @@ Alpaca revises old data, so a snapshot taken later is not byte for byte the one 
    ```bash
    STATARB_CONFIG_OVERLAY=path/to/overlay uv run python -m statarb.backtest.run
    ```
-4. *(phase 3)* Run the cost model and its sweeps.
+4. Run the phase 3 cost model from the same tables:
+
+   ```bash
+   uv run python -m statarb.backtest.cost_run
+   ```
+
+   It reads the tables phase 2 reads, with `config/backtest.toml` for the signals and holding rules and `config/costs.toml` for the configurations, book sizes and cost model, needs no network and stores no table. It runs each configuration, with and without the no-trade zone, at every book size under the headline cost model and its sensitivities, appends one entry per run to `reports/phase-03/experiments.jsonl` with the run state beside it, and writes `reports/phase-03/costs.md` and its charts. It reads the earlier phases' logs for the trial count and phase 2's break-even, so run step 3 first. A rerun writes the same report and charts; `--no-log` and the config overlay work as in step 3. The [phase 3 review](phases/phase-03/review.md) quotes the report's numbers.
 5. *(phase 4)* Run the optimiser and Model B.
 6. *(phase 5)* Train the walk-forward models.
 7. *(phase 6)* Run the daily job; its guide is `docs/daily-job.md`.
