@@ -21,7 +21,7 @@ Compute residuals for every candidate with enough history. Universe membership i
 ## Deliverables
 
 1. `src/statarb/factors/` with a `FactorModel` interface and Model A.
-2. `data/processed/residuals.parquet`: date, ticker, raw return, fitted return, residual, betas, factor set used.
+2. `data/derived/processed/residuals.parquet`: date, ticker, raw return, fitted return, residual, betas, factor set used.
 3. `reports/phase-01/`:
    - distribution of betas over time
    - average pairwise correlation of raw returns versus residuals (residuals should be far less correlated)
@@ -39,6 +39,7 @@ Compute residuals for every candidate with enough history. Universe membership i
 - Short histories at the start of the window. Require a minimum number of observations before emitting a residual.
 - Earnings days produce huge residuals that behave differently. Flag them now (even a crude flag from large volume spikes) so phase 5 can use it.
 - **ETF self-inclusion.** Sector ETFs hold the stocks being regressed on them, and the largest names make up a large share of their ETF (XLK especially). Their residuals are mechanically understated. Report reversal by size bucket, and as a stretch compare with a sector factor built from universe members excluding the stock itself.
+- **Company-level GICS reclassifications** (from the phase 0 backlog walk). `config/sector_changes.toml` covers the three structural GICS changes since 2016 for today's candidates, not companies moved between sectors in other years, so a stock can carry today's sector back to dates when it sat in another and be regressed on the wrong ETF. Before fitting Model A, check each universe member's sector history against S&P and MSCI announcements, add the moves found with their effective dates and sources, and report how many universe stock-days change sector.
 
 ## Out of scope
 

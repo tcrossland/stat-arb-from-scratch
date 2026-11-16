@@ -35,3 +35,17 @@ Each phase adds a row for every value it computes: what the value uses, and when
 
 | Phase | Value | Uses data up to | First usable |
 |---|---|---|---|
+| 0 | Daily bar (open, high, low, close, volume) on *t* | the session of *t* | after the close of *t* |
+| 0 | `split_ratio` and `cash` on ex-date *t* | the issuer's announcement, made before *t* | the open of *t* |
+| 0 | Total return on *t* | close of *t* − 1 and *t*, actions going ex on *t* | after the close of *t* |
+| 0 | Spin-off cash on ex-date *t* | the spun-off security's first close up to ten days after *t* or the payable date | after that close: a convention, see decision record 0004 |
+| 0 | Universe membership on *t* | 60 trading days of dollar volume up to the last trading day of the previous month | the first trading day of the month |
+| 0 | Dated GICS sector on *t* | the sector change announced before its effective date | its effective date |
+| 0 | Candidate list | today's index members (survivorship: not knowable in the past) | all dates, as a stated bias |
+| 0 | Snapshot | bars before the New York date of the download | the build that pins it |
+
+Notes for phase 0:
+
+- Dates are New York trading dates. The download's cut-off is New York's date when it runs (`statarb.data.schema.exchange_today`), so a download in another time zone never takes a bar of a session still trading.
+- Spin-off cash on an ex-date uses a close up to ten days later. The amount enters returns on the ex-date, before that close is known. It is a valuation of what the holder received, not a signal input; no signal may use it before the close it comes from.
+- The candidate list is today's, so the universe at *t* is chosen from stocks known to have survived to today. The phase 0 review reports the size of this bias.

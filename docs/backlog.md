@@ -34,3 +34,9 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** when the repository goes public, and not before phase 3.
 - **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation. A Pages site from a private personal repository would be public.
 - **Action:** write a decision record choosing the tool, its licence read first. The tool should render committed reports without executing code in CI, since `data/` is git-ignored. Until then, keep `reports/` as GitHub-friendly markdown with relative links.
+
+### A second price source for cross-checking
+
+- **Trigger:** phase 1 review, or sooner if a quality report shows unexplained large returns.
+- **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
+- **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.

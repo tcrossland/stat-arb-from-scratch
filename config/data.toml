@@ -2,26 +2,40 @@
 
 [dates]
 start = 2016-01-01
-# No end date: the build runs to the latest available close.
+# No end date: the build runs to the last session before the snapshot's download date.
 
 [source]
 # Decision record 0003. Keys come from the environment, never from this file.
 name = "alpaca"
+# The price snapshot the build reads, by download date (YYYY-MM-DD) and digest (from its manifest).
+# The build refuses a snapshot whose files no longer match the digest. Both empty means the latest
+# complete snapshot, for trying a new download before pinning it.
+snapshot = "2026-11-16"
+digest = "a28ff7224e60599b20218863e3543936e8da5a601c536519bd61c0b58a92b54a"
+
+[download]
+pause_seconds = 0.3   # between tickers, on top of the adapter's own pacing
+retries = 3
 
 [universe]
 size = 300
 liquidity_window_days = 60
+liquidity_min_observations = 54  # 90% of the window; with fewer a candidate is not ranked that month
 rebalance = "monthly"  # last trading day of the month, applied from the next trading day
 
 [factors]
 market = "SPY"
 sectors = ["XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"]
 
+
 [quality]
 max_abs_daily_return = 0.25
 min_live_coverage = 0.95
 
 [paths]
+# Raw snapshots: kept, never changed, backed up outside the repository. The environment variable
+# STATARB_RAW, an absolute path, overrides this, so worktrees share the main checkout's store.
 raw = "data/raw"
-processed = "data/processed"
+# Everything rebuilt from raw snapshots; safe to delete at any time.
+processed = "data/derived/processed"
 reports = "reports"

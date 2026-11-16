@@ -1,0 +1,51 @@
+# Listing starts for tickers whose source history begins before the company
+# itself listed: another security that held the symbol, a pre-merger shell
+# or when-issued trading (statarb.data.clean, rule 5). Rows before first_date
+# are dropped and logged.
+#
+# This uses hindsight: the start is known only after the event. It is
+# acceptable because it only removes rows that belong to a different security,
+# and it must never be used to add or edit data (docs/time-discipline.md).
+# Each entry cites a primary source.
+
+[[start]]
+ticker = "VRT"
+first_date = 2020-02-10
+note = "earlier rows are GS Acquisition Holdings (GSAH), the SPAC that merged with Vertiv; VRT first traded on the NYSE on this date"
+source = "https://www.businesswire.com/news/home/20200210005224/en"
+
+[[start]]
+ticker = "FOX"
+first_date = 2019-03-19
+note = "earlier rows are Twenty-First Century Fox class B, whose symbol the new Fox Corporation took when regular-way trading began on this date"
+source = "https://investor.foxcorporation.com/establishment-of-fox"
+
+[[start]]
+ticker = "FOXA"
+first_date = 2019-03-19
+note = "earlier rows are Twenty-First Century Fox class A, whose symbol the new Fox Corporation took when regular-way trading began on this date"
+source = "https://investor.foxcorporation.com/establishment-of-fox"
+
+[[start]]
+ticker = "SW"
+first_date = 2024-07-08
+note = "earlier rows are WestRock, which merged with Smurfit Kappa; Smurfit Westrock first traded on the NYSE on this date"
+source = "https://www.irishtimes.com/business/2024/07/08/newly-merged-packaging-giant-smurfit-westrock-begins-trading-on-wall-street"
+
+[[start]]
+ticker = "EXE"
+first_date = 2021-02-10
+note = "earlier rows are Chesapeake Energy's common stock before its Chapter 11 reorganisation, cancelled without distribution; the new common stock first traded on Nasdaq on this date"
+source = "https://www.sec.gov/Archives/edgar/data/895126/000089512621000033/ex9922021-02x09pr.htm"
+
+[[start]]
+ticker = "DOW"
+first_date = 2019-04-02
+note = "earlier rows are Dow Chemical's, then a flat price on zero volume after it merged into DowDuPont; Dow Inc. began regular-way trading on the NYSE on this date, after DowDuPont distributed it"
+source = "https://www.sec.gov/Archives/edgar/data/1666700/000119312519095042/d725044d8k.htm"
+
+[[start]]
+ticker = "JCI"
+first_date = 2016-09-06
+note = "earlier rows are Johnson Controls Inc.'s, whose symbol Tyco International took on this date when it acquired the company and was renamed Johnson Controls International; today's JCI is the former Tyco"
+source = "https://www.sec.gov/Archives/edgar/data/0000833444/000110465916143068/a16-17941_18k.htm"

@@ -4,7 +4,9 @@ A daily statistical arbitrage pipeline for US equities, from raw market data to 
 
 ## Results
 
-None yet. Each phase review adds its findings here, whichever way they go.
+Each phase review adds its findings here, whichever way they go.
+
+- **Phase 0, data and universe.** A daily build of S&P 500 candidates and factor ETFs from free data, reproducible byte for byte from pinned snapshots, with the source's quirks fixed under the numbered rules of decision record 0004. The universe uses today's constituents, so it carries survivorship bias. [Review](docs/phases/phase-00/review.md), [quality report](reports/phase-00/data_quality.md).
 
 ## Architecture
 
@@ -44,7 +46,7 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 
 | Phase | Adds | Status |
 |-------|------|--------|
-| 0 | Prices, returns and a liquidity-ranked universe | not started |
+| 0 | Prices, returns and a liquidity-ranked universe | done |
 | 1 | Factor model and residuals | not started |
 | 2 | Reversal signal and backtest engine | not started |
 | 3 | Cost model | not started |
@@ -66,7 +68,16 @@ uv run ruff check
 uv run pytest
 ```
 
-Phase 0 adds the first runner. Downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account, set in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
+### Build the data
+
+The phase 0 build turns pinned raw snapshots (in `data/raw/`, or the shared store named by `STATARB_RAW`) into the tables of [the data model](docs/data-model.md) and a quality report. The first build in a fresh clone downloads the snapshot; downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`, and only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
+
+```
+uv run python -m statarb.data.build --download
+uv run python -m statarb.data.build
+```
+
+[Reproducing the results](docs/reproduce.md) covers pinning the snapshot and what each step reads and writes.
 
 ## Disclaimer
 

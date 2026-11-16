@@ -1,7 +1,8 @@
 # Pin for the candidate set: current S&P 500 constituents from Wikipedia (decision record 0003).
-# Only the pin lives here. The extracted list is data: data/processed/candidates.parquet.
-# Filled in during phase 0.
+# Only the pin lives here. The extracted list is data: data/derived/processed/candidates.parquet.
 
 page = "List_of_S&P_500_companies"
-revision_id = 0     # Wikipedia page revision (oldid); 0 means not yet pinned
-retrieved = ""      # date the revision was fetched, YYYY-MM-DD
+revision_id = 1384572480  # Wikipedia page revision (oldid)
+# The snapshot of that revision the build reads, by download date and digest (from its manifest).
+snapshot = "2026-11-16"
+digest = "4da8e311e61e40d5121816e98e908ff265a7310758e33ecba5921d036ae9c5bf"
