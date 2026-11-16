@@ -49,7 +49,7 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 |-------|------|--------|
 | 0 | Prices, returns and a liquidity-ranked universe | done |
 | 1 | Factor model and residuals | done |
-| 2 | Reversal signal and backtest engine | not started |
+| 2 | Reversal signal and backtest engine | in progress |
 | 3 | Cost model | not started |
 | 4 | Portfolio optimiser and a statistical factor model | not started |
 | 5 | ML signal | not started |
