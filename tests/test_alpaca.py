@@ -16,6 +16,7 @@ from statarb.data.alpaca import (
     AlpacaSource,
     Client,
     MissingCredentialsError,
+    WithholdingError,
 )
 from statarb.data.build import download_prices
 from statarb.data.snapshot import PriceSnapshot
@@ -150,6 +151,12 @@ def test_action_on_a_date_without_a_bar_fails() -> None:
 # Withholding -------------------------------------------------------------------------------------------
 
 
+def test_a_foreign_dividend_fails_its_ticker() -> None:
+    rec = div("XYZ", "2025-02-10", 0.75, foreign=True)
+    with pytest.raises(WithholdingError, match="withholding"):
+        source(fake_alpaca({"XYZ": truth()}, extra=[rec])).fetch("XYZ", START, END)
+
+
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------
 
 
@@ -170,10 +177,8 @@ def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
 
 
 def test_a_rule_failure_leaves_the_ticker_out_of_the_build_not_the_download(tmp_path) -> None:
-    sparse = truth(2).drop(index=[5])
-    missing = (sparse["date"].min() + pd.tseries.offsets.BDay(5)).date().isoformat()
-    truths = {"AAA": truth(1), "BBB": sparse}
-    _, snap = _raw_snapshot(tmp_path, truths, [div("BBB", missing, 0.5)], ["AAA", "BBB"])
+    truths = {"AAA": truth(1), "BBB": truth(2)}
+    _, snap = _raw_snapshot(tmp_path, truths, [div("BBB", "2025-02-10", 0.5, foreign=True)], ["AAA", "BBB"])
     assert snap.tickers() == ["AAA", "BBB"] and snap.manifest["failed"] == {}
     bars, failed = snap.read_all()
-    assert sorted(bars) == ["AAA"] and failed["BBB"].startswith("ActionDateError")
+    assert sorted(bars) == ["AAA"] and failed["BBB"].startswith("WithholdingError")

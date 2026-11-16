@@ -9,7 +9,9 @@ decision record 0004, so a changed rule needs a rebuild, not a download:
 
 - the action query's `start` and `end` filter on the process date, usually the
   payable date, so it reaches `ACTION_MARGIN` beyond the bars' window and keeps
-  actions by ex-date.
+  actions by ex-date;
+- a dividend flagged foreign fails its ticker, since it may be net of
+  withholding tax.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -54,6 +56,10 @@ class MissingCredentialsError(RuntimeError):
 
 class RuleError(ValueError):
     """A ticker's raw data fails a rule of decision record 0004; the build leaves the ticker out."""
+
+
+class WithholdingError(RuleError):
+    """A dividend flagged foreign: it may be net of withholding tax."""
 
 
 class ActionDateError(RuleError):
@@ -135,6 +141,17 @@ def pages(get: Getter, path: str, params: Mapping[str, str]) -> list[dict[str, A
             return out
 
 
+# Dividends ---------------------------------------------------------------------------------------------
+
+
+def gross_dividend(ticker: str, ex: dt.date, rate: float, foreign: bool) -> float:
+    """The dividend as declared. One flagged foreign may be net of the issuer's home withholding tax, which the
+    flag does not say, so it fails the ticker until checked."""
+    if foreign:
+        raise WithholdingError(f"{ticker}: dividend going ex {ex} is flagged foreign; check whether it is net of withholding tax")
+    return rate
+
+
 # Corporate actions -------------------------------------------------------------------------------------
 
 
@@ -166,7 +183,7 @@ def action_columns(
     for kind, rec in recs:
         ex = _date(rec["ex_date"])
         if kind == DIVIDENDS:
-            rows.append((ex, float(rec["rate"]), 1.0))
+            rows.append((ex, gross_dividend(ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 1.0))
         elif kind in SPLITS:
             rows.append((ex, 0.0, float(rec["new_rate"]) / float(rec["old_rate"])))
     frame = pd.DataFrame(rows, columns=[DATE, "cash", "split_ratio"])
