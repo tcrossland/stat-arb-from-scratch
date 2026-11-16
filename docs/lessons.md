@@ -24,3 +24,10 @@ The episodes are told in the phase reviews and decision records: what happened, 
 | Residuals are compared with raw returns on the same rows: what a factor model adds may be reliability rather than size | phase 1 | [review](phases/phase-01/review.md#what-surprised-us) | [`tests/test_factor_report.py`](../tests/test_factor_report.py) |
 | Reversal is reported by year as well as pooled: one year can have none | phase 1 | [review](phases/phase-01/review.md#what-surprised-us) | [`tests/test_factor_report.py`](../tests/test_factor_report.py) |
 | Charts are saved with no date or software metadata, so a rebuild writes the same bytes | phase 1 | | [`tests/test_factor_report.py`](../tests/test_factor_report.py) |
+| Every registered signal passes the look-ahead contract before it is used | phase 2 | | [`tests/contract/test_signals.py`](../tests/contract/test_signals.py) |
+| The engine's targets and P&L up to a day do not change with data after it, at every fill | phase 2 | | [`tests/test_backtest.py`](../tests/test_backtest.py) |
+| A signal shuffled across stocks each day earns nothing on the same engine | phase 2 | | [`tests/test_backtest.py`](../tests/test_backtest.py) |
+| An experiment changes a setting through a config overlay, never by editing a config file | phase 2 | | [`tests/test_config_overlay.py`](../tests/test_config_overlay.py) |
+| Every log entry records the commit, uncommitted changes, the overlay and the price snapshot | phase 2 | | [`tests/test_config_overlay.py`](../tests/test_config_overlay.py) |
+| Trials are counted across every experiment log in the repository, and the best is judged with the deflated Sharpe ratio | phase 2 | | [`tests/test_backtest.py`](../tests/test_backtest.py) |
+| A statistic about returns is checked in P&L before it decides a design: the largest names reversed least and earned most | phase 2 | [review](phases/phase-02/review.md#what-surprised-us) | [`tests/test_backtest.py`](../tests/test_backtest.py) (the report's P&L by year, sector and size) |

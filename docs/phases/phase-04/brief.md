@@ -10,6 +10,8 @@ Replace decile sorts with an optimiser that turns forecasts into positions while
 
 The statistical factor model, moved here from phase 1 (decision record 0002): PCA on the rolling cross-section of standardised returns, using only data up to *t−1*, with the top *m* components as factors (try *m* = 5 to 15). It gives a residual table beside Model A's and a second risk model for the optimiser. It enters behind the `FactorModel` interface of phase 1, and the look-ahead test covers it as it covers Model A. Compare its residual properties with Model A's on the phase 1 diagnostics.
 
+From the phase 2 backlog walk: sector ETFs hold the stocks regressed on them, so the largest names' residuals are understated. Phase 1 found their lag-1 reversal weakest, but phase 2 found them earning most of the decile book's P&L. Model B's factors come from the universe itself and give a second view: compare reversal and P&L by size bucket under the two models.
+
 ## Optimisation problem (per day)
 
 Maximise: expected return − λ · risk − κ · trading cost, with λ the risk aversion and κ the cost multiplier
