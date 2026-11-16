@@ -88,6 +88,14 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Fitted return.** The part the factor model does explain.
 
+**Daily rank correlation.** The Spearman correlation of two values across stocks on one day, such as a residual and the same stock's residual a day later, averaged over days. Its t-statistic treats days as independent. It is the cross-sectional quantity a reversal signal trades.
+
+**Average pairwise correlation.** The correlation of two stocks' daily values over a year, averaged over every pair of stocks. Residuals that remove the common factors have one near zero.
+
+**Size bucket.** A stock's quintile of trailing 60-day median dollar volume among universe members on a day, 1 the smallest. The free data has no shares outstanding, so size here means trading size, not market value.
+
+**ETF self-inclusion.** A sector ETF holds the stocks regressed on it, so a large stock's own move is partly in its sector factor and its residual is understated.
+
 **PCA factors.** Statistical factors taken from the principal components of the stocks' returns, rather than from ETFs (Model B).
 
 ## Signals and portfolios

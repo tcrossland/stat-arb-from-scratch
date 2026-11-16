@@ -3,7 +3,8 @@
     uv run python -m statarb.factors.build
 
 Reads the tables in `[paths] processed` of config/data.toml, with
-config/factors.toml, and writes residuals.parquet beside them.
+config/factors.toml, writes residuals.parquet beside them, and writes the
+diagnostics report and its charts to reports/phase-01/.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from statarb.config import load_config, repo_root, resolve_path
 from statarb.data.schema import DATE, TICKER
 from statarb.factors.events import volume_ratio
 from statarb.factors.model import EtfFactorModel, EtfModelConfig
+from statarb.factors.report import diagnostics, write_report
 from statarb.io import read_parquet, write_parquet
 
 EVENT_KEYS = {"lookback_days", "volume_ratio"}
@@ -72,6 +74,15 @@ def main(argv: list[str] | None = None) -> int:
     residuals = build_residuals(returns, sectors, prices, stocks, factors_cfg, data_cfg["factors"]["market"])
     write_parquet(residuals, processed / "residuals.parquet", [DATE, TICKER])
     print(f"residuals: {len(residuals)} rows", file=sys.stderr)
+
+    report = diagnostics(
+        residuals,
+        universe=read_parquet(processed / "universe.parquet"),
+        sectors=sectors,
+        prices=prices,
+        cfg=factors_cfg["report"],
+    )
+    write_report(report, resolve_path(data_cfg["paths"]["reports"], root) / "phase-01")
     return 0
 
 

@@ -35,3 +35,9 @@ sector_factor = "excess"
 # `volume_ratio` times its median over the previous `lookback_days` days.
 lookback_days = 20
 volume_ratio = 3.0
+
+[report]
+# reports/phase-01/diagnostics.md
+size_buckets = 5              # quintiles of trailing 60-day median dollar volume
+autocorrelation_lags = 5
+calm_year = 2017              # compared with March 2020
