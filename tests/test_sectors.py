@@ -66,12 +66,21 @@ def test_former_sector_cannot_be_current() -> None:
         build_sector_intervals(current, [], START)
 
 
+# The three structural GICS changes, whose announcements the config's header cites.
+STRUCTURAL_DATES = {dt.date(2016, 9, 19), dt.date(2018, 9, 24), dt.date(2023, 3, 20)}
+
+
 def test_repository_sector_changes_are_consistent() -> None:
-    """Keys, sector names and chaining, with each ticker's current sector taken from its last move."""
+    """Keys, sector names and chaining, with each ticker's current sector taken from its last move.
+
+    A structural change cites its announcement in the file's header; a company-level move cites its own.
+    """
     changes = load_config("sector_changes", repo_root())["change"]
     for change in changes:
-        assert set(change) == {"ticker", "from", "to", "effective", "note"}, change
+        assert set(change) - {"source"} == {"ticker", "from", "to", "effective", "note"}, change
         assert isinstance(change["effective"], dt.date)
+        if change["effective"] not in STRUCTURAL_DATES:
+            assert change.get("source", "").startswith("https://"), change
     last = {}
     for change in sorted(changes, key=lambda c: c["effective"]):
         last[change["ticker"]] = change["to"]
