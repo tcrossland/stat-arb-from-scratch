@@ -2,7 +2,7 @@
 
 The stored tables, their columns and keys, and how they join. `tests/test_data_model_doc.py` checks the columns and types here against the tables the build writes.
 
-All tables are long format in `data/derived/processed/`, written by `statarb.data.build` with rows sorted by their key. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
+All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` by `statarb.factors.build` from them. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
 
 ## Raw snapshots
 
@@ -80,8 +80,28 @@ Dated GICS sectors. Key: `ticker`, `valid_from`. A ticker's sector on day *t* is
 | `valid_from` | timestamp[ns] | first date the sector applies; the data start for the earliest |
 | `valid_to` | timestamp[ns] | first date it no longer applies; null while current |
 
+## residuals
+
+Model A's residual returns (phase 1): each candidate's daily return less what SPY and its sector ETF explain, with betas estimated over the window ending the day before. Key: `date`, `ticker`. A row exists where the stock has a return on `date` and enough returns in the window; the factor ETFs have none. Universe membership is not applied here.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `date` | timestamp[ns] | the day the residual is earned to |
+| `ticker` | string | candidate |
+| `ret` | double | the day's total return, as in `returns` |
+| `fitted` | double | `beta_market * market + beta_sector * sector` on `date`, where sector is the sector ETF's return less SPY's |
+| `residual` | double | `ret - fitted` |
+| `alpha` | double | the intercept of the window's regression; estimated, not subtracted |
+| `beta_market` | double | beta to SPY over the window ending the trading day before `date` |
+| `beta_sector` | double | beta to the sector factor over the same window; null where `market_only` |
+| `sector_etf` | string | the sector ETF on `date`; null where `market_only` |
+| `n_obs` | int64 | returns in the window that the regression used |
+| `market_only` | bool | SPY alone: the sector had no ETF on `date`, or too few days in the window had one |
+| `volume_ratio` | double | volume on `date` over its median of the previous `lookback_days` trading days (`[events]` of `config/factors.toml`), both on one share basis; null without a full lookback |
+| `event` | bool | `volume_ratio` at least `[events] volume_ratio`: a volume spike, the crude event flag |
+
 ## Joins
 
-- `prices`, `actions` and `returns` join on `date` and `ticker`. Never rely on index alignment.
-- `universe` restricts any of them to members: an inner join on `date` and `ticker`.
+- `prices`, `actions`, `returns` and `residuals` join on `date` and `ticker`. Never rely on index alignment.
+- `universe` restricts any of them to members: an inner join on `date` and `ticker`. For residuals this happens at signal time, on the day a position would be formed, never in the table.
 - `sectors` joins on `ticker` with the date condition above, not on equality.

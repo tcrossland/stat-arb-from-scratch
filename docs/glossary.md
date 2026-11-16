@@ -74,7 +74,17 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Beta.** A stock's sensitivity to a factor: how much it tends to move per unit move of the factor.
 
-**Residual.** The part of a stock's return that the factor model does not explain: the return minus betas times factor returns.
+**Estimation window.** The trading days whose returns a stock's betas on day *t* are estimated from: the 252 ending the day before *t*, at least 189 of them with a return (`[model]` of `config/factors.toml`). With fewer, the stock has no residual that day.
+
+**Sector factor.** In Model A, the return of the stock's sector ETF less SPY's return on the same day, so the market and sector regressors overlap little. Each day in the window uses the ETF of the sector the stock was in that day.
+
+**Intercept (alpha).** The constant in the window's regression. It is estimated, so drift does not bias the betas, but not subtracted from the residual.
+
+**Market-only row.** A residual from SPY alone, because the stock's sector had no ETF on the day (Telecommunication Services before 2018) or too few days in the window had one. Flagged `market_only` in the residual table.
+
+**Volume ratio, event flag.** The volume ratio is a day's volume over its median over the previous 20 trading days, both put on one share basis with the split ratios. A day with a ratio of at least 3 is flagged as an event: a crude stand-in for earnings and other news (`[events]` of `config/factors.toml`).
+
+**Residual.** The part of a stock's return that the factor model does not explain: the return on *t* minus the betas estimated before *t* times the factor returns on *t*.
 
 **Fitted return.** The part the factor model does explain.
 

@@ -43,9 +43,19 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 0 | Dated GICS sector on *t* | the sector change announced before its effective date | its effective date |
 | 0 | Candidate list | today's index members (survivorship: not knowable in the past) | all dates, as a stated bias |
 | 0 | Snapshot | bars before the New York date of the download | the build that pins it |
+| 1 | Model A's intercept and betas used on *t* | the stock's, SPY's and the sector ETFs' returns over the 252 trading days ending *t* − 1, at least 189 of them; each day's sector factor from the ETF of the stock's sector that day | after the close of *t* − 1 |
+| 1 | Fitted return and residual on *t* | those betas, and the stock's, SPY's and its sector ETF's returns on *t* | after the close of *t* |
+| 1 | Volume ratio and event flag on *t* | volume on *t* and the 20 trading days before, and split ratios going ex up to *t* | after the close of *t* |
 
 Notes for phase 0:
 
 - Dates are New York trading dates. The download's cut-off is New York's date when it runs (`statarb.data.schema.exchange_today`), so a download in another time zone never takes a bar of a session still trading.
 - Spin-off cash on an ex-date uses a close up to ten days later. The amount enters returns on the ex-date, before that close is known. It is a valuation of what the holder received, not a signal input; no signal may use it before the close it comes from.
 - The candidate list is today's, so the universe at *t* is chosen from stocks known to have survived to today. The phase 0 review reports the size of this bias.
+
+Notes for phase 1:
+
+- The window and its minimum are `[model]` of `config/factors.toml`, and the event flag's lookback `[events]`. `tests/test_factors.py` perturbs returns and volumes after a cut-off and requires every residual up to it to be unchanged, and checks the rolling regression alone the same way.
+- A residual on *t* is known only after the close of *t*, the same time as the return it comes from. A signal formed from it can trade at the close of *t* only with a stated slippage, and otherwise from the open of *t + 1* (the rules above).
+- The residual table covers every candidate. Universe membership is applied at signal time, on the day a position is formed, never in the table, so a stock's residuals before it joins the universe use only its own history.
+- A dated sector change applies from its effective date. A company-level reclassification missing from `config/sector_changes.toml` leaves today's sector on earlier dates, which uses knowledge of today; the phase 1 review says how many universe stock-days that affects.
