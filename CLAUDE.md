@@ -22,6 +22,10 @@ A research project: build a simplified, daily-frequency version of a cross-secti
 | `docs/time-discipline.md` | what is known when, by phase | a timing assumption is added |
 | `docs/glossary.md` | terms as this project uses them | a term is introduced |
 | `docs/requirements.md` | time, memory and disk of each runner | a runner is added or its cost changes |
+| `docs/README.md` | the documentation index, by what the reader wants to do | a page is added, renamed or removed |
+| `docs/overview.md` | the pipeline on one page, a paragraph per stage with links to its brief and package | a phase review lands or a stage changes |
+| `docs/lessons.md` | one row per lesson: the phase it enters, its episode, the check that enforces it | a lesson enters, or a review or decision record tells its episode |
+| `docs/reproduce.md` | the reader's guide to rebuilding the results | a runner, a snapshot pin or the published tolerance changes |
 
 The architecture and data model documents are empty until the first module lands. From then on a test checks each against the code.
 
@@ -37,6 +41,7 @@ The architecture and data model documents are empty until the first module lands
 - File-first. Read the current phase brief before writing code, and do not start work that belongs to a later phase: record it in `docs/backlog.md` with a trigger instead.
 - Decisions that change scope, data source or methodology go in `docs/decisions/NNNN-title.md` (short ADR: context, decision, consequences), with a line in the index.
 - Keep the reference docs in the table above current in the same change as the code.
+- Each number lives in one place: the phase review, or the generated report the review quotes. The README, the overview and every other page link to it rather than copy it, so a rerun that moves a number changes one file.
 - Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review. Tag the review's commit `phase-NN`.
 - Anything another phase depends on lives in `src/statarb/` with tests, not in a notebook.
 
