@@ -11,12 +11,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ## Items
 
-### Benchmark against Avellaneda and Lee
-
-- **Trigger:** phase 2 review.
-- **Why:** the closest published version of this strategy, with a sample ending in 2007. Comparing residual properties and reversal strength gives an external reference point.
-- **Action:** add a section to each review explaining the gap, separating the later sample period, survivorship bias and method differences.
-
 ### Multi-period optimiser
 
 - **Trigger:** phase 4 review.
@@ -31,12 +25,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### A second price source for cross-checking
 
-- **Trigger:** phase 2 review, or sooner if a quality report or the residuals show unexplained large returns.
+- **Trigger:** phase 5 review, or sooner if a quality report, the residuals or a backtest show unexplained large returns.
 - **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
 - **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.
 
-### Sector factor excluding the stock
+### An independent short-term reversal series
 
-- **Trigger:** phase 2 review.
-- **Why:** sector ETFs hold the stocks regressed on them, and the largest names are a large share of their ETF, so their residuals are understated. Phase 1 found weaker lag-1 reversal in the top size bucket, which this may explain in part.
-- **Action:** if the phase 2 P&L by size shows the largest names behaving differently, build the sector factor from universe members' returns excluding the stock itself, as a second `FactorModel`, and compare reversal by size bucket. Otherwise move it to the phase 4 brief, where Model B gives a second answer to the same question.
+- **Trigger:** phase 3 review.
+- **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
+- **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.

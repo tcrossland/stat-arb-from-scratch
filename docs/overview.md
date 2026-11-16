@@ -34,21 +34,23 @@ Phase 1: [brief](phases/phase-01/brief.md), [review](phases/phase-01/review.md),
 
 ## Signal
 
-The baseline bets on reversal: minus the residual return over the last *n* days, ranked across the universe each day. Every signal goes through one `Signal` interface and the same look-ahead test, so a new one reaches the costs and the portfolio without changes to them. The baseline stays in every later comparison as the benchmark.
+The baseline bets on reversal: minus the residual return over the last *n* days, ranked across the universe each day. Raw reversal, on total returns, runs beside it as a control for what the factor model adds, and Avellaneda and Lee's s-score as a variant that enters and exits on thresholds. Every signal goes through one `Signal` interface, declares the tables it reads and passes the same look-ahead contract, so a new one reaches the costs and the portfolio without changes to them. The baseline stays in every later comparison as the benchmark; the phase 2 review records its settings.
 
-Phase 2: [brief](phases/phase-02/brief.md). Package: `src/statarb/signals/`.
+Phase 2: [brief](phases/phase-02/brief.md), [review](phases/phase-02/review.md), [backtest report](../reports/phase-02/backtest.md). Package: [`src/statarb/signals/`](../src/statarb/signals/).
 
 ## Costs
 
 Spread, market impact from a square-root model, commission from a published retail schedule, and borrow for the short side. Costs are the binding constraint for short-term reversal, which is why portfolio construction comes before the ML signal ([decision record 0002](decisions/0002-plan-revisions-before-phase-0.md)).
 
-Phase 3: [brief](phases/phase-03/brief.md). Package: `src/statarb/backtest/`.
+Phase 2 charges a flat cost per dollar traded, at five levels, behind a `CostModel` interface, and reports the break-even cost against an assumed retail cost.
+
+Phase 3: [brief](phases/phase-03/brief.md). Package: [`src/statarb/backtest/`](../src/statarb/backtest/).
 
 ## Portfolio
 
-Phase 2 trades decile sorts, long the top decile and short the bottom, held for *k* days in overlapping slices. Phase 4 replaces them with an optimiser that trades expected return against risk (λ) and trading cost (κ) under a turnover budget (*τ*) and neutrality constraints. The backtest engine runs both against the same fills and costs.
+Phase 2 trades decile sorts, long the top decile and short the bottom, held for *k* days in overlapping slices, and the s-score's thresholds, which hold a position hedged with its sector ETF and SPY until it reverts. Both sit behind a `PortfolioRule` interface. The engine fills the targets at the close of *t*, the open of *t+1* or the close of *t+1*, and logs every configuration it runs, with the commit and data snapshot, so the best is judged against all of them. Phase 4 replaces the sorts with an optimiser that trades expected return against risk (λ) and trading cost (κ) under a turnover budget (*τ*) and neutrality constraints. The backtest engine runs both against the same fills and costs.
 
-Phases 2 and 4: [phase 2 brief](phases/phase-02/brief.md), [phase 4 brief](phases/phase-04/brief.md). Packages: `src/statarb/backtest/`, `src/statarb/portfolio/`.
+Phases 2 and 4: [phase 2 brief](phases/phase-02/brief.md), [phase 2 review](phases/phase-02/review.md), [phase 4 brief](phases/phase-04/brief.md). Packages: [`src/statarb/backtest/`](../src/statarb/backtest/), `src/statarb/portfolio/`.
 
 ## ML model
 

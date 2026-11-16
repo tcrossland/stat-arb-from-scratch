@@ -206,3 +206,48 @@ def factor_panel(seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFram
         columns=["ticker", "sector", "valid_from", "valid_to"],
     ).astype({"valid_from": "datetime64[ns]", "valid_to": "datetime64[ns]"})
     return returns, prices, sectors
+
+
+# Phase 2: a synthetic market with lag-1 residual reversal ----------------------
+
+MARKET_CAL = pd.bdate_range("2021-01-04", periods=320)
+MARKET_ETFS = {"Information Technology": "XLK", "Financials": "XLF"}
+
+
+def synthetic_market(seed: int = 0, n: int = 30, reversal: float = 0.3) -> tuple[pd.DataFrame, ...]:
+    """Long returns, prices, residuals, universe and sectors tables (statarb.signals.tables.TABLES order)
+    for SPY, two sector ETFs and n stocks whose residuals reverse by `reversal` the next day."""
+    rng = np.random.default_rng(seed)
+    cal = MARKET_CAL
+    T = len(cal)
+    spy = rng.normal(0, 0.01, T)
+    etf = {"XLK": spy + rng.normal(0, 0.005, T), "XLF": spy + rng.normal(0, 0.005, T)}
+    rets, resid, betas, sector_rows = {"SPY": spy, **etf}, {}, {}, []
+    for i in range(n):
+        name, sector = f"S{i:02d}", ("Information Technology" if i % 2 else "Financials")
+        e = rng.normal(0, 0.02, T)
+        res = e - reversal * np.concatenate([[0.0], e[:-1]])
+        beta = 0.8 + 0.4 * rng.random()
+        rets[name] = beta * spy + 0.5 * (etf[MARKET_ETFS[sector]] - spy) + res
+        resid[name], betas[name] = res, beta
+        sector_rows.append((name, sector, cal[0], pd.NaT))
+    rows, price_rows = [], []
+    for ticker, r in rets.items():
+        close = 100 * np.cumprod(1 + r)
+        prev = np.concatenate([[100.0], close[:-1]])
+        for t, day in enumerate(cal):
+            price_rows.append((day, ticker, np.sqrt(prev[t] * close[t]), close[t] * 1.01, close[t] * 0.99, close[t], 1_000_000 + 1000 * t))
+            if t:
+                rows.append((day, ticker, r[t], cal[t - 1], 1.0, 0.0))
+    returns = pd.DataFrame(rows, columns=["date", "ticker", "ret", "prev_date", "split_ratio", "cash"])
+    prices = pd.DataFrame(price_rows, columns=["date", "ticker", "open", "high", "low", "close", "volume"])
+    stocks = list(resid)
+    residuals = pd.DataFrame(
+        [(day, s, resid[s][t], betas[s]) for s in stocks for t, day in enumerate(cal) if t >= 20],
+        columns=["date", "ticker", "residual", "beta_market"],
+    )
+    universe = pd.DataFrame([(day, s, cal[0]) for day in cal for s in stocks], columns=["date", "ticker", "rebalanced_on"])
+    sectors = pd.DataFrame(sector_rows, columns=["ticker", "sector", "valid_from", "valid_to"]).astype(
+        {"valid_from": "datetime64[ns]", "valid_to": "datetime64[ns]"}
+    )
+    return returns, prices, residuals, universe, sectors
