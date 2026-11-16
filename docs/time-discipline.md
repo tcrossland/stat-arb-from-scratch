@@ -46,6 +46,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 1 | Model A's intercept and betas used on *t* | the stock's, SPY's and the sector ETFs' returns over the 252 trading days ending *t* − 1, at least 189 of them; each day's sector factor from the ETF of the stock's sector that day | after the close of *t* − 1 |
 | 1 | Fitted return and residual on *t* | those betas, and the stock's, SPY's and its sector ETF's returns on *t* | after the close of *t* |
 | 1 | Volume ratio and event flag on *t* | volume on *t* and the 20 trading days before, and split ratios going ex up to *t* | after the close of *t* |
+| 2 | Reversal signal on *t* | the residual (or total return) on the *n* trading days ending *t*; for the scaled signal, its standard deviation over the 60 ending *t* | after the close of *t* |
+| 2 | s-score on *t* | the stock's, SPY's and its sector ETF's returns over the 60 trading days ending *t*, each day's ETF from that day's sector; universe members on *t* for the centring | after the close of *t* |
 
 Notes for phase 0:
 
@@ -59,3 +61,8 @@ Notes for phase 1:
 - A residual on *t* is known only after the close of *t*, the same time as the return it comes from. A signal formed from it can trade at the close of *t* only with a stated slippage, and otherwise from the open of *t + 1* (the rules above).
 - The residual table covers every candidate. Universe membership is applied at signal time, on the day a position is formed, never in the table, so a stock's residuals before it joins the universe use only its own history.
 - A dated sector change applies from its effective date. A company-level reclassification missing from `config/sector_changes.toml` leaves today's sector on earlier dates, which uses knowledge of today. Phase 1 added the moves it could date; the [phase 1 review](phases/phase-01/review.md#company-level-gics-reclassifications) lists those it could not and how many universe stock-days they affect.
+
+Notes for phase 2:
+
+- A signal on *t* needs every one of its *n* days present, so it never sums across a missing bar; a one-day signal on the day after a gap uses the return that spans it.
+- `tests/contract/test_signals.py` perturbs every table a registered signal reads after a cut-off, and reshuffles universe membership and sectors after it, and requires every score up to it to be unchanged.

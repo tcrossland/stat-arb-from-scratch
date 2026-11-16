@@ -52,6 +52,12 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.factors.report` | 1 | The diagnostics report and its charts: statistics only, computed apart from writing them. |
 | `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report. |
 | `statarb.factors.sensitivity` | 1 | Runner: Model A at 60, 126 and 252 days compared on common rows; feeds nothing later. |
+| `statarb.signals` | 2 | Signals behind the `Signal` interface. |
+| `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, and the s-score's factor inputs. |
+| `statarb.signals.base` | 2 | The `Signal` protocol, and the scores and hedge ratios a signal returns. |
+| `statarb.signals.reversal` | 2 | Cross-sectional reversal on residuals or on total returns, optionally scaled by volatility. |
+| `statarb.signals.sscore` | 2 | Avellaneda and Lee's s-score from a 60-day in-sample regression and an AR(1) fit. |
+| `statarb.signals.registry` | 2 | Every signal by the name config chooses it by; the look-ahead contract runs over it. |
 
 ## Seams
 
@@ -60,8 +66,9 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 | `FactorModel` | `EtfFactorModel` (Model A); Model B joins in phase 4 | fixed in phase 1 |
+| `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`) | name, through `statarb.signals.registry` |
 
-`tests/contract/` runs every implementation of each protocol through the same checks. `FactorModel` has one implementation until phase 4, so its checks are in `tests/test_factors.py` until then.
+`tests/contract/` runs every implementation of each protocol through the same checks: `test_signals.py` runs every registered signal through the look-ahead test and checks it reads only the tables it declares. `FactorModel` has one implementation until phase 4, so its checks are in `tests/test_factors.py` until then.
 
 ## Runners
 
@@ -86,8 +93,8 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 
 | Library | Licence | Enters through | Used for |
 |---|---|---|---|
-| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module | long-format tables |
-| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model` | array arithmetic, seeded noise and the rolling regression |
+| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables` | long-format tables, and the wide panels signals read |
+| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `signals.sscore` | array arithmetic, seeded noise, the rolling regression and the s-score on dates by tickers arrays |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
 | lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
 | matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report` | charts, drawn with the object interface and saved with no date or software metadata |
