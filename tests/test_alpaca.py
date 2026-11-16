@@ -289,8 +289,8 @@ def test_repository_rules_parse_and_cite_their_sources() -> None:
     rules = alpaca.parse_rules(cfg)
     assert "ACN" in rules.withholding.net and "LIN" in rules.withholding.gross
     assert ("F", dt.date(2025, 2, 18)) in rules.corrections.repeats
-    assert rules.corrections.drops
-    for section in ("net", "repeat", "drop"):
+    assert rules.corrections.drops and rules.corrections.added
+    for section in ("net", "repeat", "drop", "add"):
         for entry in cfg.get(section, []):
             assert entry["source"].startswith("https://"), (section, entry)
 
@@ -321,12 +321,39 @@ def test_listed_drops_remove_only_the_matching_record() -> None:
     assert cash_on(bars, "2025-02-10") == 0.5 and cash_on(bars, "2025-02-20") == 1.0625
 
 
+def test_one_entry_can_correct_several_ex_dates() -> None:
+    # A base and a variable part: the source files the base alone on one date and beside the total on another.
+    recs = [div("XYZ", "2025-02-03", 0.075), div("XYZ", "2025-02-10", 0.075, rid="b"), div("XYZ", "2025-02-10", 0.15)]
+    days = [dt.date(2025, 2, 3), dt.date(2025, 2, 10)]
+    fixes = corrections(
+        drop=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_dates": days, "rate": 0.075, **SOURCE}],
+        add=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_dates": days[:1], "rate": 0.15, **SOURCE}],
+    )
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=recs), corrections=fixes).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-02-03") == 0.15 and cash_on(bars, "2025-02-10") == 0.15
+
+
+def test_listed_dividends_are_added_gross_under_the_symbol_of_their_time() -> None:
+    fixes = corrections(
+        add=[{"symbol": "OLD", "kind": "cash_dividends", "ex_date": dt.date(2025, 1, 15), "rate": 4.0, **SOURCE}],
+    )
+    get = fake_alpaca({"XYZ": truth()}, extra=[rename("OLD", "XYZ", "2025-02-01")])
+    bars = source(get, corrections=fixes).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-01-15") == 4.0
+
+
 def test_parse_corrections_validates() -> None:
     entry = {"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), "rate": 0.5, **SOURCE}
     with pytest.raises(ValueError, match="lacks"):
-        corrections(drop=[{k: v for k, v in entry.items() if k != "source"}])
+        corrections(add=[{k: v for k, v in entry.items() if k != "source"}])
     with pytest.raises(ValueError, match="lacks"):
-        corrections(drop=[{k: v for k, v in entry.items() if k != "ex_date"}])
+        corrections(add=[{k: v for k, v in entry.items() if k != "rate"}])
+    with pytest.raises(ValueError, match="kind"):
+        corrections(add=[{**entry, "kind": "forward_splits"}])
+    with pytest.raises(ValueError, match="exactly one"):
+        corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", **SOURCE}])
+    with pytest.raises(ValueError, match="exactly one"):
+        corrections(add=[{**entry, "ex_dates": [dt.date(2025, 2, 11)]}])
 
 
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------
@@ -352,9 +379,10 @@ def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
 def test_a_correction_listed_after_the_download_needs_only_a_rebuild(tmp_path) -> None:
     truths = {"XYZ": truth(1, cash={pd.Timestamp("2025-02-10"): 0.5})}
     _, snap = _raw_snapshot(tmp_path, truths, [], ["XYZ"])
-    rules = Rules(NONE, corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), **SOURCE}]))
-    assert cash_on(snap.bars("XYZ", Rules(NONE)), "2025-02-10") == 0.5
-    assert cash_on(snap.bars("XYZ", rules), "2025-02-10") == 0.0
+    rules = Rules(NONE, corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), **SOURCE}],
+                                    add=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 11), "rate": 0.4, **SOURCE}]))
+    bars = snap.bars("XYZ", rules)
+    assert cash_on(bars, "2025-02-10") == 0.0 and cash_on(bars, "2025-02-11") == 0.4
 
 
 def test_a_rule_failure_leaves_the_ticker_out_of_the_build_not_the_download(tmp_path) -> None:

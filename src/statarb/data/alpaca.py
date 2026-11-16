@@ -18,7 +18,8 @@ a changed rule or correction needs a rebuild, not a download:
   dates the ticker held it;
 - a record seen twice is kept once, except the repeats `config/alpaca.toml`
   lists as separate dividends;
-- `config/alpaca.toml` lists, each with its primary source, the records to drop.
+- `config/alpaca.toml` lists, each with its primary source, the records to drop
+  and the dividends Alpaca has no record of.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -262,20 +263,56 @@ class Drop:
 
 @dataclass(frozen=True)
 class Corrections:
-    """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004)."""
+    """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004).
+
+    `added` holds Alpaca-shaped records by the symbol they are filed under:
+    dividends Alpaca has no record of.
+    """
 
     repeats: frozenset[Repeat] = frozenset()
     drops: tuple[Drop, ...] = ()
+    added: Mapping[str, tuple[Record, ...]] = MappingProxyType({})
+
+
+ADD_KINDS = (DIVIDENDS,)
+
+
+def _ex_dates(section: str, entry: Mapping[str, Any]) -> list[dt.date]:
+    """An entry's `ex_date`, or its `ex_dates` when one correction applies on several."""
+    if ("ex_date" in entry) == ("ex_dates" in entry):
+        raise ValueError(f"{section} entry {entry.get('symbol')} needs exactly one of ex_date and ex_dates")
+    return [entry["ex_date"]] if "ex_date" in entry else list(entry["ex_dates"])
+
+
+def _added_records(entry: Mapping[str, Any]) -> list[tuple[str, Record]]:
+    """(symbol it is filed under, record) for each ex-date of an `[[add]]` entry."""
+    return [_added_record(entry, ex) for ex in _ex_dates("add", entry)]
+
+
+def _added_record(entry: Mapping[str, Any], ex: dt.date) -> tuple[str, Record]:
+    _require("add", entry, {"symbol", "kind", "note", "source"})
+    kind, symbol = entry["kind"], entry["symbol"]
+    base = {"id": f"config:{kind}:{symbol}:{ex.isoformat()}", "ex_date": ex.isoformat()}
+    if kind == DIVIDENDS:
+        _require("add", entry, {"rate"})
+        return symbol, (kind, {**base, "symbol": symbol, "rate": float(entry["rate"]), "foreign": False})
+    raise ValueError(f"add entry {symbol} {ex}: kind must be one of {ADD_KINDS}, not {kind!r}")
 
 
 def parse_corrections(cfg: Mapping[str, Any]) -> Corrections:
-    """`config/alpaca.toml`: `[[repeat]]` and `[[drop]]`, each with its source."""
+    """`config/alpaca.toml`: `[[repeat]]`, `[[drop]]` and `[[add]]`, each with its source."""
     drops = []
     for entry in cfg.get("drop", []):
-        _require("drop", entry, {"symbol", "kind", "ex_date", "note", "source"})
+        _require("drop", entry, {"symbol", "kind", "note", "source"})
         rate = None if entry.get("rate") is None else float(entry["rate"])
-        drops.append(Drop(entry["symbol"], entry["kind"], entry["ex_date"], rate))
-    return Corrections(parse_repeats(cfg), tuple(drops))
+        drops += [Drop(entry["symbol"], entry["kind"], ex, rate) for ex in _ex_dates("drop", entry)]
+    added: dict[str, list[Record]] = {}
+    listed = [r for e in cfg.get("add", []) for r in _added_records(e)]
+    for symbol, rec in listed:
+        added.setdefault(symbol, []).append(rec)
+    return Corrections(
+        parse_repeats(cfg), tuple(drops), MappingProxyType({s: tuple(r) for s, r in added.items()})
+    )
 
 
 @dataclass(frozen=True)
@@ -291,10 +328,10 @@ def parse_rules(cfg: Mapping[str, Any]) -> Rules:
 
 
 def corrected(symbol: str, recs: list[Record], corrections: Corrections) -> tuple[list[Record], list[Record]]:
-    """(records, dropped): the records filed under `symbol`, less the listed drops."""
+    """(records, dropped): the records filed under `symbol`, less the listed drops, plus the listed additions."""
     dropped = [(k, r) for k, r in recs if any(d.matches(k, r) for d in corrections.drops)]
     kept = [(k, r) for k, r in recs if not any(d.matches(k, r) for d in corrections.drops)]
-    return kept, dropped
+    return kept + list(corrections.added.get(symbol, ())), dropped
 
 
 def records(responses: Iterable[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:

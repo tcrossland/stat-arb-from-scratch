@@ -25,7 +25,11 @@
 # Corrections (rule 11). Each entry is filed under the symbol the security
 # held on its ex-date, as Alpaca's records are. [[drop]] removes a record
 # that is not the security's own, matched by symbol, kind, ex-date and, when
-# given, rate.
+# given, rate; [[add]] adds a dividend (gross, per share) Alpaca has no record
+# of. ex_dates in place of ex_date applies one entry on several dates.
+# Ex-dates the issuer does not state are worked out from the record date under
+# the settlement cycle of the time (T+3 to 2017-09-04, T+2 to 2024-05-27, T+1
+# since), as each note says.
 
 gross = [
   "ACGL", "AMCR", "APTV", "BG", "CB", "CCL", "EG", "FERG", "GRMN", "IVZ",
@@ -155,6 +159,46 @@ source = "https://www.sec.gov/Archives/edgar/data/1140536/000095017023035063/wtw
 note = "Form 10-Q: dividend paid 2023-07-17 to holders of record 2023-06-30; ex 2023-06-29 (T+2)."
 
 [[drop]]
+symbol = "XLF"
+kind = "cash_dividends"
+ex_date = 2016-09-19
+rate = 0.139146
+note = "the special distribution's XLRE share ratio, filed as a cash amount; listed under [[add]] at its stated value"
+source = "https://app.researchpool.com/provider/businesswire/state-street-corp-stt-state-street-global-advisors-announces-dividend-distributions-resultin"
+
+[[add]]
+symbol = "XLF"
+kind = "cash_dividends"
+ex_date = 2016-09-19
+rate = 4.44356
+note = "special distribution of 0.139146 XLRE shares per XLF share, valued by State Street at $4.44356 as of 2016-09-16; ex-date 2016-09-19"
+source = "https://app.researchpool.com/provider/businesswire/state-street-corp-stt-state-street-global-advisors-announces-dividend-distributions-resultin"
+
+[[add]]
+symbol = "KDP"
+kind = "cash_dividends"
+ex_date = 2018-07-10
+rate = 103.75
+note = "special dividend to Dr Pepper Snapple holders under the Keurig transaction, record 2018-07-06, ex-date the first day as KDP; due bills through 2018-07-09, ex-dividend from 2018-07-10"
+source = "https://www.sec.gov/Archives/edgar/data/0001418135/000110465918044357/a18-16509_3ex99d1.htm"
+
+[[add]]
+symbol = "F"
+kind = "cash_dividends"
+ex_date = 2016-01-27
+rate = 0.25
+note = "supplemental dividend paid with the $0.15 regular dividend, both of record 2016-01-29 and payable 2016-03-01; ex-date that of the regular dividend"
+source = "https://www.sec.gov/Archives/edgar/data/0000037996/000003799616000079/exhibit99todbglobalautomot.htm"
+
+[[add]]
+symbol = "CRH"
+kind = "cash_dividends"
+ex_date = 2022-03-10
+rate = 0.98
+note = "2021 final dividend of US$0.98 per ordinary share, one per ADS, record 2022-03-11, payable 2022-05-05; ex-date one business day before the record date under T+2"
+source = "https://www.sec.gov/Archives/edgar/data/849395/000165495422002431/a4589d.htm"
+
+[[drop]]
 symbol = "LMT"
 kind = "cash_dividends"
 ex_date = 2021-03-09
@@ -184,6 +228,68 @@ ex_date = 2020-03-12
 rate = 0.53
 note = "declared by Ingersoll-Rand plc, which became Trane Technologies (TT) on 2020-03-02 and has the record under TT too; Ingersoll Rand Inc. paid no dividend in 2020"
 source = "https://investors.tranetechnologies.com/news-and-events/news-releases/news-release-details/2020/Ingersoll-Rand-Reports-Results-of-Voting-from-Extraordinary-General-Meeting-and-Declares-Quarterly-Dividend/default.aspx"
+
+[[add]]
+symbol = "ANTM"
+kind = "cash_dividends"
+ex_date = 2022-06-09
+rate = 1.28
+note = "Anthem's second-quarter 2022 dividend, record 2022-06-10, payable 2022-06-24; ex-date one business day before the record date under T+2"
+source = "https://www.sec.gov/Archives/edgar/data/1156039/000119312522110122/d542944dex991.htm"
+
+[[add]]
+symbol = "WLTW"
+kind = "cash_dividends"
+ex_date = 2021-12-30
+rate = 0.80
+note = "record 2021-12-31, payable about 2022-01-18; Alpaca files it under WTW, which the company took only on 2022-01-10. The issuer's release refuses automated reads; the source is its 8-K on the ticker change, and the amount is from a verbatim wire reprint"
+source = "https://www.sec.gov/Archives/edgar/data/1140536/000119312522004045/d267396d8k.htm"
+
+[[add]]
+symbol = "RE"
+kind = "cash_dividends"
+ex_date = 2023-03-15
+rate = 1.65
+note = "Everest Re's first-quarter 2023 dividend, record 2023-03-16; Alpaca files it under EG, which the company took only on 2023-07-10"
+source = "https://www.sec.gov/Archives/edgar/data/1095073/000109507323000024/everestre-20230331.htm"
+
+[[repeat]]
+symbol = "DVN"
+ex_date = 2024-09-13
+note = "a fixed dividend of $0.22 and a variable dividend of $0.22; Alpaca has one record and the other is listed under [[add]]"
+source = "https://www.sec.gov/Archives/edgar/data/1090012/000119312524194945/d816697dex991.htm"
+
+[[add]]
+symbol = "DVN"
+kind = "cash_dividends"
+ex_date = 2024-09-13
+rate = 0.22
+note = "the variable part of a $0.44 dividend, record and ex-date 2024-09-13 under T+1"
+source = "https://www.sec.gov/Archives/edgar/data/1090012/000119312524194945/d816697dex991.htm"
+
+[[add]]
+symbol = "CHK"
+kind = "cash_dividends"
+ex_date = 2023-05-17
+rate = 0.55
+note = "the base part of a $1.18 dividend, beside the $0.63 variable part Alpaca has a record of. Record 2023-05-18, ex-date one business day before under T+2"
+source = "https://www.sec.gov/Archives/edgar/data/895126/000089512623000061/chk-ex_991x20230331x8kxpr.htm"
+
+[[drop]]
+symbol = "FCX"
+kind = "cash_dividends"
+ex_dates = [2022-01-13, 2023-01-12, 2023-04-13, 2023-07-13, 2023-10-12, 2024-01-11, 2024-04-12, 2024-07-15, 2024-10-15, 2025-04-15, 2025-07-15, 2026-10-15]
+rate = 0.075
+note = "every quarter from 2022 is $0.15, a $0.075 base and a $0.075 variable dividend; on these dates Alpaca files one $0.075 record, alone or beside the $0.15 total. Ex-dates from the record dates in FCX's declarations"
+source = "https://www.sec.gov/Archives/edgar/data/831259/000083125922000028/fcx-20220331.htm"
+
+[[add]]
+symbol = "FCX"
+kind = "cash_dividends"
+ex_dates = [2022-01-13, 2023-01-12, 2023-04-13, 2023-07-13, 2024-01-11, 2024-10-15]
+rate = 0.15
+note = "the $0.15 total, where Alpaca has only one $0.075 part"
+source = "https://investors.fcx.com/investors/news-releases/2023/default.aspx"
 
 [[drop]]
 symbol = "AEE"
@@ -248,3 +354,188 @@ ex_date = 2016-08-30
 rate = 0.6875
 note = "the dividend on T-Mobile's 5.50% mandatory convertible preferred, Series A, of record 2016-09-01; T-Mobile had never paid a dividend on its common stock"
 source = "https://www.sec.gov/Archives/edgar/data/1283699/000128369917000010/tmus12312016form10-k.htm"
+
+[[add]]
+symbol = "F"
+kind = "cash_dividends"
+ex_date = 2017-01-18
+rate = 0.15
+note = "the regular dividend paid with the $0.05 supplemental, both of record 2017-01-20 and payable 2017-03-01; ex-date two business days before the record date under T+3"
+source = "https://s205.q4cdn.com/882619693/files/doc_presentation/doc_events/2017/01/10/deutsche-bank-press-release.pdf"
+
+[[add]]
+symbol = "F"
+kind = "cash_dividends"
+ex_date = 2018-01-29
+rate = 0.13
+note = "the supplemental dividend paid with the $0.15 regular, both of record 2018-01-30 and payable 2018-03-01; ex-date one business day before the record date under T+2"
+source = "https://s205.q4cdn.com/882619693/files/doc_presentation/doc_events/2018/01/16/1-16-2018-deutsche-bank-press-release-(1).pdf"
+
+[[add]]
+symbol = "HST"
+kind = "cash_dividends"
+ex_date = 2016-09-28
+rate = 0.2
+note = "record 2016-09-30, paid 2016-10-17; ex-date two business days before the record date under T+3"
+source = "https://www.sec.gov/Archives/edgar/data/0001070750/000156459016026852/hst-ex991_6.htm"
+
+[[add]]
+symbol = "LNT"
+kind = "cash_dividends"
+ex_date = 2018-01-30
+rate = 0.335
+note = "the quarterly dividend, of record 2018-01-31 with the $0.0005 rights redemption Alpaca has a record of; ex-date one business day before the record date under T+2"
+source = "https://sec.gov/Archives/edgar/data/352541/000035254118000009/lnt011520188-kexh991.htm"
+
+[[add]]
+symbol = "PHM"
+kind = "cash_dividends"
+ex_date = 2016-09-16
+rate = 0.09
+note = "record 2016-09-20, payable 2016-10-04; ex-date two business days before the record date under T+3"
+source = "https://prnewswire.com/news-releases/pultegroup-announces-quarterly-cash-dividend-of-009-per-share-300324661.html"
+
+[[add]]
+symbol = "PM"
+kind = "cash_dividends"
+ex_date = 2016-09-26
+rate = 1.04
+note = "record 2016-09-28, payable 2016-10-13, ex-date as stated in the release; read from a verbatim repost of the Business Wire release"
+source = "https://uk.marketscreener.com/quote/stock/PHILIP-MORRIS-INTERNATION-2836703/news/Philip-Morris-International-Inc-Increases-Dividend-by-2-to-an-Annualized-Rate-of-4-16-Per-Share-23051431/"
+
+[[add]]
+symbol = "RL"
+kind = "cash_dividends"
+ex_date = 2016-06-29
+rate = 0.5
+note = "record 2016-07-01, paid 2016-07-15; ex-date two business days before the record date under T+3"
+source = "https://www.sec.gov/Archives/edgar/data/0001037038/000103703816000022/rl-20160702x10q.htm"
+
+[[add]]
+symbol = "SBUX"
+kind = "cash_dividends"
+ex_date = 2018-11-14
+rate = 0.36
+note = "record 2018-11-15, payable 2018-11-30; ex-date one business day before the record date under T+2"
+source = "https://investor.starbucks.com/stock-information/dividend-and-stock-split-history/default.aspx"
+
+[[add]]
+symbol = "SRE"
+kind = "cash_dividends"
+ex_date = 2016-09-27
+rate = 0.755
+note = "record 2016-09-29, payable 2016-10-15; ex-date two business days before the record date under T+3"
+source = "https://sempra.mediaroom.com/2016-09-09-Sempra-Energy-Declares-Common-Dividend"
+
+[[add]]
+symbol = "STX"
+kind = "cash_dividends"
+ex_date = 2018-12-18
+rate = 0.63
+note = "record 2018-12-19, payable 2019-01-02; ex-date one business day before the record date under T+2"
+source = "https://www.sec.gov/Archives/edgar/data/0001137789/000119312518316418/d635603dex991.htm"
+
+[[add]]
+symbol = "SYK"
+kind = "cash_dividends"
+ex_date = 2019-09-27
+rate = 0.52
+note = "record 2019-09-30, payable 2019-10-31; ex-date one business day before the record date under T+2"
+source = "https://investors.stryker.com/press-releases/news-details/2019/Stryker-declares-a-052-per-share-quarterly-dividend-fca1f60f1/default.aspx"
+
+[[add]]
+symbol = "SPY"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 1.049604
+note = "ex-date, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "SPY"
+kind = "cash_dividends"
+ex_date = 2018-06-15
+rate = 1.245568
+note = "ex-date, record 2018-06-18, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLB"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.157334
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLE"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.452407
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLI"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.282816
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLK"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.220226
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLP"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.270928
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLRE"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.303035
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLU"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.367502
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLV"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.236696
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "XLY"
+kind = "cash_dividends"
+ex_date = 2016-03-18
+rate = 0.321047
+note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
+source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[add]]
+symbol = "SPGI"
+kind = "cash_dividends"
+ex_date = 2016-05-24
+rate = 0.36
+note = "declared by McGraw Hill Financial on 2016-04-27, record 2016-05-26, payable 2016-06-10; the ex-date falls after the symbol became SPGI, two business days before the record date under T+3"
+source = "https://press.spglobal.com/2016-04-27-McGraw-Hill-Financial-Declares-Quarterly-Dividend"
+
