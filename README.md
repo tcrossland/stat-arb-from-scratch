@@ -41,3 +41,15 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 ## Running it
 
 Nothing to run yet. Phase 0 adds the first runner.
+
+## Disclaimer
+
+This is a personal research project, not investment advice. Nothing here is a recommendation to buy or sell any security or to follow any strategy. Backtest and simulated results are hypothetical, rest on simplifying assumptions (including survivorship bias in the universe) and do not predict future returns.
+
+Market data is downloaded from third-party sources at run time and is not redistributed in this repository: no prices, volumes or other data values are committed, and reports hold only statistics derived from them.
+
+Issues and questions are welcome.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE).
