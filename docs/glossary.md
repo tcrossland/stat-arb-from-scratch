@@ -138,5 +138,5 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Decision record (ADR).** A short note in `docs/decisions/` for a change of scope, data source or methodology: context, decision, consequences.
 
-**Phase brief, review.** The brief sets a phase's scope (`docs/phases/`); the review records what was built and what the numbers showed.
+**Phase brief, review, backlog.** The brief sets a phase's scope (`docs/phases/`); the review records what was built and what the numbers showed; the backlog (`docs/backlog.md`) holds work deferred to a later phase, each item with the trigger that brings it back.
 

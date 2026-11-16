@@ -15,6 +15,7 @@ A research project: build a simplified, daily-frequency version of a cross-secti
 |---|---|---|
 | `docs/phases/phase-NN/` | each phase's `brief.md` and `review.md` | a phase starts or ends |
 | `docs/decisions/` | decision records (ADRs), indexed in its `README.md` | scope, data source or methodology changes |
+| `docs/backlog.md` | deferred work, each item with a trigger, why and action | work belongs to a later phase |
 | `docs/architecture.md` | packages, runners, config files, what each reads and writes, external libraries | a module, runner, config file or library is added or renamed |
 | `docs/data-model.md` | stored tables, columns, keys and join rules | a stored table is added or changed |
 | `docs/time-discipline.md` | what is known when, by phase | a timing assumption is added |
@@ -32,10 +33,10 @@ The architecture and data model documents are empty until the first module lands
 
 ## How we work
 
-- File-first. Read the current phase brief before writing code, and do not start work that belongs to a later phase.
+- File-first. Read the current phase brief before writing code, and do not start work that belongs to a later phase: record it in `docs/backlog.md` with a trigger instead.
 - Decisions that change scope, data source or methodology go in `docs/decisions/NNNN-title.md` (short ADR: context, decision, consequences), with a line in the index.
 - Keep the reference docs in the table above current in the same change as the code.
-- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current, then tag the review's commit `phase-NN`.
+- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review. Tag the review's commit `phase-NN`.
 - Anything another phase depends on lives in `src/statarb/` with tests, not in a notebook.
 
 ## Stack
