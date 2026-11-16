@@ -37,6 +37,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.io` | 0 | Deterministic parquet: fixed compression, rows sorted by key, written to a temporary file and renamed. |
 | `statarb.testing` | 0 | Helpers for tests that the package itself also provides. |
 | `statarb.testing.lookahead` | 0 | The look-ahead check: perturb data after a cut-off, assert outputs up to it are unchanged. |
+| `statarb.testing.prices` | 3 | Simulated daily prices with a known spread, reversal and opening noise, for the spread estimators' tests and the phase 3 report. |
 | `statarb.data` | 0 | The data build. |
 | `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
 | `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
@@ -67,6 +68,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.backtest` | 2 | The backtest engine, portfolio rules, metrics and the experiment log. |
 | `statarb.backtest.config` | 2 | `config/backtest.toml` as frozen dataclasses that reject unknown or missing keys. |
 | `statarb.backtest.costs` | 2 | The `CostModel` protocol and the flat cost per dollar traded. |
+| `statarb.backtest.spreads` | 3 | The EDGE, Abdi-Ranaldo and Corwin-Schultz spread estimators, rolling over a trailing window. |
 | `statarb.backtest.engine` | 2 | Fill grids at the close and the open, the daily engine from target weights to holdings, trades and P&L, and daily returns on gross. |
 | `statarb.backtest.rules` | 2 | The `PortfolioRule` protocol: decile books held in *k* slices, and the s-score thresholds with their hedges. |
 | `statarb.backtest.metrics` | 2 | Sharpe, drawdown, break-even cost, hit rates, P&L by year and the deflated Sharpe ratio. |
@@ -115,7 +117,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | Library | Licence | Enters through | Used for |
 |---|---|---|---|
 | pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables` and `backtest.engine` | long-format tables, and the wide panels the backtest pivots them into |
-| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
+| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore`; `backtest.spreads`, `testing.prices` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
 | lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
 | matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report`; `statarb.backtest.report` | charts, saved with no date or software metadata |
