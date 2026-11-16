@@ -92,7 +92,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Placebo.** The signal shuffled among universe members each day. A correct engine earns nothing from it on average.
 
-**Experiment log.** One entry per backtest configuration run, in `reports/phase-NN/`, with its configuration, seed, git commit and headline metrics.
+**Experiment log.** `reports/phase-NN/experiments.jsonl`: one JSON object per backtest configuration run, with its configuration, seed, git commit and headline metrics.
 
 **Gross and net return.** Gross is before trading and borrow costs; net is after them.
 

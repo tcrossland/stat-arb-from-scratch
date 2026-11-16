@@ -38,7 +38,7 @@ Start with ten to fifteen features. Add more only when the validation process is
 
 ## Deliverables
 
-1. `src/statarb/models/` with feature builder, walk-forward splitter (with purge and embargo) and a LightGBM wrapper.
+1. `src/statarb/models/` with feature builder, walk-forward splitter (with purge and embargo) and a LightGBM wrapper. Trained models are saved in LightGBM's native text format, never pickle, under `data/models/` (git-ignored), named by training window, with a SHA-256 hash of each file logged alongside its run in `experiments.jsonl`.
 2. `reports/phase-05/`:
    - IC of the model versus the plain reversal signal
    - feature importance (gain and SHAP), with a short interpretation
@@ -52,7 +52,7 @@ Start with ten to fifteen features. Add more only when the validation process is
 
 ## Known pitfalls
 
-- Overfitting through repeated experimentation. Keep a log of every configuration tried in `reports/phase-05/experiments.csv` and hold back the most recent year as a final test set touched only once.
+- Overfitting through repeated experimentation. Keep a log of every configuration tried in `reports/phase-05/experiments.jsonl` and hold back the most recent year as a final test set touched only once.
 - Leakage through features that use the close of *t* when fills also happen at the close of *t*.
 - An IC of 0.02 to 0.05 is a realistic good result. Anything far above 0.1 almost certainly means a bug.
 

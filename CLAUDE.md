@@ -46,7 +46,9 @@ The libraries and the modules each enters through are in `docs/architecture.md`;
 
 - Python 3.14, managed with `uv`, dependencies in `pyproject.toml` and pinned in `uv.lock`. A library enters `pyproject.toml` in the phase whose code first imports it, never earlier. The whole stack must install from prebuilt wheels on the pinned version; check before moving to a newer Python. A library that needs a system runtime is the one exception: the phase that adds it records the runtime here and the install step in `README.md`.
 - pandas 3 in long format with explicit `date` and `ticker` columns. Sort before any grouped `shift` or rolling operation, and never rely on index alignment between frames.
+- Storage: TOML for hand-written config, parquet for data, JSON Lines for experiment logs, LightGBM's native text format for models. No pickle.
 - Configuration in `config/*.toml`, never hard-coded paths or dates.
+- Charts with matplotlib, saved with date and software metadata cleared so regenerated charts are identical.
 - Functional style: pure functions of explicit inputs, frozen dataclasses changed with `dataclasses.replace`, values returned rather than appended to shared state. Runners read and write at the edges. Sequential state (the engine stepping through days) stays in a local loop inside a function that is pure at its boundary. A function whose output depends only on its arguments is one the look-ahead test can check.
 - Seams only where there are two implementations or the backlog names a second: a `typing.Protocol` with plain functions or small classes behind it, chosen by name in config and logged with each run. Contract tests run every implementation of a seam through the same checks.
 - Licences. The repository is MIT-licensed. Before adding a dependency, model weights or a data source, read its licence from the package's own metadata or LICENSE file, not from a mirror or aggregator, and state it in the change that adds it. Permissive licences (MIT, BSD, Apache-2.0, ISC, PSF) are fine, and so is weak file-level copyleft such as MPL-2.0 used unmodified. Copyleft (GPL, AGPL, LGPL), non-commercial or unstated terms need a decision record first. Never copy code from a copyleft project: reimplement from the paper. Data's terms of use bind as well as code licences. Data and model weights are never committed, and test fixtures are synthetic. `tests/test_licences.py` checks every installed distribution, including dependencies of dependencies, against this rule; a package whose metadata states no licence goes in its `EXCEPTIONS` with what its licence file says.
@@ -65,7 +67,7 @@ The rules. What each phase may use when is in `docs/time-discipline.md`.
 
 - Unit tests for every transform that touches dates or alignment.
 - A dedicated look-ahead test: shift future data by random noise and confirm historical signals do not change.
-- Backtests must reproduce exactly from a fixed config and seed.
+- Backtests must reproduce exactly from a fixed config and seed in the environment fixed by `uv.lock`. After a dependency upgrade, results must match in content even if file bytes differ.
 - Tests never touch the network. They run on small synthetic fixtures committed under `tests/`; only the data build reads the cache or downloads. `tests/conftest.py` enforces this.
 - `uv run ruff check` and `uv run pytest` must pass before every commit. CI runs both on push to `main` and on pull requests, and checks each pull request's commit messages with `scripts/check_commits.py`. Ruff uses its default rules; `[tool.ruff]` in `pyproject.toml` records any exceptions. pytest runs in strict mode.
 

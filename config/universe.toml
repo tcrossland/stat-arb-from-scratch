@@ -1,6 +1,7 @@
-# Candidate set for the point-in-time universe: current S&P 500 constituents.
-# Filled in during phase 0, with the date the list was taken and where it came from.
+# Pin for the candidate set: current S&P 500 constituents from Wikipedia (decision record 0003).
+# Only the pin lives here. The extracted list is data: data/processed/candidates.parquet.
+# Filled in during phase 0.
 
-as_of = ""
-source = ""
-tickers = []
+page = "List_of_S&P_500_companies"
+revision_id = 0     # Wikipedia page revision (oldid); 0 means not yet pinned
+retrieved = ""      # date the revision was fetched, YYYY-MM-DD

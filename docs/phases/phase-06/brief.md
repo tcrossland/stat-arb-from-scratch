@@ -14,8 +14,10 @@ Run the chosen strategy forward in time on new data each day, with no real order
   3. produces forecasts and target weights from the frozen model
   4. simulates fills at the fill timing used for the backtest headline (open of *t+1* unless a phase review changed it), using the phase 3 cost model
   5. writes that day's trades, positions and P&L to the ledger and a short daily markdown note in `reports/phase-06/daily/`
-- The model and all parameters are frozen at the start of the phase and recorded in `docs/decisions/`. Retraining is a new decision, not a silent update.
-- The job must be idempotent: running it twice for the same date changes nothing.
+- **Ledger:** one immutable parquet file per trading day, `data/paper/ledger/date=YYYY-MM-DD.parquet`, written to a temporary file and renamed into place so a crash can never leave a half-written day. Parquet files cannot be appended to, so a single growing file would mean rewriting the whole record every day.
+- **Backup:** `data/` is git-ignored, and the ledger is the only record of the forward run. The daily notes are committed, and the ledger is copied to a private backup named in the phase 6 decision record. The ledger holds fill prices, so it is never published.
+- The model and all parameters are frozen at the start of the phase and recorded in `docs/decisions/`, including the SHA-256 hash of the model file. The job refuses to run if the model file's hash does not match. Retraining is a new decision, not a silent update.
+- The job must be idempotent: running it twice for the same date changes nothing. Rerunning a date overwrites only that day's ledger file.
 - If the optimiser is infeasible or the solver fails, hold the previous day's book, record the failure in the ledger and the daily note, and continue the next day. The phase 4 backtest applies the same rule, so live and backtest behave the same on bad days. Never relax constraints automatically to get a solution.
 - Scheduling with launchd or cron. Missed days are caught up in order.
 
@@ -32,7 +34,7 @@ Eight weeks is about 40 trading days, far too few to tell the backtest Sharpe ap
    - live signal and forecast distributions versus the backtest
    - realised daily IC versus the backtest distribution
    - live P&L against a wide band from the backtest, as a sanity check only
-3. Tests: idempotency, catch-up after missed days, ledger integrity checks, and the hold-previous-book fallback on a forced solver failure.
+3. Tests: idempotency, catch-up after missed days, ledger integrity checks, no partial ledger file after a simulated crash mid-write, refusal to run on a model hash mismatch, and the hold-previous-book fallback on a forced solver failure.
 
 ## Acceptance criteria
 

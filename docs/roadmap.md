@@ -21,7 +21,7 @@ Portfolio construction comes before the ML signal because trading costs are the 
 - Every phase ends with a written review before the next begins.
 - The baseline from phase 2 is kept running in every later comparison. A more complex method has to beat it after costs to earn its place.
 - Expect the edge to shrink at each phase. A result that improves dramatically is a reason to look for a bug, usually look-ahead.
-- From phase 2 onwards, log every backtest configuration in `reports/phase-NN/experiments.csv`. Judge the best result against the number of configurations tried.
+- From phase 2 onwards, log every backtest configuration in `reports/phase-NN/experiments.jsonl`. Judge the best result against the number of configurations tried.
 - Every signal goes through the same `Signal` interface and the same look-ahead test, so a new one reaches the cost model and the optimiser without changes to them.
 
 ## Out of scope for now

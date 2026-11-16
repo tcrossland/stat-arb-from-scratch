@@ -34,7 +34,8 @@ How often a book trades stays with the portfolio rule, not the signal. The look-
 - Costs as a pluggable function. In this phase use a flat cost per unit of turnover (start at 5 bps one-way and also report 0, 2, 10 and 20 bps).
 - Shorting cost as a flat annual rate on short notional (start at 0.5%).
 - No leverage assumptions hidden in the engine: report returns on gross exposure.
-- Every run appends its configuration, seed, git commit and headline metrics to `reports/phase-02/experiments.csv`. The best configuration is judged against the number tried, not in isolation.
+- Backtest configurations are TOML files in `config/`, loaded into frozen dataclasses that reject unknown or missing keys, so a misspelt parameter fails loudly instead of falling back to a default.
+- Every run appends one JSON object (configuration, seed, git commit and headline metrics) to `reports/phase-02/experiments.jsonl`. JSON Lines keeps working as later phases add parameters, where a CSV's columns would drift. The best configuration is judged against the number tried, not in isolation.
 
 ## Deliverables
 
@@ -47,7 +48,7 @@ How often a book trades stays with the portfolio rule, not the signal. The look-
    - break-even cost: the one-way cost at which net Sharpe falls to zero
    - net Sharpe by fill timing
    - net Sharpe and turnover by holding period *k*, at each cost level
-   - `experiments.csv`
+   - `experiments.jsonl`
 4. Tests:
    - a hand-built three-stock, five-day example with known P&L
    - holding-period slices: with *k* = 2 on a toy panel, the held book each day equals the average of the two most recent daily portfolios
@@ -59,7 +60,7 @@ How often a book trades stays with the portfolio rule, not the signal. The look-
 
 - The toy example matches hand calculations exactly.
 - The placebo test passes.
-- Results reproduce exactly from config and seed.
+- Results reproduce exactly from config and seed in the environment fixed by `uv.lock`.
 - The report states the break-even cost and compares it with a realistic retail cost.
 
 ## Known pitfalls
