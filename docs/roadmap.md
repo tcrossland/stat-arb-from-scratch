@@ -25,3 +25,41 @@ The plan, phase by phase. The strategy, and why it is run on free daily data, is
 Intraday data, real order placement, options, futures, other asset classes. Revisit after phase 6 with a decision record.
 
 Work after phase 6 continues the numbering, as phase 7 and on, with the same brief, review and tag.
+
+## References
+
+Grouped by the phase they inform. Magnitudes quoted here come from abstracts; check the full text before relying on a number.
+
+### The strategy as a whole
+
+- Avellaneda, M. and Lee, J.-H. (2010). Statistical arbitrage in the U.S. equities market. *Quantitative Finance* 10(7), 761 to 782. [Draft PDF](https://math.nyu.edu/~avellane/AvellanedaLeeStatArb071008.pdf). The closest published version of this project: residuals against sector ETFs or PCA factors, traded with an Ornstein-Uhlenbeck s-score. Sample ends in 2007. The published Sharpe ratios differ from the 2008 draft, so cite the published version. This is the external benchmark for phases 1 and 2.
+- Khandani, A. and Lo, A. (2007). What happened to the quants in August 2007? Uses a simple contrarian strategy as a proxy for equity stat arb and documents its crash. Useful context for any phase review that covers a drawdown.
+
+### Phases 1 and 2: residuals and reversal
+
+- Lehmann, B. (1990). Fads, martingales, and market efficiency. *Quarterly Journal of Economics* 105(1). Original weekly reversal evidence.
+- Lo, A. and MacKinlay, A. C. (1990). When are contrarian profits due to stock market overreaction? *Review of Financial Studies* 3(2). The contrarian portfolio construction that later papers reuse.
+- Blitz, D., Huij, J., Lansdorp, S. and Verbeek, M. (2013). Short-term residual reversal. *Journal of Financial Markets* 16(3), 477 to 504. [IDEAS](https://ideas.repec.org/a/eee/finmar/v16y2013i3p477-504.html). Residual reversal earns roughly twice the risk-adjusted return of plain reversal and survives costs in large caps after 1990. The academic version of the phase 2 baseline.
+- Collin-Dufresne, P. and Daniel, K. (preliminary). [Working paper](https://business.columbia.edu/sites/default/files-efs/pubfiles/11568/str1.pdf). Estimates a reversal half-life of about 2.5 days. Marked "do not quote", so treat as background for choosing *n* = 1 to 5.
+
+### Phase 3: costs and capacity
+
+- Corwin, S. and Schultz, P. (2012). A simple way to estimate bid-ask spreads from daily high and low prices. *Journal of Finance* 67(2).
+- Abdi, F. and Ranaldo, A. (2017). A simple estimation of bid-ask spreads from daily close, high, and low prices. *Review of Financial Studies* 30(12).
+- De Groot, W., Huij, J. and Zhou, W. (2012). Another look at trading costs and short-term reversal profits. *Journal of Banking and Finance* 36(2). Costs fall sharply with a large-cap universe and lower-turnover construction.
+- Frazzini, A., Israel, R. and Moskowitz, T. Trading costs of asset pricing anomalies. Ranks short-term reversal as the anomaly most constrained by trading costs.
+- Nagel, S. (2012). Evaporating liquidity. *Review of Financial Studies* 25(7). Reversal returns as compensation for providing liquidity. A useful lens on capacity.
+
+### Phase 4: ML signal and validation
+
+- López de Prado, M. (2018). *Advances in Financial Machine Learning*. Wiley. Chapter 7 on purged and embargoed cross-validation.
+- Krauss, C., Do, X. A. and Huck, N. (2017). Deep neural networks, gradient-boosted trees, random forests: statistical arbitrage on the S&P 500. *European Journal of Operational Research* 259(2). Daily S&P 500 stat arb with tree models, close to the phase 4 set-up.
+- Guijarro-Ordonez, J., Pelger, M. and Zanotti, G. (2022). Deep learning statistical arbitrage. [arXiv:2106.04028](https://arxiv.org/abs/2106.04028).
+
+### Code
+
+For reading only. None of these has been reviewed for look-ahead or cost handling, their licences have not been checked, and no code is copied from them: a method used here is implemented from its paper.
+
+- [gregzanotti/dlsa-public](https://github.com/gregzanotti/dlsa-public): official code for Guijarro-Ordonez, Pelger and Zanotti. Input data is not released, so results cannot be reproduced on free data. Worth reading for residual construction.
+- [kingwongf/statsArb](https://github.com/kingwongf/statsArb): an Avellaneda and Lee style implementation with ETF or PCA factors and OU entry rules.
+- [Hudson & Thames arbitragelab, PCA approach](https://hudson-and-thames-arbitragelab.readthedocs-hosted.com/en/latest/technical/api/arbitragelab/other_approaches/pca_approach/index.html): documentation of a commercial s-score implementation. Reference for the maths only.
