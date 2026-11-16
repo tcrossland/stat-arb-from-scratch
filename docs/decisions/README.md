@@ -1,0 +1,7 @@
+# Decision records
+
+Short records of decisions that change scope, data source or methodology: context, decision, consequences. They are numbered in the order they land, whatever phase they belong to. A record that replaces another names it, and the replaced record's status names its successor.
+
+| Record | Title | Status | Date |
+|---|---|---|---|
+| [0001](0001-simulation-only-free-daily-data.md) | Simulation only, free daily data | accepted | 2026-11-16 |
