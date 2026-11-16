@@ -10,6 +10,6 @@ Machine: Apple M2, 24 GB of memory, macOS. Times are wall-clock; peak memory is 
 | `statarb.data.build --download` | download, then rebuild | 12 min | 1.2 GB | 58 MB Alpaca snapshot, 0.3 MB Wikipedia snapshot, in the raw store | 2026-11-16 |
 | `statarb.factors.build` | Model A's residuals from the phase 0 tables, then the diagnostics report | 14 s | 2.1 GB | 68 MB in `data/derived/processed/`, 0.1 MB report and charts | 2026-11-16 |
 | `statarb.factors.sensitivity` | Model A at three windows, compared | 22 s | 2.4 GB | 2 KB report | 2026-11-16 |
-| `statarb.backtest.run` | the phase 2 sweep, 49 signal and holding variants at three fills (147 configurations) and five cost levels, then 100 placebo runs and the report | 33 s | 1.8 GB | 0.2 MB report and charts, about 0.7 MB appended to the experiment log per run | 2026-11-16 |
+| `statarb.backtest.run` | the phase 2 sweep, 49 signal and holding variants at three fills (147 configurations) and five cost levels, then 100 placebo runs and the report | 33 s | 1.8 GB | 0.2 MB report and charts, 0.8 MB appended to the experiment log per run | 2026-11-16 |
 
 The download made 515 tickers' requests at the adapter's pace of 190 a minute, with a pause between tickers; nearly all its time is waiting on that pace, not computing.
