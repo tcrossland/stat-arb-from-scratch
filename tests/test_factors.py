@@ -137,3 +137,15 @@ def test_repository_factor_config_is_consistent() -> None:
     cfg = EtfModelConfig.from_config(factors["model"], factors["sector_etfs"], data["factors"]["market"])
     assert set(cfg.sector_etfs) == GICS_SECTORS
     assert sorted(cfg.sector_etfs.values()) == sorted(data["factors"]["sectors"])
+
+
+def test_window_sensitivity_compares_on_common_rows() -> None:
+    from statarb.factors.sensitivity import compare_windows
+
+    returns, prices, sectors = _panel()
+    universe = returns.loc[returns["ticker"].isin(STOCKS), ["date", "ticker"]]
+    out = compare_windows(returns, sectors, prices, universe, STOCKS, FACTORS_CFG, "SPY", windows=(40, 60))
+    assert out["window"].tolist() == [40, 60]
+    assert out["min obs"].tolist() == [30, 45]                  # same 75% share as the config
+    assert out.attrs["start"] == CAL[45].date()                 # first day both windows have residuals
+    assert out["lag-1 minus 60-day"].iloc[1] == ""
