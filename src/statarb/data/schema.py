@@ -35,6 +35,10 @@ GICS_SECTORS = frozenset(
     }
 )
 
+# Sectors that existed earlier in the history but not today. Telecommunication
+# Services was broadened and renamed Communication Services in September 2018.
+FORMER_GICS_SECTORS = frozenset({"Telecommunication Services"})
+
 
 def normalise_bars(frame: pd.DataFrame) -> pd.DataFrame:
     """Return a copy with exactly BAR_COLUMNS, standard dtypes, sorted by date."""

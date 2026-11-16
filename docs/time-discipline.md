@@ -35,6 +35,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 
 | Phase | Value | Uses data up to | First usable |
 |---|---|---|---|
+| 0 | Universe membership on *t* | 60 trading days of dollar volume up to the last trading day of the previous month | the first trading day of the month |
+| 0 | Dated GICS sector on *t* | the sector change announced before its effective date | its effective date |
 | 0 | Candidate list | today's index members (survivorship: not knowable in the past) | all dates, as a stated bias |
 
 Notes for phase 0:

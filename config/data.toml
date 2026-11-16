@@ -11,6 +11,7 @@ name = "alpaca"
 [universe]
 size = 300
 liquidity_window_days = 60
+liquidity_min_observations = 54  # 90% of the window; with fewer a candidate is not ranked that month
 rebalance = "monthly"  # last trading day of the month, applied from the next trading day
 
 [factors]

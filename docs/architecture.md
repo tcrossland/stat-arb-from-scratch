@@ -18,7 +18,10 @@ The packages, runners and config files, what each reads and writes, and the exte
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
 | `statarb.data.wikipedia` | 0 | The Wikipedia constituent source, with the request policies of decision record 0003. |
 | `statarb.data.canonical` | 0 | Converts a source's declared basis to unadjusted bars. |
+| `statarb.data.clean` | 0 | Cleaning rules, each dropped row logged with its reason. |
 | `statarb.data.returns` | 0 | Daily total returns from unadjusted bars, splits and cash. |
+| `statarb.data.universe` | 0 | Monthly universe from trailing median dollar volume. |
+| `statarb.data.sectors` | 0 | Dated GICS sectors from current sectors and recorded changes. |
 
 ## Seams
 
@@ -40,7 +43,7 @@ The packages, runners and config files, what each reads and writes, and the exte
 |---|---|---|
 | `data.toml` | the phase 0 build, not yet written | Start date, price source, universe, factor ETFs, quality thresholds, paths. |
 | `universe.toml` | the phase 0 build, not yet written | The Wikipedia revision to pin. |
-| `sector_changes.toml` | the phase 0 build, not yet written | GICS sector changes, to be filled in during phase 0. |
+| `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 
 ## External libraries
 

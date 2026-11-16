@@ -1,11 +1,432 @@
-# Known GICS reclassifications applied on top of each ticker's current sector.
-# Filled in during phase 0. One entry per ticker move, for example:
+# GICS reclassifications applied on top of each ticker's current sector
+# (statarb.data.sectors). One entry per ticker move. `effective` is the first
+# trading day in the new sector.
 #
-# [[change]]
-# ticker = "V"
-# from = "Information Technology"
-# to = "Financials"
-# effective = 2023-03-17
-# note = "2023 GICS changes: payments companies moved to Financials"
+# Scope: the three structural GICS changes since 2016. Dates are S&P Dow Jones
+# Indices' implementation in its indices, which the SPDR sector ETFs follow,
+# rather than the GICS Direct date where the two differ.
 #
-# Dates must be checked against a primary source (S&P or MSCI) before use.
+# - 2016: Real Estate separated from Financials (mortgage REITs stayed).
+#   GICS Direct after the close on 2016-08-31; S&P indices after the close on
+#   2016-09-16, so effective 2016-09-19.
+#   https://press.spglobal.com/2016-03-08-S-P-Dow-Jones-Indices-And-MSCI-Revisions-To-The-Global-Industry-Classification-Standard-GICS-Structure
+# - 2018: Telecommunication Services broadened and renamed Communication
+#   Services, taking media from Consumer Discretionary and interactive media
+#   and home entertainment from Information Technology; online marketplaces
+#   such as eBay moved to Consumer Discretionary. S&P indices after the close
+#   on 2018-09-21 (GICS Direct 2018-09-28), so effective 2018-09-24.
+#   https://press.spglobal.com/2017-11-15-S-P-Dow-Jones-Indices-And-MSCI-Announce-Revisions-To-The-Global-Industry-Classification-Standard-GICS-R-Structure-In-2018
+#   https://press.spglobal.com/2018-01-11-S-P-Dow-Jones-Indices-And-MSCI-Announce-Select-List-Of-Companies-Changing-Due-To-Revisions-To-The-GICS-R-Structure-In-2018
+# - 2023: payment processors to Financials, payroll and data processing to
+#   Industrials, general merchandise stores to Consumer Staples. After the
+#   close on 2023-03-17, so effective 2023-03-20. 14 S&P 500 members moved,
+#   all listed below.
+#   https://www.ssga.com/us/en/individual/etfs/insights/2023-gics-changes-companies-impacted-and-what-you-need-to-know
+#
+# Which tickers moved: S&P 500 members are taken from Wikipedia revisions
+# either side of each change and checked against the announcements above.
+# Wikipedia is not used for dates: it lagged the 2016 change by more than a
+# month. Tickers that were not members at the time are included where their
+# whole sub-industry moved, and say so in the note.
+#
+# Not covered: company-level reclassifications at other times, and tickers
+# whose sector before a structural change is unknown, taken up in the
+# phase 1 brief ("Company-level GICS reclassifications").
+
+# 2016: Financials to Real Estate
+
+[[change]]
+ticker = "AMT"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "ARE"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; not an S&P 500 member then, moved with all equity REITs"
+
+[[change]]
+ticker = "BXP"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "CBRE"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; ticker CBG at the time"
+
+[[change]]
+ticker = "CCI"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "CPT"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; not an S&P 500 member then, moved with all equity REITs"
+
+[[change]]
+ticker = "DLR"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "DOC"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; Healthpeak, ticker HCP at the time"
+
+[[change]]
+ticker = "ESS"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "EXR"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "FRT"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "HST"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "KIM"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "MAA"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; not an S&P 500 member then, moved with all equity REITs"
+
+[[change]]
+ticker = "O"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "PLD"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "PSA"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "REG"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; not an S&P 500 member then, moved with all equity REITs"
+
+[[change]]
+ticker = "SPG"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "UDR"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "VMRK"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; residential REIT in the S&P 500 since 2001 under an earlier name"
+
+[[change]]
+ticker = "VTR"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+[[change]]
+ticker = "WELL"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector; ticker HCN at the time"
+
+[[change]]
+ticker = "WY"
+from = "Financials"
+to = "Real Estate"
+effective = 2016-09-19
+note = "2016 Real Estate sector"
+
+# 2018: to Communication Services, and eBay to Consumer Discretionary
+
+[[change]]
+ticker = "CHTR"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "CMCSA"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "DIS"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "LYV"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media; not an S&P 500 member then, moved with its sub-industry"
+
+[[change]]
+ticker = "NFLX"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: from Internet & Direct Marketing Retail, named in the S&P select list"
+
+[[change]]
+ticker = "NWS"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "NWSA"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "OMC"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media"
+
+[[change]]
+ticker = "SKYD"
+from = "Consumer Discretionary"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: media; the CBS listing at the time, in the S&P 500 since 1994"
+
+[[change]]
+ticker = "GOOG"
+from = "Information Technology"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: interactive media"
+
+[[change]]
+ticker = "GOOGL"
+from = "Information Technology"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: interactive media"
+
+[[change]]
+ticker = "META"
+from = "Information Technology"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: interactive media; ticker FB at the time"
+
+[[change]]
+ticker = "TTWO"
+from = "Information Technology"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: interactive home entertainment"
+
+[[change]]
+ticker = "T"
+from = "Telecommunication Services"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: sector renamed"
+
+[[change]]
+ticker = "TMUS"
+from = "Telecommunication Services"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: sector renamed; not an S&P 500 member then"
+
+[[change]]
+ticker = "VZ"
+from = "Telecommunication Services"
+to = "Communication Services"
+effective = 2018-09-24
+note = "2018 Communication Services: sector renamed"
+
+[[change]]
+ticker = "EBAY"
+from = "Information Technology"
+to = "Consumer Discretionary"
+effective = 2018-09-24
+note = "2018: online marketplaces moved to Internet & Direct Marketing Retail"
+
+# 2023
+
+[[change]]
+ticker = "CPAY"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services; ticker FLT at the time"
+
+[[change]]
+ticker = "FIS"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "FISV"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "GPN"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "JKHY"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "MA"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "PYPL"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "V"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services"
+
+[[change]]
+ticker = "XYZ"
+from = "Information Technology"
+to = "Financials"
+effective = 2023-03-20
+note = "2023 Transaction & Payment Processing Services; Block, ticker SQ at the time, not an S&P 500 member then"
+
+[[change]]
+ticker = "ADP"
+from = "Information Technology"
+to = "Industrials"
+effective = 2023-03-20
+note = "2023: payroll processors to Human Resource & Employment Services"
+
+[[change]]
+ticker = "BR"
+from = "Information Technology"
+to = "Industrials"
+effective = 2023-03-20
+note = "2023: Data Processing & Outsourced Services moved to Industrials"
+
+[[change]]
+ticker = "PAYX"
+from = "Information Technology"
+to = "Industrials"
+effective = 2023-03-20
+note = "2023: payroll processors to Human Resource & Employment Services"
+
+[[change]]
+ticker = "DG"
+from = "Consumer Discretionary"
+to = "Consumer Staples"
+effective = 2023-03-20
+note = "2023: general merchandise stores to Consumer Staples Merchandise Retail"
+
+[[change]]
+ticker = "DLTR"
+from = "Consumer Discretionary"
+to = "Consumer Staples"
+effective = 2023-03-20
+note = "2023: general merchandise stores to Consumer Staples Merchandise Retail"
+
+[[change]]
+ticker = "TGT"
+from = "Consumer Discretionary"
+to = "Consumer Staples"
+effective = 2023-03-20
+note = "2023: general merchandise stores to Consumer Staples Merchandise Retail"
