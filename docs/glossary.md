@@ -114,6 +114,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Raw-return control.** The same portfolio built from total returns instead of residuals, to show what the factor model adds.
 
+**s-score.** How far a stock's cumulated residual is from its equilibrium, in units of its equilibrium standard deviation, from an Ornstein-Uhlenbeck process fitted over a trailing window (Avellaneda and Lee, 2010). A threshold rule opens a position when it is far from zero and closes it near zero, so a position is held until the residual reverts. A phase 2 variant.
+
 **Baseline.** The simplest version of the strategy, built in phase 2, which every later method must beat after costs.
 
 **Book.** The strategy's portfolio: every long and short position it holds at a given time.

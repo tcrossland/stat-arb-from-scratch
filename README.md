@@ -7,6 +7,7 @@ A daily statistical arbitrage pipeline for US equities, from raw market data to 
 Each phase review adds its findings here, whichever way they go.
 
 - **Phase 0, data and universe.** A daily build of S&P 500 candidates and factor ETFs from free data, reproducible byte for byte from pinned snapshots, with the source's quirks fixed under the numbered rules of decision record 0004. The universe uses today's constituents, so it carries survivorship bias. [Review](docs/phases/phase-00/review.md), [quality report](reports/phase-00/data_quality.md).
+- **Phase 1, factor model and residuals.** Regressing each stock on the market and its sector ETF removes almost all common movement. Residuals reverse slightly from one day to the next, no more than raw returns do but more steadily, and in every year but 2022. [Review](docs/phases/phase-01/review.md), [diagnostics](reports/phase-01/diagnostics.md).
 
 ## Architecture
 
@@ -47,7 +48,7 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 | Phase | Adds | Status |
 |-------|------|--------|
 | 0 | Prices, returns and a liquidity-ranked universe | done |
-| 1 | Factor model and residuals | in progress |
+| 1 | Factor model and residuals | done |
 | 2 | Reversal signal and backtest engine | not started |
 | 3 | Cost model | not started |
 | 4 | Portfolio optimiser and a statistical factor model | not started |
@@ -75,6 +76,14 @@ The phase 0 build turns pinned raw snapshots (in `data/raw/`, or the shared stor
 ```
 uv run python -m statarb.data.build --download
 uv run python -m statarb.data.build
+```
+
+### Build the residuals
+
+The phase 1 build reads the phase 0 tables, needs no network, and writes the residual table and the diagnostics report:
+
+```
+uv run python -m statarb.factors.build
 ```
 
 [Reproducing the results](docs/reproduce.md) covers pinning the snapshot and what each step reads and writes.

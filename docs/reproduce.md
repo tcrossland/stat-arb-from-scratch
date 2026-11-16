@@ -47,7 +47,17 @@ Alpaca revises old data, so a snapshot taken later is not byte for byte the one 
    ```
 
    It writes the tables of the [data model](data-model.md) to `data/derived/processed/` and the quality report to `reports/phase-00/data_quality.md`.
-2. *(phase 1)* Compute the factor model's residuals.
+2. Compute Model A's residuals and the diagnostics report from the phase 0 tables:
+
+   ```bash
+   uv run python -m statarb.factors.build
+   ```
+
+   It reads `returns`, `sectors`, `prices`, `candidates` and `universe` from `data/derived/processed/` with `config/factors.toml`, needs no network, and writes `residuals.parquet` beside them and `reports/phase-01/diagnostics.md` with its charts. A rebuild writes the same bytes. The window sensitivity check, which feeds nothing later, reruns Model A at three windows and writes `reports/phase-01/window_sensitivity.md`:
+
+   ```bash
+   uv run python -m statarb.factors.sensitivity
+   ```
 3. *(phase 2)* Run the baseline backtests.
 4. *(phase 3)* Run the cost model and its sweeps.
 5. *(phase 4)* Run the optimiser and Model B.
