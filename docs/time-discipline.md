@@ -35,3 +35,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 
 | Phase | Value | Uses data up to | First usable |
 |---|---|---|---|
+| 0 | Candidate list | today's index members (survivorship: not knowable in the past) | all dates, as a stated bias |
+
+Notes for phase 0:
+
+- The candidate list is today's, so the universe at *t* is chosen from stocks known to have survived to today. The phase 0 review reports the size of this bias.

@@ -13,9 +13,10 @@ The packages, runners and config files, what each reads and writes, and the exte
 | `statarb.testing` | 0 | Helpers for tests that the package itself also provides. |
 | `statarb.testing.lookahead` | 0 | The look-ahead check: perturb data after a cut-off, assert outputs up to it are unchanged. |
 | `statarb.data` | 0 | The data build. |
-| `statarb.data.schema` | 0 | Column names and the bar schema. |
-| `statarb.data.sources` | 0 | The `PriceSource` protocol and the price bases a source can declare. |
+| `statarb.data.schema` | 0 | Column names, the bar schema and GICS sector names. |
+| `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
+| `statarb.data.wikipedia` | 0 | The Wikipedia constituent source, with the request policies of decision record 0003. |
 | `statarb.data.canonical` | 0 | Converts a source's declared basis to unadjusted bars. |
 | `statarb.data.returns` | 0 | Daily total returns from unadjusted bars, splits and cash. |
 
@@ -24,6 +25,7 @@ The packages, runners and config files, what each reads and writes, and the exte
 | Protocol | Implementations | Chosen by |
 |---|---|---|
 | `PriceSource` | synthetic sources in `tests/helpers.py` | the test |
+| `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 
 `tests/contract/` runs every implementation of each protocol through the same checks.
 
@@ -47,5 +49,6 @@ The packages, runners and config files, what each reads and writes, and the exte
 | pandas | BSD-3-Clause | every `statarb.data` module | long-format tables |
 | NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead` | array arithmetic and seeded noise |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
+| lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
 
 The HTTP clients use the standard library (`urllib`), so no client library is pinned. Each later phase adds its libraries to `pyproject.toml` and to this table when it first uses them.

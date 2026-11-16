@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from statarb.data.schema import BAR_COLUMNS, normalise_bars
 from statarb.data.sources import PriceBasis
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def synthetic_truth(
@@ -81,3 +84,18 @@ class SplitAdjustedSource:
             volume=t["volume"].to_numpy() * factor,
         )
         return normalise_bars(out.loc[out["date"] >= pd.Timestamp(start)])
+
+
+def constituents_html() -> str:
+    return (FIXTURES / "wikipedia" / "constituents.html").read_text()
+
+
+def fake_wikipedia_api(html: str, revid: int = 123456):
+    calls: list[dict[str, str]] = []
+
+    def api(params: dict[str, str]) -> dict:
+        calls.append(params)
+        return {"parse": {"title": "x", "pageid": 1, "revid": revid, "text": html}}
+
+    api.calls = calls  # type: ignore[attr-defined]
+    return api

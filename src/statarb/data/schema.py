@@ -19,6 +19,22 @@ PRICE_COLUMNS = ["open", "high", "low", "close"]
 # split_ratio: new shares per old share going ex that day; 1.0 when there is none.
 BAR_COLUMNS = [DATE, *PRICE_COLUMNS, "volume", "cash", "split_ratio"]
 
+GICS_SECTORS = frozenset(
+    {
+        "Communication Services",
+        "Consumer Discretionary",
+        "Consumer Staples",
+        "Energy",
+        "Financials",
+        "Health Care",
+        "Industrials",
+        "Information Technology",
+        "Materials",
+        "Real Estate",
+        "Utilities",
+    }
+)
+
 
 def normalise_bars(frame: pd.DataFrame) -> pd.DataFrame:
     """Return a copy with exactly BAR_COLUMNS, standard dtypes, sorted by date."""

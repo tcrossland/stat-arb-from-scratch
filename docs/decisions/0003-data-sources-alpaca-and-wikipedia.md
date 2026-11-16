@@ -47,5 +47,30 @@ For the candidate list, the Wikipedia page "List of S&P 500 companies" has the c
 - A reader's own snapshot, taken later, will differ slightly from the one behind the published results, because Alpaca revises old data. How closely results match is measured and stated before publication.
 - No delisted names, so survivorship bias remains as decision record 0001 and the phase 0 brief describe.
 - Wikipedia is editable by anyone. Pinning the revision ID makes the candidate list reproducible.
-- Before the Wikipedia adapter's first download, phase 0 reads the User-Agent policy, the Robot policy and the API etiquette page from their own pages, and records anything that changes the adapter here.
+- Before the Wikipedia adapter's first download, phase 0 reads the User-Agent policy, the Robot policy and the API etiquette page from their own pages, and records anything that changes the adapter here. Done on 2026-11-16: see the amendment below.
 - A second price source for cross-checking would need terms that allow automated collection, so it cannot be Yahoo, and a decision record of its own.
+
+## Amendment, 2026-11-16: the Wikimedia request policies
+
+Read from their own pages on 2026-11-16, before the adapter's first download:
+
+- the Wikimedia Foundation User-Agent Policy, https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy, revision 564705;
+- the Robot policy, https://wikitech.wikimedia.org/wiki/Robot_policy, revision 2391151;
+- API:Etiquette, https://www.mediawiki.org/wiki/API:Etiquette, revision 8373208;
+- https://en.wikipedia.org/robots.txt, as served that day.
+
+What they ask of a client, and what `statarb.data.wikipedia` does:
+
+- **User-Agent.** A script must send an informative User-Agent of the form `client/version (contact) library/version`, and may be blocked without one. The adapter sends `statarb-from-scratch/0.1 (https://github.com/tcrossland/stat-arb-from-scratch) Python-urllib/<version>`. A reader who downloads can add an email or other contact by setting `STATARB_CONTACT`, which goes after the repository URL. No personal detail is in the code.
+- **Rate and concurrency.** Unauthenticated clients make one request at a time and stay well below five a second. The adapter makes one request per download, never on a schedule, and retries serially.
+- **Compression.** Requests ask for gzip (`Accept-Encoding: gzip`), and the adapter decodes it.
+- **Lag and limits.** Requests carry `maxlag=5`. On HTTP 429 or 503, or an API error `maxlag` or `ratelimited`, the adapter waits as `Retry-After` says (longer on each attempt), up to three retries, and then fails. Other errors are not retried.
+- **Authentication.** Not required for reads; none is used.
+
+**The pinned revision.** The Robot policy prefers cached interfaces to the Action API for page HTML and discourages fetching old revisions by id, and robots.txt disallows `/w/` (which includes `/w/api.php`) to generic crawlers, with an exception only for `action=mobileview`. API:Etiquette, on the other hand, names `oldid` as the way to fetch a specific revision. The adapter keeps one `action=parse&oldid=` request per download, because:
+
+- the pinned revision is what makes the candidate list reproducible, and only the revision id gives it;
+- the adapter is not a crawler: it reads one page when a person runs a download by hand, follows no links and makes no other request;
+- it meets every rule above for API clients.
+
+If Wikimedia asks for a different route, or a cached interface comes to serve a pinned revision, the adapter changes and this record is amended.

@@ -6,6 +6,7 @@ See docs/phases/phase-00/brief.md, "Source interfaces".
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
@@ -41,4 +42,23 @@ class PriceSource(Protocol):
         Dates are tz-naive exchange trading dates. Returns an empty frame with
         the same columns when the source has no data.
         """
+        ...
+
+
+@dataclass(frozen=True)
+class ConstituentSnapshot:
+    raw: bytes
+    revision_id: int
+
+
+class ConstituentSource(Protocol):
+    name: str
+
+    def fetch(self, revision_id: int | None) -> ConstituentSnapshot:
+        """Fetch the pinned revision, or the latest when revision_id is None."""
+        ...
+
+    def parse(self, raw: bytes) -> pd.DataFrame:
+        """Parse a raw snapshot into columns ticker, security, sector,
+        sub_industry, date_added, cik. Tickers are in project (S&P) format."""
         ...
