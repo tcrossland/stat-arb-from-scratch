@@ -30,7 +30,7 @@ Each phase holds to these:
 
 ## Reading path
 
-New to the strategy: the [roadmap](docs/roadmap.md) and the [glossary](docs/glossary.md), then each phase's brief and review in [`docs/phases/`](docs/phases/), in order. Interested in the engineering: the [time discipline](docs/time-discipline.md), the [decision records](docs/decisions/) and [`CLAUDE.md`](CLAUDE.md), the rules the project is built under with Claude Code.
+The [documentation index](docs/README.md) lists every page by what you want to do, in the recommended reading order.
 
 ## The strategy
 
