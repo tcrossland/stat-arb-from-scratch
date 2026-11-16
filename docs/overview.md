@@ -16,13 +16,15 @@ Every arrow carries a table cut at the decision date *t*: a stage sees only what
 
 Daily bars for the candidates and the factor ETFs from Alpaca's market data API, kept unadjusted, with splits and dividends stored as events and total returns derived from them in the project's own code. Every download is a raw snapshot that is never modified; the build applies the rules for the source's data to it. Sources sit behind the `PriceSource` and `ConstituentSource` interfaces ([decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md)).
 
-Phase 0: [brief](phases/phase-00/brief.md). Package: `src/statarb/data/`.
+The rules for Alpaca's data, from zero-volume bars to withholding on foreign dividends, are numbered in [decision record 0004](decisions/0004-rules-for-alpacas-data.md), and every correction to its records cites a primary source in `config/alpaca.toml`. Cleaning logs each dropped row with its reason. A rebuild of a pinned snapshot is identical byte for byte.
+
+Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md), [quality report](../reports/phase-00/data_quality.md). Package: [`src/statarb/data/`](../src/statarb/data/); tables in the [data model](data-model.md).
 
 ## Universe
 
-The candidates are today's S&P 500 constituents, from a pinned revision of Wikipedia's list. On each monthly rebalance the most liquid of them, ranked on trailing dollar volume known at that date, form the universe. Sectors are dated, so a reclassification applies from the day it happened. Using today's constituents leaves survivorship bias, which the phase 0 review states.
+The candidates are today's S&P 500 constituents, from a pinned revision of Wikipedia's list. On the last trading day of each month the most liquid of them, ranked on median dollar volume over a trailing window and needing most of that window to rank, form the universe from the next trading day (`[universe]` in `config/data.toml`). Sectors are dated from the structural GICS changes since 2016, so a reclassification applies from the day it happened; company-level moves are checked in phase 1. Using today's constituents leaves survivorship bias, which the [phase 0 review](phases/phase-00/review.md#review-questions) states.
 
-Phase 0: [brief](phases/phase-00/brief.md). Package: `src/statarb/data/`.
+Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md). Package: [`src/statarb/data/`](../src/statarb/data/) (`universe`, `sectors`).
 
 ## Residuals
 
