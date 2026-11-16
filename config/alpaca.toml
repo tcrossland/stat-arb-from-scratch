@@ -23,13 +23,16 @@
 # separate dividends, all kept.
 #
 # Corrections (rule 11). Each entry is filed under the symbol the security
-# held on its ex-date, as Alpaca's records are. [[drop]] removes a record
+# held on its ex-date, as Alpaca's records are (United Technologies became RTX
+# on the day of the Carrier and Otis distribution). [[drop]] removes a record
 # that is not the security's own, matched by symbol, kind, ex-date and, when
-# given, rate; [[add]] adds a dividend (gross, per share) Alpaca has no record
-# of. ex_dates in place of ex_date applies one entry on several dates.
-# Ex-dates the issuer does not state are worked out from the record date under
-# the settlement cycle of the time (T+3 to 2017-09-04, T+2 to 2024-05-27, T+1
-# since), as each note says.
+# given, rate; [[add]] adds a dividend (gross, per share) or a spin-off Alpaca
+# has no record of. A spin-off carries parent_basis, the share of the parent's
+# tax basis the parent kept, from the issuer's Form 8937, or, when the
+# distribution was taxable, the spun-off symbol and ratio. ex_dates in place of ex_date applies one entry on
+# several dates. Ex-dates the issuer does not state are worked out from the
+# record date under the settlement cycle of the time (T+3 to 2017-09-04, T+2 to
+# 2024-05-27, T+1 since), as each note says.
 
 gross = [
   "ACGL", "AMCR", "APTV", "BG", "CB", "CCL", "EG", "FERG", "GRMN", "IVZ",
@@ -197,6 +200,86 @@ ex_date = 2022-03-10
 rate = 0.98
 note = "2021 final dividend of US$0.98 per ordinary share, one per ADS, record 2022-03-11, payable 2022-05-05; ex-date one business day before the record date under T+2"
 source = "https://www.sec.gov/Archives/edgar/data/849395/000165495422002431/a4589d.htm"
+
+[[add]]
+symbol = "RTX"
+kind = "spin_offs"
+ex_date = 2020-04-03
+parent_basis = 0.5517
+note = "1 Carrier and 0.5 Otis per United Technologies share, record 2020-03-19, distributed 2020-04-03; basis 55.17% RTX, 18.69% Carrier, 26.14% Otis, from NYSE closes on 2020-04-03"
+source = "https://investors.rtx.com/static-files/2d479c0a-d3a6-4088-b53e-94903db21198"
+
+[[add]]
+symbol = "MRK"
+kind = "spin_offs"
+ex_date = 2021-06-03
+parent_basis = 0.9523
+note = "0.1 Organon per share, record 2021-05-17, distributed 2021-06-02, regular-way with the entitlement to 2021-06-02; basis 95.23% Merck, 4.77% Organon, from NYSE closes on 2021-06-03"
+source = "https://www.merck.com/wp-content/uploads/sites/124/2021/06/Form-8937.pdf"
+
+[[add]]
+symbol = "IBM"
+kind = "spin_offs"
+ex_date = 2021-11-04
+parent_basis = 0.958
+note = "1 Kyndryl per 5 IBM, record 2021-10-25, distributed 2021-11-03; basis 95.8% IBM, 4.2% Kyndryl, from NYSE closes on 2021-11-04, Kyndryl's first day"
+source = "https://www.ibm.com/investor/att/pdf/Form-8937-Report-of-Organizational-Actions-Affecting-Basis-of-Securities.pdf"
+
+[[add]]
+symbol = "JCI"
+kind = "spin_offs"
+ex_date = 2016-10-31
+new_symbol = "ADNT"
+new_rate = 0.1
+note = "1 Adient per 10 shares, distributed and ex-distribution 2016-10-31 (OCC memo 39938); taxable to US holders, so there is no basis allocation and the distribution is valued at Adient's close"
+source = "https://www.sec.gov/Archives/edgar/data/833444/000110465916153134/a16-20376_1ex99d2.htm"
+
+[[add]]
+symbol = "YUM"
+kind = "spin_offs"
+ex_date = 2016-11-01
+parent_basis = 0.6985
+note = "1 Yum China per share, distributed 2016-10-31, ex-distribution 2016-11-01 (OCC memo 39936); basis 69.85% Yum, 30.15% Yum China, from NYSE closes on 2016-11-01"
+source = "https://s2.q4cdn.com/890585342/files/doc_downloads/irw/spin-information/yum-china-cost-basis-information.pdf"
+
+[[add]]
+symbol = "APTV"
+kind = "spin_offs"
+ex_date = 2017-12-05
+parent_basis = 0.831
+note = "1 Delphi Technologies per 3 shares, distributed 2017-12-04, ex-distribution 2017-12-05 (OCC memo 42232); basis about 83.1% Aptiv, 16.9% Delphi Technologies, from average high and low on 2017-12-05. The issuer's file is now behind a block; read from its archived copy"
+source = "https://s22.q4cdn.com/336558720/files/doc_downloads/investor_toolkit/Delphi-Form-8937-and-Attachments.pdf"
+
+[[add]]
+symbol = "PNR"
+kind = "spin_offs"
+ex_date = 2018-05-01
+parent_basis = 0.663607
+note = "1 nVent per share, distributed 2018-04-30, ex-distribution 2018-05-01 (OCC memo 42946); basis 66.3607% Pentair, 33.6393% nVent, from closes on 2018-05-01"
+source = "https://investors.pentair.com/static-files/45224141-93d2-4577-a0fd-8fdb014e36f5"
+
+[[drop]]
+symbol = "EQT"
+kind = "reverse_splits"
+ex_date = 2018-11-13
+note = "the Equitrans distribution, filed as a 0.8-for-1 reverse split; EQT's share count did not change. Listed under [[add]] as a spin-off"
+source = "https://s205.q4cdn.com/630272887/files/doc_downloads/Form8937/ETRN-Separation-Form-8937-Org-Action-Stock-Basis-(11-12-2018).pdf"
+
+[[add]]
+symbol = "EQT"
+kind = "spin_offs"
+ex_date = 2018-11-13
+parent_basis = 0.5262
+note = "0.80 Equitrans per share, distributed 2018-11-12, ex-distribution 2018-11-13 (OCC memo 43952); basis 52.62% EQT, 47.01% Equitrans and 0.37% cash for fractions, from NYSE closes on 2018-11-13"
+source = "https://s205.q4cdn.com/630272887/files/doc_downloads/Form8937/ETRN-Separation-Form-8937-Org-Action-Stock-Basis-(11-12-2018).pdf"
+
+[[add]]
+symbol = "SATS"
+kind = "spin_offs"
+ex_date = 2019-09-11
+parent_basis = 0.8084
+note = "1 EchoStar BSS share per share, each converted into 0.23523769 DISH class A, paid 2019-09-10, ex-date 2019-09-11 (Nasdaq alert ECA2019-165); basis 80.84% EchoStar, 19.16% BSS, from simple average prices on 2019-09-10"
+source = "https://ir.echostar.com/static-files/5d966a0f-7c8b-4b65-8f04-2eafdbd1707e"
 
 [[drop]]
 symbol = "LMT"
@@ -530,6 +613,22 @@ ex_date = 2016-03-18
 rate = 0.321047
 note = "first-quarter 2016 distribution, record 2016-03-22, from the sponsor's distribution history"
 source = "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx"
+
+[[drop]]
+symbol = "GE"
+kind = "spin_offs"
+ex_date = 2019-02-25
+note = "the Wabtec distribution at its payable date; the NYSE set the ex-distribution date to 2019-02-26. Listed under [[add]] on that date"
+source = "https://www.miaxglobal.com/sites/default/files/alert-files/GE_Distribution_44559.pdf"
+
+[[add]]
+symbol = "GE"
+kind = "spin_offs"
+ex_date = 2019-02-26
+new_symbol = "WAB"
+new_rate = 0.005403
+note = "about 0.005403 Wabtec shares per share, cash for fractions; record 2019-02-14, payable 2019-02-25, ex-distribution 2019-02-26, all from OCC memo 44559"
+source = "https://www.miaxglobal.com/sites/default/files/alert-files/GE_Distribution_44559.pdf"
 
 [[add]]
 symbol = "SPGI"

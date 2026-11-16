@@ -19,7 +19,7 @@ a changed rule or correction needs a rebuild, not a download:
 - a record seen twice is kept once, except the repeats `config/alpaca.toml`
   lists as separate dividends;
 - `config/alpaca.toml` lists, each with its primary source, the records to drop
-  and the dividends Alpaca has no record of.
+  and the dividends and spin-offs Alpaca has no record of.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -86,8 +86,8 @@ class SpinOffPriceError(RuleError):
 
 
 class MissingRawError(RuleError):
-    """The rules need records or bars the download did not keep, as a snapshot taken
-    by earlier code can lack. A new download fetches them."""
+    """The rules need records or bars the download did not keep: a listed spin-off added
+    after it. A new download fetches them."""
 
 
 # Requests ----------------------------------------------------------------------------------------------
@@ -266,7 +266,7 @@ class Corrections:
     """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004).
 
     `added` holds Alpaca-shaped records by the symbol they are filed under:
-    dividends Alpaca has no record of.
+    dividends and spin-offs Alpaca has no record of.
     """
 
     repeats: frozenset[Repeat] = frozenset()
@@ -274,7 +274,7 @@ class Corrections:
     added: Mapping[str, tuple[Record, ...]] = MappingProxyType({})
 
 
-ADD_KINDS = (DIVIDENDS,)
+ADD_KINDS = (DIVIDENDS, SPIN_OFFS)
 
 
 def _ex_dates(section: str, entry: Mapping[str, Any]) -> list[dt.date]:
@@ -296,6 +296,17 @@ def _added_record(entry: Mapping[str, Any], ex: dt.date) -> tuple[str, Record]:
     if kind == DIVIDENDS:
         _require("add", entry, {"rate"})
         return symbol, (kind, {**base, "symbol": symbol, "rate": float(entry["rate"]), "foreign": False})
+    if kind == SPIN_OFFS and "new_symbol" in entry:
+        # A taxable distribution has no basis allocation; it is valued like Alpaca's own (rule 8).
+        _require("add", entry, {"new_rate"})
+        return symbol, (kind, {**base, "source_symbol": symbol, "source_rate": 1.0,
+                               "new_symbol": entry["new_symbol"], "new_rate": float(entry["new_rate"])})
+    if kind == SPIN_OFFS:
+        _require("add", entry, {"parent_basis"})
+        share = float(entry["parent_basis"])
+        if not 0.0 < share < 1.0:
+            raise ValueError(f"add entry {symbol} {ex}: parent_basis must be in (0, 1): {share}")
+        return symbol, (kind, {**base, "source_symbol": symbol, "parent_basis": share})
     raise ValueError(f"add entry {symbol} {ex}: kind must be one of {ADD_KINDS}, not {kind!r}")
 
 
@@ -432,6 +443,7 @@ def action_columns(
     withholding: Withholding,
     spin_off_close: SpinOffClose,
     end: dt.date,
+    parent_close: Mapping[dt.date, float] = MappingProxyType({}),
 ) -> pd.DataFrame:
     """cash and split_ratio by ex-date from a ticker's actions. Other kinds change no basis and are left out.
 
@@ -440,7 +452,10 @@ def action_columns(
     or the payable date, whichever is later. The ratio counts the shares held at
     the record date, so on an ex-date with a split the cash is per share before
     it, and is divided by the split ratio to put it on today's shares (Honeywell,
-    2026-06-29: 0.5 HONA per share and a one-for-two reverse split).
+    2026-06-29: 0.5 HONA per share and a one-for-two reverse split). A
+    hand-listed spin-off carries instead the share of the parent's tax basis the
+    parent kept (its Form 8937), and its cash is the parent's ex-date close times
+    (1 - share) / share, already per share of today's close.
     """
     rows = []     # (ex-date, cash per share after any split, cash per share before it, split ratio)
     for kind, rec in recs:
@@ -449,6 +464,11 @@ def action_columns(
             rows.append((ex, gross_dividend(withholding, ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 0.0, 1.0))
         elif kind in SPLITS:
             rows.append((ex, 0.0, 0.0, float(rec["new_rate"]) / float(rec["old_rate"])))
+        elif kind == SPIN_OFFS and "parent_basis" in rec:
+            if ex not in parent_close:
+                raise ActionDateError(f"{ticker}: listed spin-off going ex {ex} has no bar that day")
+            share = float(rec["parent_basis"])
+            rows.append((ex, parent_close[ex] * (1.0 - share) / share, 0.0, 1.0))
         elif kind == SPIN_OFFS:
             ratio = float(rec["new_rate"]) / float(rec["source_rate"])
             last = min(_search_from(rec) + SPIN_OFF_SEARCH, end)
@@ -588,11 +608,12 @@ def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: 
     recs, _ = ticker_actions(query, ticker)
     recs, _ = dedupe(recs, rules.corrections.repeats)
     in_window = [(k, r) for k, r in recs if start <= _date(r["ex_date"]) < end]
+    closes = {d.date(): c for d, c in zip(bars[DATE], bars["close"])}
 
     def spin_off_close(symbol: str, ex: dt.date, last: dt.date) -> float:
         return stored_close(raw.spin_off_bars, symbol, ex, last)
 
-    actions = action_columns(in_window, ticker, rules.withholding, spin_off_close, end)
+    actions = action_columns(in_window, ticker, rules.withholding, spin_off_close, end, closes)
     return join_actions(bars, actions, ticker)
 
 

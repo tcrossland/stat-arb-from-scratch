@@ -342,6 +342,23 @@ def test_listed_dividends_are_added_gross_under_the_symbol_of_their_time() -> No
     assert cash_on(bars, "2025-01-15") == 4.0
 
 
+def test_listed_spin_off_is_cash_from_the_parents_basis_share() -> None:
+    parent = truth(1)
+    fixes = corrections(add=[{"symbol": "PAR", "kind": "spin_offs", "ex_date": dt.date(2025, 2, 3), "parent_basis": 0.8, **SOURCE}])
+    bars = source(fake_alpaca({"PAR": parent}), corrections=fixes).fetch("PAR", START, END)
+    close = float(parent.loc[parent["date"] == pd.Timestamp("2025-02-03"), "close"].iloc[0])
+    assert cash_on(bars, "2025-02-03") == pytest.approx(close * 0.25)
+
+
+def test_listed_spin_off_without_a_basis_share_is_valued_at_the_new_security_close() -> None:
+    parent, child = truth(1), truth(2, price=20.0)
+    fixes = corrections(add=[{"symbol": "PAR", "kind": "spin_offs", "ex_date": dt.date(2025, 2, 3),
+                              "new_symbol": "KID", "new_rate": 0.1, **SOURCE}])
+    bars = source(fake_alpaca({"PAR": parent, "KID": child}), corrections=fixes).fetch("PAR", START, END)
+    kid_close = float(child.loc[child["date"] == pd.Timestamp("2025-02-03"), "close"].iloc[0])
+    assert cash_on(bars, "2025-02-03") == pytest.approx(0.1 * kid_close)
+
+
 def test_parse_corrections_validates() -> None:
     entry = {"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 10), "rate": 0.5, **SOURCE}
     with pytest.raises(ValueError, match="lacks"):
@@ -350,6 +367,8 @@ def test_parse_corrections_validates() -> None:
         corrections(add=[{k: v for k, v in entry.items() if k != "rate"}])
     with pytest.raises(ValueError, match="kind"):
         corrections(add=[{**entry, "kind": "forward_splits"}])
+    with pytest.raises(ValueError, match="parent_basis"):
+        corrections(add=[{**entry, "kind": "spin_offs", "parent_basis": 1.2}])
     with pytest.raises(ValueError, match="exactly one"):
         corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", **SOURCE}])
     with pytest.raises(ValueError, match="exactly one"):
@@ -383,6 +402,15 @@ def test_a_correction_listed_after_the_download_needs_only_a_rebuild(tmp_path) -
                                     add=[{"symbol": "XYZ", "kind": "cash_dividends", "ex_date": dt.date(2025, 2, 11), "rate": 0.4, **SOURCE}]))
     bars = snap.bars("XYZ", rules)
     assert cash_on(bars, "2025-02-10") == 0.0 and cash_on(bars, "2025-02-11") == 0.4
+
+
+def test_a_spin_off_listed_after_the_download_fails_the_ticker_until_the_next(tmp_path) -> None:
+    truths = {"XYZ": truth(1), "KID": truth(2, price=20.0)}
+    _, snap = _raw_snapshot(tmp_path, truths, [], ["XYZ"])
+    spun = Rules(NONE, corrections(add=[{"symbol": "XYZ", "kind": "spin_offs", "ex_date": dt.date(2025, 2, 3),
+                                         "new_symbol": "KID", "new_rate": 0.1, **SOURCE}]))
+    bars, failed = snap.read_all(spun)
+    assert bars == {} and failed["XYZ"].startswith("MissingRawError")
 
 
 def test_a_rule_failure_leaves_the_ticker_out_of_the_build_not_the_download(tmp_path) -> None:
