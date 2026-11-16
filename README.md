@@ -11,9 +11,9 @@ None yet. Each phase review adds its findings here, whichever way they go.
 ```mermaid
 flowchart LR
     S["raw snapshots<br/>Alpaca, Wikipedia"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio rule<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
+    R["risk model"] --> P
     C["cost model"] --> P
     C --> B
-    R["risk model"] --> P
 ```
 
 Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price and constituent sources, the factor model, the signal, the cost model, the portfolio rule and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
