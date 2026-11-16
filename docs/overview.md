@@ -44,7 +44,9 @@ Spread, market impact from a square-root model, commission from a published reta
 
 Phase 2 charges a flat cost per dollar traded, at five levels, behind a `CostModel` interface, and reports the break-even cost against an assumed retail cost.
 
-Phase 3: [brief](phases/phase-03/brief.md). Package: [`src/statarb/backtest/`](../src/statarb/backtest/).
+Phase 3 replaces it with `TradingCost`: a half-spread with a half-tick floor, square-root impact on trailing volatility and dollar volume, IBKR's per-share commission with its per-order minimum, and a general and a hard-to-borrow rate, every input from the day before the fill. Returns are per dollar of capital, at book sizes from $50k to $500m, so the cost per dollar traded and the component that binds can be read at each size. The daily-price spread estimators turned out to read the strategy's own reversal as spread, so the spread is a stated assumption with a bracket ([decision record 0005](decisions/0005-spread-as-a-stated-assumption.md)). A no-trade zone, an optional policy the engine applies at each fill, trades a name only when its calibrated expected move pays for the trade. The [phase 3 review](phases/phase-03/review.md) says which component binds at which size and whether any book keeps a net edge.
+
+Phase 3: [brief](phases/phase-03/brief.md), [review](phases/phase-03/review.md). Packages: [`src/statarb/backtest/`](../src/statarb/backtest/), [`src/statarb/signals/calibration.py`](../src/statarb/signals/calibration.py).
 
 ## Portfolio
 

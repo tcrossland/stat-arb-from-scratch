@@ -338,7 +338,7 @@ def write_report(tables: Tables, cfg: BacktestConfig, outcomes, placebo: pd.Data
     # are every distinct position path in the repository's experiment logs, with this
     # sweep's paths added in case it was run without logging.
     gross = {(f.variant, f.fill): f.daily[levels[0]]["gross"] for f in outcomes}
-    trials = repository_trials(reports)
+    trials = repository_trials(reports, through="phase-02")
     for f in outcomes:
         g = gross[(f.variant, f.fill)]
         trials[path_id(record(f.variant, f.fill, levels[0], cfg))] = float(g.mean() / g.std())

@@ -51,6 +51,8 @@ Grouped by the phase they inform. Magnitudes quoted here come from abstracts; ch
 
 - Corwin, S. and Schultz, P. (2012). A simple way to estimate bid-ask spreads from daily high and low prices. *Journal of Finance* 67(2).
 - Abdi, F. and Ranaldo, A. (2017). A simple estimation of bid-ask spreads from daily close, high, and low prices. *Review of Financial Studies* 30(12).
+- Ardia, D., Guidotti, E. and Kroencke, T. A. (2024). Efficient estimation of bid-ask spreads from open, high, low, and close prices. *Journal of Financial Economics* 161. The EDGE estimator.
+- Hagströmer, B. Bias in the effective bid-ask spread. [Working paper](https://www.hec.edu/sites/default/files/documents/overestEspr-v12.pdf), version of 25 September 2019. Effective spreads of S&P 500 constituents measured from trades and quotes; the anchor for the assumed spread in decision record 0005.
 - De Groot, W., Huij, J. and Zhou, W. (2012). Another look at trading costs and short-term reversal profits. *Journal of Banking and Finance* 36(2). Costs fall sharply with a large-cap universe and lower-turnover construction.
 - Frazzini, A., Israel, R. and Moskowitz, T. Trading costs of asset pricing anomalies. Ranks short-term reversal as the anomaly most constrained by trading costs.
 - Nagel, S. (2012). Evaporating liquidity. *Review of Financial Studies* 25(7). Reversal returns as compensation for providing liquidity. A useful lens on capacity.

@@ -162,7 +162,9 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Break-even cost.** The flat one-way cost per dollar traded at which the net Sharpe ratio falls to zero.
 
-**Trial.** One distinct position path run through the backtest: a configuration less its cost level, since costs change the P&L but not the positions. Counted across every experiment log in the repository; the best result is judged against how many there are.
+**Trial.** One distinct position path run through the backtest: the part of a configuration that sets positions, since costs, book size and names change the P&L but not the positions. A no-trade path is one trial whatever the book size. Counted across the repository's experiment logs up to the phase in question; the best result is judged against how many there are.
+
+**Net edge.** From phase 3: a mean net return with a t-statistic of at least 2 and a deflated Sharpe probability of at least 0.95. Anything short of both is "not distinguishable from zero", whatever its sign.
 
 **Deflated Sharpe ratio.** Bailey and López de Prado (2014): the probability that a strategy's true Sharpe ratio is above the best one expected by chance from that many trials with no edge, allowing for the non-normality of returns.
 
@@ -172,15 +174,23 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Bid-ask spread, half-spread.** The gap between the best price to sell and the best price to buy. A trade that crosses from the midpoint pays half of it.
 
-**Spread estimators.** Formulas that infer the spread from daily prices when quotes are not available.
+**Spread estimators.** Formulas that infer the spread from daily prices when quotes are not available: EDGE (Ardia, Guidotti and Kroencke, from open, high, low and close), Abdi and Ranaldo's (close, high and low) and Corwin and Schultz's (high and low). Each reads negative serial covariance of prices as bid-ask bounce, so daily reversal raises it (decision record 0005).
+
+**Half-tick floor.** No stock trades inside its one-cent tick, so a half-spread is never less than half a cent over the previous close.
 
 **Market impact.** The price moving against a trade because of the trade itself, growing with the trade's size relative to daily volume.
 
-**Commission.** The broker's fee.
+**Commission.** The broker's fee. Here a per-share rate with a minimum and a maximum per order, from Interactive Brokers' published US schedule; one order per name per day. The minimum makes small orders cost far more per dollar than large ones.
 
 **Borrow cost.** The fee for borrowing shares to sell short, charged on short notional.
 
+**Hard to borrow.** A stock whose borrow fee is well above the general rate. Free data does not say which, so phase 3 flags the stocks in the top 5% of trailing volatility each day, a proxy.
+
 **Book size, capacity.** Book size is the money the strategy runs, in US dollars. Capacity is the book size beyond which costs, mainly impact, outgrow the edge.
+
+**Capital, capital deployed.** From phase 3, weights are fractions of the book's capital and returns are per dollar of capital, with idle capital earning nothing. Capital deployed is the gross exposure as a share of the capital: below 1 where a decile book's slices offset each other or the no-trade zone leaves names untraded.
+
+**Net dollar imbalance.** The mean of |longs − shorts| / gross: how far a book is from dollar neutral.
 
 **No-trade zone.** A rule that trades a name only when its expected move pays for the trade.
 
