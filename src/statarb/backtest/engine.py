@@ -15,7 +15,9 @@ At each grid time s the engine first books the P&L of the holdings filled at
 s-1, lets them drift with the returns, then trades to the targets. A NaN target
 means "keep the drifted holding" (used by threshold rules that hold until a
 close signal); a name with no bar at s cannot trade and keeps its holding. A
-held name with no return at s is booked at zero and counted.
+held name with no return at s is booked at zero and counted. An optional
+policy sees each grid time's targets after the delay and may leave names
+untraded (phase 3's no-trade zone); without one nothing changes.
 
 Weights are dollars per unit of capital, with no leverage built in. Results are
 reported per dollar of gross exposure (metrics.daily_returns), so the scale of
@@ -25,6 +27,7 @@ the targets does not matter.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -96,6 +99,16 @@ class EngineResult:
 
 
 
+class Policy(Protocol):
+    """Adjusts the targets due at grid time s; NaN means keep the drifted holding.
+
+    `drifted` is the holdings filled at s-1 moved with prices to s, and `target`
+    the row of targets due at s. A policy keeps no state between calls.
+    """
+
+    def __call__(self, s: int, drifted: np.ndarray, target: np.ndarray) -> np.ndarray: ...
+
+
 @dataclass(frozen=True)
 class Step:
     """One grid time: the P&L of the holdings carried in, then the trade to the targets."""
@@ -110,11 +123,13 @@ class Step:
 
 
 def step(
+    s: int,
     held: np.ndarray,
     returns: np.ndarray,
     tradable: np.ndarray,
     target: np.ndarray,
     rate: np.ndarray,
+    policy: Policy | None = None,
 ) -> Step:
     """Grid time s, given the holdings filled at s-1, the row of returns, tradability and
     daily borrow rates at s, and the target due at s (already shifted by the delay)."""
@@ -123,6 +138,8 @@ def step(
     r = np.where(known, returns, 0.0)
     owed = rate * np.minimum(held, 0.0)
     drifted = held * (1.0 + r)
+    if policy is not None:
+        target = policy(s, drifted, target)
     new = np.where(np.isfinite(target) & tradable, target, drifted)
     return Step(r, held * r, -owed, drifted, new, new - drifted, missing)
 
@@ -145,11 +162,14 @@ def run(
     grid: Grid,
     delay: int,
     borrow_annual: float | np.ndarray,
+    policy: Policy | None = None,
 ) -> EngineResult:
     """Fill `targets` (decided at the close of each date) at grid time t + delay.
 
     `borrow_annual` is a flat rate or a (dates x tickers) panel of rates, where
-    row s applies to the shorts held from s-1 to s.
+    row s applies to the shorts held from s-1 to s. `policy`, if given, sees the
+    targets due at each grid time and may replace entries with NaN to leave a
+    name untraded.
     """
     T, N = grid.returns.shape
     if targets.shape != (T, N):
@@ -165,7 +185,7 @@ def run(
     held = np.zeros(N)
     missing = 0
     for s in range(T):
-        out = step(held, grid.returns[s], grid.tradable[s], shifted[s], rates[s])
+        out = step(s, held, grid.returns[s], grid.tradable[s], shifted[s], rates[s], policy)
         pnl[s] = out.pnl
         borrow[s] = out.borrow.sum()
         gross_held[s] = np.abs(held).sum()

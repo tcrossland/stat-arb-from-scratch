@@ -52,6 +52,13 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 2 | s-score hedge ratios | the in-sample betas of the day the position opened | after the close of that day |
 | 2 | Open-to-open return to *t* | the opens of *t* and the previous bar, and actions going ex on *t* | the open of *t* |
 | 2 | Fill of a book decided at *t* | the close of *t* with 5 bps of slippage, the open of *t + 1* (the headline) or the close of *t + 1* | that fill time |
+| 3 | Spread estimate charged at fill time *s* | open, high, low and close, made split-consistent with splits up to each day, over the 252 trading days ending the day before *s* | the fill at *s* |
+| 3 | Volatility and dollar volume for impact at *s* | daily total returns over the 60, and close times volume over the 20, trading days ending the day before *s* | the fill at *s* |
+| 3 | Half-tick floor at *s* | the close before *s* | the fill at *s* |
+| 3 | Hard-to-borrow flag at *s* | trailing volatility as known before *s* | the shorts held from *s* to the next fill |
+| 3 | Commission at *s* | the share count from dollars traded and the fill price at *s* | the fill at *s*: a charge, not a decision input |
+| 3 | Expected move on *t* | the signal on *t*, and a slope from signal-outcome pairs over 252 signal dates whose outcome, the move over the next *k* days, is known by the close of *t* | after the close of *t* |
+| 3 | No-trade decision for a fill at *s* | the expected move decided at *t*, the drifted holdings at *s*, and costs estimated at the close before *s* | that fill time |
 
 Notes for phase 0:
 
@@ -72,3 +79,10 @@ Notes for phase 2:
 - A signal on *t* needs every one of its *n* days present, so it never sums across a missing bar; a one-day signal on the day after a gap uses the return that spans it. The engine books a held name with no return at zero and counts it.
 - The first signal date is `[period] start` of `config/backtest.toml`; every book is flat before it, whatever the signals could have shown earlier.
 - `tests/contract/test_signals.py` perturbs every table a registered signal reads after a cut-off, and reshuffles universe membership and sectors after it, and requires every score up to it to be unchanged. `tests/test_backtest.py` does the same for the targets and the daily P&L of the headline and the s-score at every fill timing.
+
+Notes for phase 3:
+
+- Every input to the cost of a fill at grid time *s* is from the trading day before *s*, so the same estimate could have decided the trade. For a book decided at the close of *t* and filled at the open of *t + 1*, that is the close of *t*. Only the commission uses the fill price, to count shares: it charges the trade, it does not choose it.
+- The no-trade zone prices a trade at the close before the fill, since the fill price is not known when the order is sent.
+- A signal on day *d* has an outcome over *d + 1* to *d + k*, known at the close of *d + k*. The slope used on *t* comes from signals up to *t* − *k* only (`statarb.signals.calibration`).
+- `tests/test_costs.py` perturbs prices, volumes, returns and residuals after a cut-off and requires the spread estimates, volatilities, expected moves, the no-trade book's holdings and its daily costs and P&L up to the cut-off to be unchanged, and checks the calibration and each rolling estimator the same way.

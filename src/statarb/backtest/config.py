@@ -145,3 +145,131 @@ class BacktestConfig:
 
 def load_backtest_config(root: Path | None = None) -> BacktestConfig:
     return BacktestConfig.from_dict(load_config("backtest", root))
+
+
+# Phase 3: config/costs.toml ----------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CostRun:
+    fill: str
+    book_sizes: tuple[float, ...]
+    headline_book: float
+
+
+@dataclass(frozen=True)
+class CostVariant:
+    name: str
+    signal: str
+    lookback_days: int
+    vol_scaled: bool
+    holding_days: int
+
+
+@dataclass(frozen=True)
+class CostSScore:
+    include: bool
+
+
+@dataclass(frozen=True)
+class SpreadSettings:
+    headline_half_spread_bps: float
+    bracket_half_spread_bps: tuple[float, ...]
+    half_tick_floor: bool
+    estimators: tuple[str, ...]
+    window_days: int
+    min_observations: int
+    size_groups: int
+
+
+@dataclass(frozen=True)
+class ImpactSettings:
+    coefficients: tuple[float, ...]
+    headline_coefficient: float
+    volatility_window_days: int
+    volatility_min_observations: int
+    volume_window_days: int
+    volume_min_observations: int
+
+
+@dataclass(frozen=True)
+class Schedule:
+    name: str
+    per_share: float
+    min_per_order: float
+    max_fraction: float
+
+
+@dataclass(frozen=True)
+class CommissionSettings:
+    headline: str
+    read_on: dt.date
+    source: str
+    schedules: tuple[Schedule, ...]
+
+
+@dataclass(frozen=True)
+class BorrowSettings:
+    general_annual: float
+    hard_annual: float
+    hard_quantile: float
+
+
+@dataclass(frozen=True)
+class NoTradeSettings:
+    calibration_window_days: int
+    calibration_min_days: int
+
+
+@dataclass(frozen=True)
+class CostConfig:
+    run: CostRun
+    variants: tuple[CostVariant, ...]
+    sscore: CostSScore
+    spread: SpreadSettings
+    impact: ImpactSettings
+    commission: CommissionSettings
+    borrow: BorrowSettings
+    no_trade: NoTradeSettings
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], backtest: BacktestConfig) -> CostConfig:
+        cfg = _build(cls, data, "costs")
+        cfg.validate(backtest)
+        return cfg
+
+    def validate(self, backtest: BacktestConfig) -> None:
+        from statarb.backtest.spreads import ESTIMATORS
+
+        if self.run.fill not in FILLS:
+            raise ValueError(f"run.fill must be one of {FILLS}")
+        if self.run.headline_book not in self.run.book_sizes or any(b <= 0 for b in self.run.book_sizes):
+            raise ValueError("book sizes must be positive, with the headline among them")
+        signals = {s.name: s for s in backtest.signals}
+        names = [v.name for v in self.variants]
+        if len(set(names)) != len(names) or "s-score" in names:
+            raise ValueError("variant names must be unique and not 's-score', which names the s-score rule")
+        for v in self.variants:
+            spec = signals.get(v.signal)
+            if spec is None or v.lookback_days not in spec.lookbacks or v.vol_scaled not in spec.vol_scaled:
+                raise ValueError(f"variant {v.name!r} must be a phase 2 signal configuration")
+            if v.holding_days < 1:
+                raise ValueError("holding days must be positive")
+        if not set(self.spread.estimators) <= set(ESTIMATORS):
+            raise ValueError(f"spread estimators must be among {ESTIMATORS}")
+        if self.spread.headline_half_spread_bps < 0 or any(x < 0 for x in self.spread.bracket_half_spread_bps):
+            raise ValueError("half-spreads must not be negative")
+        if self.impact.headline_coefficient not in self.impact.coefficients:
+            raise ValueError("impact.headline_coefficient must be one of impact.coefficients")
+        schedules = [s.name for s in self.commission.schedules]
+        if len(set(schedules)) != len(schedules) or self.commission.headline not in schedules:
+            raise ValueError("commission schedule names must be unique, with the headline among them")
+        if not 0 < self.borrow.hard_quantile < 1:
+            raise ValueError("borrow.hard_quantile must be in (0, 1)")
+
+    def schedule(self, name: str) -> Schedule:
+        return next(s for s in self.commission.schedules if s.name == name)
+
+
+def load_cost_config(backtest: BacktestConfig, root: Path | None = None) -> CostConfig:
+    return CostConfig.from_dict(load_config("costs", root), backtest)

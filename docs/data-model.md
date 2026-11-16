@@ -2,7 +2,7 @@
 
 The stored tables, their columns and keys, and how they join. `tests/test_data_model_doc.py` checks the columns and types here against the tables the build writes.
 
-All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` by `statarb.factors.build` from them. Phase 2 stores no table: the backtest pivots these into dates by tickers panels in memory (`statarb.signals.tables`) and writes only its report and experiment log, below. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
+All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` by `statarb.factors.build` from them. Phases 2 and 3 store no table: the backtest pivots these into dates by tickers panels in memory (`statarb.signals.tables`), phase 3 recomputes its cost inputs (spread estimates, volatilities, dollar volumes) from them on each run, and each writes only its report and experiment log, below. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
 
 ## Raw snapshots
 
@@ -108,15 +108,15 @@ Model A's residual returns (phase 1): each candidate's daily return less what SP
 
 ## Experiment logs
 
-`reports/phase-NN/experiments.jsonl`, committed, append-only, one JSON object per line: one per backtest configuration and cost level each time a runner logs. Its fields:
+`reports/phase-NN/experiments.jsonl`, committed, append-only, one JSON object per line: one per backtest configuration and cost setting (in phase 3, also per book size) each time a runner logs. Its fields:
 
 - `recorded_at`: the UTC time the entry was written, ISO 8601.
 - `git_commit`, `git_dirty`: the commit the code ran at, and whether the working tree had changes. The committed log comes from a clean tree.
 - `config_overlay`: the overlay directory (`STATARB_CONFIG_OVERLAY`) if one was set, else null.
 - `price_source`, `price_snapshot`: `[source] name` and `snapshot` of `config/data.toml` as the run read them.
 - `seed`: `[run] seed` of `config/backtest.toml`.
-- `config`: the configuration that set the positions and costs. In phase 2: `signal`, `source`, `lookback_days`, `vol_scaled`, `holding_days`, `fill`, `cost_bps`, `slippage_bps`, `borrow_annual`, `decile`, `start`, and for the s-score `sscore`, its settings.
+- `config`: the configuration that set the positions and costs. In phase 2: `signal`, `source`, `lookback_days`, `vol_scaled`, `holding_days`, `fill`, `cost_bps`, `slippage_bps`, `borrow_annual`, `decile`, `start`, and for the s-score `sscore`, its settings. In phase 3 the same position keys less the flat cost, plus `name` (the configuration's name in `config/costs.toml`), `book_size` (capital in US dollars), `spread` (a half-spread in bps, or an estimator's name), `half_tick_floor`, `impact_coefficient`, `commission` (the schedule's name, per-share rate, minimum and maximum), `borrow` (the general and hard-to-borrow rates and the proxy's quantile), `no_trade_zone`, and `no_trade` (the calibration window when the zone is on, else null).
 - `config_id`: the first 16 hex digits of the SHA-256 of `config` as JSON with sorted keys. The fields above it stay out of `config`, so the same configuration has the same id whatever code state, overlay or snapshot it ran on.
-- `metrics`: the headline metrics on gross exposure, annualised where the name says so; non-finite values are null.
+- `metrics`: the headline metrics, annualised where the name says so; non-finite values are null. Phase 2's are per dollar of gross exposure. Phase 3's are per dollar of capital, with idle capital earning nothing, and add each cost component (`ann_cost_spread`, `ann_cost_impact`, `ann_cost_commission`, and the same per dollar traded as `*_bps_per_dollar`), `t_stat`, `mean_exposure` (capital deployed), `median_names`, `net_dollar_imbalance`, `hard_short_share`, `ann_borrow_hard_extra` and `gross_basis_sharpe` (the net Sharpe per dollar of gross, for comparison with phase 2).
 
-Key: none, since reruns repeat a `config_id`. A trial is a distinct `config_id` once `cost_bps` is removed from `config` (`statarb.backtest.trials`), counted across every phase's log.
+Key: none, since reruns repeat a `config_id`. A trial is a distinct position path: `config` reduced to the keys that set positions (`statarb.backtest.trials.PATH_KEYS`), so cost settings, book sizes and names are not trials. Each phase counts the logs up to its own.

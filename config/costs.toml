@@ -1,0 +1,88 @@
+# Phase 3 cost model settings. See docs/phases/phase-03/brief.md.
+# Loaded by statarb.backtest.config.load_cost_config, which rejects unknown or missing keys.
+# Signals, holding rules and the s-score settings come from config/backtest.toml, unchanged,
+# so differences from phase 2 are costs only. To try another setting, put it in a config
+# overlay (STATARB_CONFIG_OVERLAY), never edit this file.
+
+[run]
+fill = "open_t1"                       # the phase 2 baseline fill
+book_sizes = [50_000, 500_000, 5_000_000, 50_000_000, 500_000_000]   # capital, US dollars
+headline_book = 500_000
+
+# Decile configurations re-run under the cost model, each a phase 2 signal configuration.
+# The s-score rule is added when [sscore] include = true.
+[[variants]]
+name = "baseline"                      # the phase 2 review's baseline
+signal = "residual"
+lookback_days = 1
+vol_scaled = false
+holding_days = 5
+
+[[variants]]
+name = "three-day lookback"            # adopted after phase 2's 147 trials, as a comparison
+signal = "residual"
+lookback_days = 3
+vol_scaled = false
+holding_days = 5
+
+[sscore]
+include = true
+
+[spread]
+# Decision record 0005: the daily-price estimators rise with daily reversal, the effect this
+# strategy trades, so they cannot price its spread. The headline half-spread is an assumption
+# anchored on published effective spreads of S&P 500 stocks, with a bracket run beside it.
+# Every half-spread is floored at half a cent over the previous close.
+headline_half_spread_bps = 1.5
+bracket_half_spread_bps = [1.0, 2.5, 5.0]
+half_tick_floor = true
+# The estimators, reported as diagnostics and run once each as a sensitivity. Single-stock
+# estimates are too noisy at these spreads, so each name's signed squared spread over a
+# trailing year is averaged across names in the same group each day: stocks by quintile of
+# trailing dollar volume, ETFs as one group.
+estimators = ["edge", "ar", "cs"]
+window_days = 252
+min_observations = 189
+size_groups = 5
+
+[impact]
+# c x sigma x sqrt(dollars traded / average daily dollar volume), inputs up to the day before the fill.
+coefficients = [0.5, 1.0]
+headline_coefficient = 1.0
+volatility_window_days = 60
+volatility_min_observations = 45
+volume_window_days = 20
+volume_min_observations = 15
+
+[commission]
+# Interactive Brokers' US stock schedule, read from its own page. One order per name per day.
+headline = "ibkr_pro_fixed"
+read_on = 2026-11-16
+source = "https://www.interactivebrokers.com/en/pricing/commissions-stocks.php"
+
+# Includes exchange and clearing fees; regulatory and pass-through fees are extra and not modelled.
+[[commission.schedules]]
+name = "ibkr_pro_fixed"
+per_share = 0.005
+min_per_order = 1.00
+max_fraction = 0.01
+
+# Up to 300,000 shares a month. Exchange, clearing, regulatory and pass-through fees are extra
+# and not modelled, so this is a lower bound for this schedule.
+[[commission.schedules]]
+name = "ibkr_pro_tiered"
+per_share = 0.0035
+min_per_order = 0.35
+max_fraction = 0.005
+
+[borrow]
+general_annual = 0.005                 # as phase 2
+# A proxy, not data: a stock is hard to borrow when its trailing volatility is in the top
+# hard_quantile of stocks that day. The rate is an assumption.
+hard_annual = 0.05
+hard_quantile = 0.05
+
+[no_trade]
+# Calibration of the signal to the residual move over the next holding_days days.
+calibration_window_days = 252          # trailing signal dates with known outcomes
+calibration_min_days = 126

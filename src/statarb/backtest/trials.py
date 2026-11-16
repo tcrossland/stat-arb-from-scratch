@@ -1,11 +1,15 @@
 """Trials: every distinct position path run in this repository, for the deflated Sharpe ratio.
 
-A trial is a position path: a configuration less its cost level, since the cost
-changes the P&L but not the positions. The count reads every experiment log in
-the repository (`reports/phase-NN/experiments.jsonl`), so a configuration tried
-in any phase counts against the best result of every later one, and a rerun of
-the same configuration is not a new trial. Each path's statistic is the daily
-(not annualised) Sharpe ratio of its gross returns, from its latest entry.
+A trial is a position path: the part of a configuration that sets positions
+(`PATH_KEYS`), since costs, book size and labels change the P&L or the name but
+not the positions. A no-trade path's positions also depend on the book size,
+but it is one rule tried once, so book sizes are not separate trials. The count
+reads the experiment logs of the repository (`reports/phase-NN/experiments.jsonl`)
+up to a given phase, so a configuration tried in any phase counts against the
+best result of every later one, a later phase's trials leave an earlier
+phase's report unchanged, and a rerun of the same configuration is not a new
+trial. Each path's statistic is the daily (not annualised) Sharpe ratio of its
+gross returns, from its latest entry.
 """
 
 from __future__ import annotations
@@ -18,17 +22,20 @@ from typing import Any
 from statarb.backtest.engine import TRADING_DAYS
 from statarb.backtest.experiments import config_id, read
 
-COST_KEYS = ("cost_bps",)
+# The configuration keys that set positions. A missing or null key is left out, so
+# a phase 2 entry and a phase 3 entry for the same path share an id.
+PATH_KEYS = ("signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade")
 
 
 def path_id(config: dict[str, Any]) -> str:
-    """The id of the position path a configuration runs: its config_id without the cost level."""
-    return config_id({k: v for k, v in config.items() if k not in COST_KEYS})
+    """The id of the position path a configuration runs: its config_id over `PATH_KEYS` alone."""
+    return config_id({k: config[k] for k in PATH_KEYS if config.get(k) is not None})
 
 
-def logs(reports: Path) -> list[Path]:
-    """Every phase's experiment log under the reports directory, in phase order."""
-    return sorted(reports.glob("phase-*/experiments.jsonl"))
+def logs(reports: Path, through: str | None = None) -> list[Path]:
+    """Each phase's experiment log under the reports directory, in phase order, up to phase `through` (e.g. "phase-02")."""
+    found = sorted(reports.glob("phase-*/experiments.jsonl"))
+    return [p for p in found if through is None or p.parent.name <= through]
 
 
 def trial_sharpes(entries: Iterable[dict[str, Any]]) -> dict[str, float]:
@@ -41,5 +48,5 @@ def trial_sharpes(entries: Iterable[dict[str, Any]]) -> dict[str, float]:
     return out
 
 
-def repository_trials(reports: Path) -> dict[str, float]:
-    return trial_sharpes(e for path in logs(reports) for e in read(path))
+def repository_trials(reports: Path, through: str | None = None) -> dict[str, float]:
+    return trial_sharpes(e for path in logs(reports, through) for e in read(path))
