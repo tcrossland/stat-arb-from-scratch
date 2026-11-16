@@ -5,7 +5,7 @@
 
 Rebuilds read only the cache in data/raw/. Downloads write a new dated
 snapshot and never modify an existing one. An Alpaca snapshot keeps what Alpaca
-returned, and the build applies the rules of decision record 0004 to it
+returned, and the build applies the rules of config/alpaca.toml to it
 (statarb.data.snapshot), so a changed rule needs only a rebuild.
 
 The sources may throttle requests. Downloads pace and retry with backoff
@@ -27,7 +27,7 @@ import pandas as pd
 
 from statarb.config import load_config, raw_store, repo_root, resolve_path
 from statarb.data import cache, snapshot
-from statarb.data.alpaca import AlpacaSource
+from statarb.data.alpaca import AlpacaSource, Rules, parse_rules
 from statarb.data.canonical import to_unadjusted
 from statarb.data.clean import clean_bars
 from statarb.data.quality import QualityInputs, render_report
@@ -121,6 +121,11 @@ def download_prices(
     return path
 
 
+def price_rules(name: str, root: Path) -> Rules | None:
+    """The rules a build applies to a raw snapshot of the source: `config/alpaca.toml` for Alpaca."""
+    return parse_rules(load_config("alpaca", root)) if name == AlpacaSource.name else None
+
+
 def select_constituent_snapshot(raw_root: Path, source: str, revision_id: int, pinned: str = "", pinned_digest: str = "") -> Path:
     """The pinned snapshot (download date and digest), verified and of the pinned revision; with no date pinned,
     the latest complete snapshot of the pinned revision, or the latest of any."""
@@ -159,6 +164,7 @@ def build(
     changes: list[dict[str, Any]],
     constituent_source: ConstituentSource,
     price_source_name: str,
+    rules: Rules | None = None,
 ) -> BuildOutputs:
     """The phase 0 tables and quality report, from the snapshots under `raw_root` alone."""
     start = cfg["dates"]["start"]
@@ -181,7 +187,7 @@ def build(
     p_manifest = prices_snapshot.manifest
     basis = PriceBasis(p_manifest["basis"])
 
-    by_ticker, rule_failed = prices_snapshot.read_all()
+    by_ticker, rule_failed = prices_snapshot.read_all(rules)
     failed = dict(sorted({**p_manifest.get("failed", {}), **rule_failed}.items()))
     available = sorted(by_ticker)
     frames = [to_unadjusted(by_ticker[t], basis).assign(**{TICKER: t}) for t in available]
@@ -265,10 +271,11 @@ def main(argv: list[str] | None = None) -> int:
     name = cfg["source"]["name"]
     if name not in PRICE_SOURCES:
         raise ValueError(f"unsupported price source: {name}; expected one of {', '.join(PRICE_SOURCES)}")
+    rules = price_rules(name, root)
     constituents = WikipediaConstituents()
 
     if args.download:
-        source = AlpacaSource()  # reads the keys first, so a missing key fails before any request
+        source = AlpacaSource(rules)  # reads the keys first, so a missing key fails before any request
         today = exchange_today()  # bars before today's New York date only
         c_path = download_constituents(constituents, raw_root, int(universe_cfg["revision_id"]), today)
         tickers = constituents.parse((c_path / "page.html").read_bytes())[TICKER].tolist()
@@ -276,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
         d = cfg["download"]
         download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], today, d["pause_seconds"], d["retries"])
 
-    out = build(raw_root, cfg, universe_cfg, changes, constituents, name)
+    out = build(raw_root, cfg, universe_cfg, changes, constituents, name, rules)
     write_outputs(out, resolve_path(cfg["paths"]["processed"], root), resolve_path(cfg["paths"]["reports"], root))
     _log("build complete")
     return 0

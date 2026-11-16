@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from helpers import SplitAdjustedSource, fake_alpaca, truth_fixture
-from statarb.data.alpaca import AlpacaSource
+from statarb.data.alpaca import AlpacaSource, Rules, Withholding
 from statarb.data.canonical import to_unadjusted
 from statarb.data.returns import total_returns
 from statarb.data.schema import BAR_COLUMNS
@@ -40,7 +40,7 @@ class UnadjustedReference:
 
 
 def _alpaca(truth: pd.DataFrame) -> AlpacaSource:
-    return AlpacaSource(get=fake_alpaca({TICKER: truth}))
+    return AlpacaSource(Rules(Withholding({}, frozenset())), get=fake_alpaca({TICKER: truth}))
 
 
 ADAPTERS = {

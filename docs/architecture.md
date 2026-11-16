@@ -55,7 +55,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 
 | Runner | Phase | Reads | Writes |
 |---|---|---|---|
-| `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`; with `--download` also Wikipedia and Alpaca | `data/derived/processed/*.parquet`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
+| `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`, `config/alpaca.toml`; with `--download` also Wikipedia and Alpaca | `data/derived/processed/*.parquet`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
 
 ## Config files
 
@@ -64,6 +64,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `data.toml` | `statarb.data.build` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths. |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
+| `alpaca.toml` | `statarb.data.alpaca` | Withholding on foreign dividends in Alpaca's corporate actions, each with its primary source. |
 
 ## External libraries
 

@@ -1,0 +1,140 @@
+# Rules for Alpaca's corporate actions (decision record 0004).
+# Loaded by statarb.data.alpaca.parse_rules and applied by the build to the raw
+# snapshot, so a change here needs a rebuild, not a download. Every value is
+# from the issuer, its filings or the tax authority, never from another price
+# source.
+#
+# Withholding (rule 4). Alpaca flags dividends of foreign issuers `foreign`, but
+# the flag does not say whether the amount is net of withholding tax: from 2023
+# it nets some issuers' dividends and not others. Each [[net]] entry gives the
+# ex-dates on which a ticker's amounts are net of `rate` (start and end
+# inclusive, end left out while it continues), with any ex-dates in between
+# that are gross, and cites the issuer's declared gross amounts. `gross` lists
+# the tickers whose foreign-flagged dividends are gross throughout. A
+# foreign-flagged dividend for a ticker in neither fails that ticker, so a new
+# issuer is checked by hand. Amounts net of Irish dividend withholding tax are
+# 75% of gross, of Dutch dividend tax 85%. Rates: Irish Revenue,
+# https://www.revenue.ie/en/companies-and-charities/dividend-withholding-tax/index.aspx;
+# Dutch Tax Administration,
+# https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/dividendbelasting/als_u_dividend_uitkeert
+#
+gross = [
+  "ACGL", "AMCR", "APTV", "BG", "CB", "CCL", "EG", "FERG", "GRMN", "IVZ",
+  "JBL", "LIN", "LYB", "MRVL", "PFE", "PNR", "RCL", "SLB",
+]
+
+[[net]]
+ticker = "ACN"
+country = "Ireland"
+rate = 0.25
+start = 2023-04-12
+source = "https://investor.accenture.com/stock-information/dividend-history"
+note = "Declared amounts by declaration date; record dates are in each quarter's earnings 8-K."
+
+[[net]]
+ticker = "ALLE"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-14
+source = "https://investor.allegion.com/stock-information/dividend-info"
+note = "Record and payable dates; ex-date is the business day before record (T+2)."
+
+[[net]]
+ticker = "AON"
+country = "Ireland"
+rate = 0.25
+start = 2023-04-28
+source = "https://ir.aon.com/dividends"
+note = "Record and payable dates; ex-date is the business day before record (T+2)."
+
+[[net]]
+ticker = "CRH"
+country = "Ireland"
+rate = 0.25
+start = 2023-03-16
+source = "https://www.crh.com/investors/shareholder-center/dividends/"
+note = "Ex, record and payment dates stated; paid in US dollars."
+
+[[net]]
+ticker = "ETN"
+country = "Ireland"
+rate = 0.25
+start = 2023-05-05
+source = "https://www.sec.gov/Archives/edgar/data/1551182/000155118224000006/etn-20231231.htm"
+note = "Form 10-K for 2023: dividends declared per ordinary share; the issuer's site did not load for checking."
+
+[[net]]
+ticker = "JCI"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-16
+source = "https://www.johnsoncontrols.com/media-center/news/press-releases/2023/06/07/johnson-controls-to-increase-quarterly-dividend"
+note = "Record 2023-06-20; ex 2023-06-16 because 2023-06-19 was a market holiday."
+
+[[net]]
+ticker = "MDT"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-22
+gross_dates = [2026-03-27]
+source = "https://investorrelations.medtronic.com/dividend-history"
+note = "Ex, record and payable dates stated, including the gross 2026-03-27 dividend."
+
+[[net]]
+ticker = "NXPI"
+country = "Netherlands"
+rate = 0.15
+start = 2023-06-13
+gross_dates = [2023-09-12]
+source = "https://www.sec.gov/Archives/edgar/data/1413447/000141344723000076/nxpi-20230824.htm"
+note = "Form 8-K: interim dividend per ordinary share, record 2023-09-13, ex 2023-09-12 (T+2)."
+
+[[net]]
+ticker = "STE"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-13
+source = "https://www.sec.gov/Archives/edgar/data/1757898/000175789823000010/ste-20230630.htm"
+note = "Form 10-Q: dividends declared per share in the quarter; the issuer's release pages did not load for checking."
+
+[[net]]
+ticker = "STX"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-20
+end = 2023-12-20
+gross_dates = [2023-09-25]
+source = "https://investors.seagate.com/stock-information/dividend-history"
+note = "Record and distribution dates; ex-dates the business day before record (T+2)."
+
+[[net]]
+ticker = "SW"
+country = "Ireland"
+rate = 0.25
+start = 2024-08-15
+source = "https://investors.smurfitwestrock.com/stock-information/dividend-history/default.aspx"
+note = "Ex, record and payment dates stated; declared per ordinary share in US dollars."
+
+[[net]]
+ticker = "TEL"
+country = "Ireland"
+rate = 0.25
+start = 2024-11-22
+source = "https://www.te.com/en/about-te/news-center/corporate-news/2024/2024-09-30-te-connectivity-completes-change-in-place-of-incorporation-to-ireland.html"
+note = "Reincorporated in Ireland on 2024-09-30; the instalment to holders of record 2024-11-22 is the first after the move."
+
+[[net]]
+ticker = "TT"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-01
+source = "https://investors.tranetechnologies.com/news-and-events/news-releases/news-release-details/2023/Trane-Technologies-Declares-Quarterly-Dividend-735f3e532/default.aspx"
+note = "Dividend per ordinary share declared 2023-06-02; ex-dates the business day before record (T+2)."
+
+[[net]]
+ticker = "WTW"
+country = "Ireland"
+rate = 0.25
+start = 2023-06-29
+source = "https://www.sec.gov/Archives/edgar/data/1140536/000095017023035063/wtw-20230630.htm"
+note = "Form 10-Q: dividend paid 2023-07-17 to holders of record 2023-06-30; ex 2023-06-29 (T+2)."

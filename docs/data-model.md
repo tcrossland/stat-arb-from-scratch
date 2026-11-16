@@ -6,7 +6,7 @@ All tables are long format in `data/derived/processed/`, written by `statarb.dat
 
 ## Raw snapshots
 
-`<raw store>/<source>/<download date>/` holds one download as the source returned it, with `manifest.json` written last; the raw store is `data/raw/` or the path in `STATARB_RAW`. A snapshot without its manifest is incomplete and never read. Every manifest holds `files`, the SHA-256 of each file by its path in the snapshot, and `digest`, the SHA-256 of the lines `path hash` sorted by path; config pins a snapshot by date and digest, and the build refuses one that does not match. A complete snapshot is read-only. The price manifest records the source, basis, layout, the first date asked for, `end_exclusive` (the New York date of the download: bars before it only), the tickers asked for, those with no data and those that failed. Alpaca snapshots keep `bars/<ticker>.parquet` with Alpaca's bar fields and `actions/<ticker>.json` with its corporate-action records; the build applies the rules of decision record 0004 to them. Wikipedia snapshots keep `page.html` and the revision id.
+`<raw store>/<source>/<download date>/` holds one download as the source returned it, with `manifest.json` written last; the raw store is `data/raw/` or the path in `STATARB_RAW`. A snapshot without its manifest is incomplete and never read. Every manifest holds `files`, the SHA-256 of each file by its path in the snapshot, and `digest`, the SHA-256 of the lines `path hash` sorted by path; config pins a snapshot by date and digest, and the build refuses one that does not match. A complete snapshot is read-only. The price manifest records the source, basis, layout, the first date asked for, `end_exclusive` (the New York date of the download: bars before it only), the tickers asked for, those with no data and those that failed. Alpaca snapshots keep `bars/<ticker>.parquet` with Alpaca's bar fields and `actions/<ticker>.json` with its corporate-action records; the build applies `config/alpaca.toml` to them (decision record 0004). Wikipedia snapshots keep `page.html` and the revision id.
 
 ## candidates
 
@@ -44,7 +44,7 @@ Splits and cash on their ex-dates. Key: `date`, `ticker`. Joins to `prices` on b
 | `date` | timestamp[ns] | ex-date |
 | `ticker` | string | ticker |
 | `split_ratio` | double | new shares per old share; 1 when none |
-| `cash` | double | cash per share going ex (decision record 0004) |
+| `cash` | double | cash per share going ex, gross of withholding (decision record 0004) |
 
 ## returns
 

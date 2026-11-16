@@ -52,7 +52,9 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Split ratio.** New shares per old share on a split's ex-date: 4 for a four-for-one split, 0.5 for a one-for-two reverse split, 1 on other days.
 
-**Cash.** Cash per share going ex on a day: the dividends going ex.
+**Cash.** Cash per share going ex on a day: dividends gross of withholding tax.
+
+**Gross and net dividend.** The amount the issuer declares, and that amount less the tax its home country withholds. Returns use the gross amount (decision record 0004).
 
 **New York date.** The calendar date in New York, where the exchanges are. Trading dates and a download's cut-off use it, whatever the machine's time zone.
 

@@ -5,13 +5,14 @@ so the basis is unadjusted. Splits and dividends come from
 `/v1/corporate-actions`. A download keeps what Alpaca returns (`fetch_raw`):
 the ticker's bars and the action records under its symbol. The build turns
 them into the `cash` and `split_ratio` columns (`apply_rules`) by the rules in
-decision record 0004, so a changed rule needs a rebuild, not a download:
+decision record 0004, so a changed rule or correction needs a rebuild, not a
+download:
 
 - the action query's `start` and `end` filter on the process date, usually the
   payable date, so it reaches `ACTION_MARGIN` beyond the bars' window and keeps
   actions by ex-date;
-- a dividend flagged foreign fails its ticker, since it may be net of
-  withholding tax.
+- a dividend Alpaca reports net of withholding tax is grossed up from
+  `config/alpaca.toml`.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -20,6 +21,7 @@ read from the environment, never from a file in the repository.
 from __future__ import annotations
 
 import datetime as dt
+import itertools
 import json
 import os
 import time
@@ -59,7 +61,7 @@ class RuleError(ValueError):
 
 
 class WithholdingError(RuleError):
-    """A dividend flagged foreign: it may be net of withholding tax."""
+    """A dividend flagged foreign for a ticker `config/alpaca.toml` does not cover."""
 
 
 class ActionDateError(RuleError):
@@ -141,18 +143,79 @@ def pages(get: Getter, path: str, params: Mapping[str, str]) -> list[dict[str, A
             return out
 
 
-# Dividends ---------------------------------------------------------------------------------------------
+# Withholding -------------------------------------------------------------------------------------------
 
 
-def gross_dividend(ticker: str, ex: dt.date, rate: float, foreign: bool) -> float:
-    """The dividend as declared. One flagged foreign may be net of the issuer's home withholding tax, which the
-    flag does not say, so it fails the ticker until checked."""
-    if foreign:
-        raise WithholdingError(f"{ticker}: dividend going ex {ex} is flagged foreign; check whether it is net of withholding tax")
+@dataclass(frozen=True)
+class NetPeriod:
+    """Ex-dates from `start` to `end` (inclusive; open when None) on which Alpaca reports amounts net of `rate`."""
+
+    rate: float
+    start: dt.date
+    end: dt.date | None = None
+    gross_dates: frozenset[dt.date] = frozenset()
+
+    def covers(self, ex: dt.date) -> bool:
+        return self.start <= ex and (self.end is None or ex <= self.end) and ex not in self.gross_dates
+
+
+@dataclass(frozen=True)
+class Withholding:
+    net: Mapping[str, tuple[NetPeriod, ...]]
+    gross: frozenset[str]
+
+
+def parse_withholding(cfg: Mapping[str, Any]) -> Withholding:
+    """`config/alpaca.toml`: `[[net]]` periods by ticker and the `gross` list."""
+    net: dict[str, list[NetPeriod]] = {}
+    for entry in cfg.get("net", []):
+        missing = {"ticker", "rate", "start", "country", "source"} - set(entry)
+        if missing:
+            raise ValueError(f"withholding entry {entry.get('ticker')} lacks {sorted(missing)}")
+        rate = float(entry["rate"])
+        if not 0.0 < rate < 1.0:
+            raise ValueError(f"withholding rate for {entry['ticker']} must be in (0, 1): {rate}")
+        period = NetPeriod(rate, entry["start"], entry.get("end"), frozenset(entry.get("gross_dates", [])))
+        if period.end is not None and period.end < period.start:
+            raise ValueError(f"withholding period for {entry['ticker']} ends before it starts")
+        net.setdefault(entry["ticker"], []).append(period)
+    gross = frozenset(cfg.get("gross", []))
+    both = sorted(gross & set(net))
+    if both:
+        raise ValueError(f"tickers both net and gross in withholding: {both}")
+    for ticker, periods in net.items():
+        ordered = sorted(periods, key=lambda p: p.start)
+        for a, b in itertools.pairwise(ordered):
+            if a.end is None or a.end >= b.start:
+                raise ValueError(f"withholding periods for {ticker} overlap")
+    return Withholding({t: tuple(sorted(p, key=lambda x: x.start)) for t, p in net.items()}, gross)
+
+
+def gross_dividend(withholding: Withholding, ticker: str, ex: dt.date, rate: float, foreign: bool) -> float:
+    """The dividend before withholding tax. Only amounts flagged foreign are ever net."""
+    if not foreign:
+        return rate
+    if ticker in withholding.gross:
+        return rate
+    if ticker not in withholding.net:
+        raise WithholdingError(f"{ticker}: dividend going ex {ex} is flagged foreign; add it to config/alpaca.toml")
+    for period in withholding.net[ticker]:
+        if period.covers(ex):
+            return rate / (1.0 - period.rate)
     return rate
 
 
 # Corporate actions -------------------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Rules:
+    """Everything `config/alpaca.toml` sets: the withholding rules."""
+
+    withholding: Withholding
+
+
+def parse_rules(cfg: Mapping[str, Any]) -> Rules:
+    return Rules(parse_withholding(cfg))
 
 
 def records(responses: Iterable[Mapping[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
@@ -177,13 +240,14 @@ def own_actions(recs: list[tuple[str, dict[str, Any]]], symbol: str) -> list[tup
 def action_columns(
     recs: list[tuple[str, dict[str, Any]]],
     ticker: str,
+    withholding: Withholding,
 ) -> pd.DataFrame:
     """cash and split_ratio by ex-date from a ticker's actions. Other kinds change no basis and are left out."""
     rows = []     # (ex-date, cash per share, split ratio)
     for kind, rec in recs:
         ex = _date(rec["ex_date"])
         if kind == DIVIDENDS:
-            rows.append((ex, gross_dividend(ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 1.0))
+            rows.append((ex, gross_dividend(withholding, ticker, ex, float(rec["rate"]), bool(rec.get("foreign"))), 1.0))
         elif kind in SPLITS:
             rows.append((ex, 0.0, float(rec["new_rate"]) / float(rec["old_rate"])))
     frame = pd.DataFrame(rows, columns=[DATE, "cash", "split_ratio"])
@@ -269,7 +333,7 @@ def _in_window(frame: pd.DataFrame, start: dt.date, end: dt.date) -> pd.DataFram
     return frame.loc[keep].reset_index(drop=True)
 
 
-def apply_rules(raw: RawTicker, ticker: str, start: dt.date, end: dt.date) -> pd.DataFrame:
+def apply_rules(raw: RawTicker, ticker: str, rules: Rules, start: dt.date, end: dt.date) -> pd.DataFrame:
     """A ticker's bars with cash and split_ratio for New York dates in [start, end), from what a download kept."""
     bars = _in_window(bar_frame(list(raw.bars)), start, end)
     if bars.empty:
@@ -279,7 +343,7 @@ def apply_rules(raw: RawTicker, ticker: str, start: dt.date, end: dt.date) -> pd
         raise MissingRawError(f"{ticker}: the download kept no records under {ticker}; download again")
     recs = own_actions(list(raw.actions[ticker]), ticker)
     in_window = [(k, r) for k, r in recs if start <= _date(r["ex_date"]) < end]
-    actions = action_columns(in_window, ticker)
+    actions = action_columns(in_window, ticker, rules.withholding)
     return join_actions(bars, actions, ticker)
 
 
@@ -291,7 +355,8 @@ class AlpacaSource:
     basis = PriceBasis.UNADJUSTED
     layout = "raw"                       # a snapshot keeps what Alpaca returned; the build applies the rules
 
-    def __init__(self, get: Getter | None = None) -> None:
+    def __init__(self, rules: Rules, get: Getter | None = None) -> None:
+        self._rules = rules
         self._get = get if get is not None else Client().get
 
     def source_symbol(self, ticker: str) -> str:
@@ -299,7 +364,7 @@ class AlpacaSource:
 
     def fetch(self, ticker: str, start: dt.date, end: dt.date) -> pd.DataFrame:
         """Bars with the rules applied: a download and a build in one."""
-        return apply_rules(self.fetch_raw(ticker, start, end), self.source_symbol(ticker), start, end)
+        return apply_rules(self.fetch_raw(ticker, start, end), self.source_symbol(ticker), self._rules, start, end)
 
     def fetch_raw(self, ticker: str, start: dt.date, end: dt.date) -> RawTicker:
         """What a download keeps: the ticker's bars and the records under its symbol."""

@@ -16,17 +16,22 @@ from statarb.data.alpaca import (
     AlpacaSource,
     Client,
     MissingCredentialsError,
+    NetPeriod,
+    Rules,
+    Withholding,
     WithholdingError,
+    parse_withholding,
 )
 from statarb.data.build import download_prices
 from statarb.data.snapshot import PriceSnapshot
 
 DATES = pd.bdate_range("2025-01-02", "2025-02-28")
 START, END = dt.date(2025, 1, 1), dt.date(2025, 3, 1)
+NONE = Withholding({}, frozenset())
 
 
-def source(get) -> AlpacaSource:
-    return AlpacaSource(get=get)
+def source(get, withholding: Withholding = NONE) -> AlpacaSource:
+    return AlpacaSource(Rules(withholding), get=get)
 
 
 def truth(seed: int = 1, **kwargs) -> pd.DataFrame:
@@ -151,10 +156,45 @@ def test_action_on_a_date_without_a_bar_fails() -> None:
 # Withholding -------------------------------------------------------------------------------------------
 
 
-def test_a_foreign_dividend_fails_its_ticker() -> None:
+def test_foreign_dividends_are_grossed_up_only_in_net_periods() -> None:
+    w = Withholding({"XYZ": (NetPeriod(0.25, dt.date(2025, 2, 1), None, frozenset({dt.date(2025, 2, 20)})),)}, frozenset())
+    recs = [div("XYZ", "2025-01-15", 1.0, foreign=True), div("XYZ", "2025-02-10", 0.75, foreign=True),
+            div("XYZ", "2025-02-20", 1.0, foreign=True), div("XYZ", "2025-02-24", 0.5)]
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=recs), w).fetch("XYZ", START, END)
+    assert [cash_on(bars, d) for d in ["2025-01-15", "2025-02-10", "2025-02-20", "2025-02-24"]] == [1.0, 1.0, 1.0, 0.5]
+
+
+def test_foreign_dividend_for_an_unlisted_ticker_fails() -> None:
     rec = div("XYZ", "2025-02-10", 0.75, foreign=True)
-    with pytest.raises(WithholdingError, match="withholding"):
+    with pytest.raises(WithholdingError, match="alpaca.toml"):
         source(fake_alpaca({"XYZ": truth()}, extra=[rec])).fetch("XYZ", START, END)
+    gross = Withholding({}, frozenset({"XYZ"}))
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=[rec]), gross).fetch("XYZ", START, END)
+    assert cash_on(bars, "2025-02-10") == 0.75
+
+
+def test_parse_withholding_validates() -> None:
+    entry = {"ticker": "XYZ", "country": "Ireland", "rate": 0.25, "start": dt.date(2023, 1, 1), "source": "s"}
+    parsed = parse_withholding({"net": [entry], "gross": ["ABC"]})
+    assert parsed.net["XYZ"][0].rate == 0.25 and parsed.gross == frozenset({"ABC"})
+    with pytest.raises(ValueError, match="lacks"):
+        parse_withholding({"net": [{k: v for k, v in entry.items() if k != "source"}]})
+    with pytest.raises(ValueError, match="both"):
+        parse_withholding({"net": [entry], "gross": ["XYZ"]})
+    with pytest.raises(ValueError, match="overlap"):
+        parse_withholding({"net": [entry, {**entry, "start": dt.date(2024, 1, 1)}]})
+    with pytest.raises(ValueError, match="rate"):
+        parse_withholding({"net": [{**entry, "rate": 1.0}]})
+
+
+def test_repository_rules_parse_and_cite_their_sources() -> None:
+    from statarb.config import load_config
+
+    cfg = load_config("alpaca")
+    rules = alpaca.parse_rules(cfg)
+    assert "ACN" in rules.withholding.net and "LIN" in rules.withholding.gross
+    for entry in cfg.get("net", []):
+        assert entry["source"].startswith("https://"), entry
 
 
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------
@@ -173,12 +213,14 @@ def test_a_raw_snapshot_reads_as_the_adapter_fetches(tmp_path) -> None:
     assert snap.raw and snap.tickers() == ["NEW"]
     stored = json.loads((snap.path / "actions" / "NEW.json").read_text())
     assert sorted(stored["actions"]) == ["NEW"]
-    pd.testing.assert_frame_equal(snap.bars("NEW"), src.fetch("NEW", START, END))
+    pd.testing.assert_frame_equal(snap.bars("NEW", Rules(NONE)), src.fetch("NEW", START, END))
 
 
 def test_a_rule_failure_leaves_the_ticker_out_of_the_build_not_the_download(tmp_path) -> None:
     truths = {"AAA": truth(1), "BBB": truth(2)}
     _, snap = _raw_snapshot(tmp_path, truths, [div("BBB", "2025-02-10", 0.5, foreign=True)], ["AAA", "BBB"])
     assert snap.tickers() == ["AAA", "BBB"] and snap.manifest["failed"] == {}
-    bars, failed = snap.read_all()
+    bars, failed = snap.read_all(Rules(NONE))
     assert sorted(bars) == ["AAA"] and failed["BBB"].startswith("WithholdingError")
+    gross = Withholding({}, frozenset({"BBB"}))
+    assert sorted(snap.read_all(Rules(gross))[0]) == ["AAA", "BBB"]
