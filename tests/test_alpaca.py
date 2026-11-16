@@ -290,7 +290,7 @@ def test_repository_rules_parse_and_cite_their_sources() -> None:
     assert "ACN" in rules.withholding.net and "LIN" in rules.withholding.gross
     assert ("F", dt.date(2025, 2, 18)) in rules.corrections.repeats
     assert rules.corrections.drops and rules.corrections.added
-    for section in ("net", "repeat", "drop", "add"):
+    for section in ("net", "repeat", "drop", "add", "rename"):
         for entry in cfg.get(section, []):
             assert entry["source"].startswith("https://"), (section, entry)
 
@@ -336,10 +336,18 @@ def test_one_entry_can_correct_several_ex_dates() -> None:
 def test_listed_dividends_are_added_gross_under_the_symbol_of_their_time() -> None:
     fixes = corrections(
         add=[{"symbol": "OLD", "kind": "cash_dividends", "ex_date": dt.date(2025, 1, 15), "rate": 4.0, **SOURCE}],
+        rename=[{"old_symbol": "OLD", "new_symbol": "XYZ", "date": dt.date(2025, 2, 1), "source": "s"}],
     )
-    get = fake_alpaca({"XYZ": truth()}, extra=[rename("OLD", "XYZ", "2025-02-01")])
-    bars = source(get, corrections=fixes).fetch("XYZ", START, END)
+    bars = source(fake_alpaca({"XYZ": truth()}), corrections=fixes).fetch("XYZ", START, END)
     assert cash_on(bars, "2025-01-15") == 4.0
+
+
+def test_a_listed_rename_bounds_a_reused_symbol() -> None:
+    # Records under XYZ before the listed rename belong to the security that held XYZ before.
+    recs = [div("XYZ", "2025-01-15", 0.9), div("OLD", "2025-01-20", 0.3), div("XYZ", "2025-02-14", 0.35)]
+    fixes = corrections(rename=[{"old_symbol": "OLD", "new_symbol": "XYZ", "date": dt.date(2025, 2, 1), "source": "s"}])
+    bars = source(fake_alpaca({"XYZ": truth()}, extra=recs), corrections=fixes).fetch("XYZ", START, END)
+    assert bars.loc[bars["cash"] > 0, "cash"].tolist() == [0.3, 0.35]
 
 
 def test_listed_spin_off_is_cash_from_the_parents_basis_share() -> None:
@@ -373,6 +381,8 @@ def test_parse_corrections_validates() -> None:
         corrections(drop=[{"symbol": "XYZ", "kind": "cash_dividends", **SOURCE}])
     with pytest.raises(ValueError, match="exactly one"):
         corrections(add=[{**entry, "ex_dates": [dt.date(2025, 2, 11)]}])
+    with pytest.raises(ValueError, match="lacks"):
+        corrections(rename=[{"old_symbol": "A", "new_symbol": "B", "date": dt.date(2025, 1, 1)}])
 
 
 # Raw snapshots: the download keeps what Alpaca returned, the build applies the rules ----------------------
@@ -404,9 +414,12 @@ def test_a_correction_listed_after_the_download_needs_only_a_rebuild(tmp_path) -
     assert cash_on(bars, "2025-02-10") == 0.0 and cash_on(bars, "2025-02-11") == 0.4
 
 
-def test_a_spin_off_listed_after_the_download_fails_the_ticker_until_the_next(tmp_path) -> None:
+def test_a_rename_or_spin_off_listed_after_the_download_fails_the_ticker_until_the_next(tmp_path) -> None:
     truths = {"XYZ": truth(1), "KID": truth(2, price=20.0)}
     _, snap = _raw_snapshot(tmp_path, truths, [], ["XYZ"])
+    renamed = Rules(NONE, corrections(rename=[{"old_symbol": "OLD", "new_symbol": "XYZ", "date": dt.date(2025, 1, 20), "source": "s"}]))
+    with pytest.raises(alpaca.MissingRawError, match="under OLD"):
+        snap.bars("XYZ", renamed)
     spun = Rules(NONE, corrections(add=[{"symbol": "XYZ", "kind": "spin_offs", "ex_date": dt.date(2025, 2, 3),
                                          "new_symbol": "KID", "new_rate": 0.1, **SOURCE}]))
     bars, failed = snap.read_all(spun)

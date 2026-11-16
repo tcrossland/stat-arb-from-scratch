@@ -29,7 +29,8 @@
 # given, rate; [[add]] adds a dividend (gross, per share) or a spin-off Alpaca
 # has no record of. A spin-off carries parent_basis, the share of the parent's
 # tax basis the parent kept, from the issuer's Form 8937, or, when the
-# distribution was taxable, the spun-off symbol and ratio. ex_dates in place of ex_date applies one entry on
+# distribution was taxable, the spun-off symbol and ratio. [[rename]] adds a
+# name change Alpaca lacks. ex_dates in place of ex_date applies one entry on
 # several dates. Ex-dates the issuer does not state are worked out from the
 # record date under the settlement cycle of the time (T+3 to 2017-09-04, T+2 to
 # 2024-05-27, T+1 since), as each note says.
@@ -224,6 +225,90 @@ ex_date = 2021-11-04
 parent_basis = 0.958
 note = "1 Kyndryl per 5 IBM, record 2021-10-25, distributed 2021-11-03; basis 95.8% IBM, 4.2% Kyndryl, from NYSE closes on 2021-11-04, Kyndryl's first day"
 source = "https://www.ibm.com/investor/att/pdf/Form-8937-Report-of-Organizational-Actions-Affecting-Basis-of-Securities.pdf"
+
+[[rename]]
+old_symbol = "TMK"
+new_symbol = "GL"
+date = 2019-08-09
+note = "Torchmark renamed Globe Life; ticker changed on this date"
+source = "https://home.globelifeinsurance.com/press-releases/2019/august-2019/torchmark-corporation-has-officially-been-renamed"
+
+[[rename]]
+old_symbol = "HCN"
+new_symbol = "WELL"
+date = 2018-02-28
+note = "ticker change only, effective with the opening of trading on this date"
+source = "https://prnewswire.com/news-releases/welltower-to-change-nyse-ticker-symbol-to-well-300600036.html"
+
+[[rename]]
+old_symbol = "SYMC"
+new_symbol = "NLOK"
+date = 2019-11-05
+note = "Symantec renamed NortonLifeLock on 2019-11-04; NLOK from the opening on this date"
+source = "https://www.sec.gov/Archives/edgar/data/849399/000110465919059239/tm1921662d1_8k.htm"
+
+[[rename]]
+old_symbol = "MHFI"
+new_symbol = "SPGI"
+date = 2016-04-28
+note = "McGraw Hill Financial renamed S&P Global on 2016-04-27; SPGI from this date"
+source = "https://investor.spglobal.com/news-releases/news-details/2016/McGraw-Hill-Financial-Changes-Name-to-SP-Global-Inc-2016-4-27/default.aspx"
+
+[[rename]]
+old_symbol = "COH"
+new_symbol = "TPR"
+date = 2017-10-31
+note = "Coach renamed Tapestry, ticker changed on this date"
+source = "https://www.sec.gov/Archives/edgar/data/0001116132/000115752317002906/a51707847.htm"
+
+[[rename]]
+old_symbol = "HRS"
+new_symbol = "LHX"
+date = 2019-07-01
+note = "Harris acquired L3 and was renamed L3Harris; Harris shares continued one for one as LHX from this date"
+source = "https://www.sec.gov/Archives/edgar/data/202058/000114036119012139/ex99_1.htm"
+
+[[rename]]
+old_symbol = "DPS"
+new_symbol = "KDP"
+date = 2018-07-10
+note = "Dr Pepper Snapple, renamed Keurig Dr Pepper on acquiring Maple, continued as the listed company; KDP from this date"
+source = "https://www.sec.gov/Archives/edgar/data/0001418135/000110465918044357/a18-16509_3ex99d1.htm"
+
+[[rename]]
+old_symbol = "BHGE"
+new_symbol = "BKR"
+date = 2019-10-18
+note = "Baker Hughes, a GE company renamed Baker Hughes Company; BKR from this date"
+source = "https://bakerhughes.com/it/node/2396"
+
+[[rename]]
+old_symbol = "DOW"
+new_symbol = "DWDP"
+date = 2017-09-01
+note = "Dow Chemical holders received 1.00 DowDuPont share per share; DWDP from this date. DuPont's earlier records under DD are another security's"
+source = "https://www.investors.dupont.com/news-and-media/press-release-details/2017/DowDuPont-Merger-Successfully-Completed/default.aspx"
+
+[[rename]]
+old_symbol = "DWDP"
+new_symbol = "DD"
+date = 2019-06-03
+note = "DowDuPont renamed DuPont de Nemours after the Corteva distribution and a one-for-three reverse split; DD from this date"
+source = "https://www.sec.gov/Archives/edgar/data/1666700/000119312519163322/d715311d8k.htm"
+
+[[rename]]
+old_symbol = "TYC"
+new_symbol = "JCI"
+date = 2016-09-06
+note = "Tyco International, consolidated 0.955 for one, acquired Johnson Controls Inc. and was renamed Johnson Controls International; JCI from this date. Earlier records under JCI are Johnson Controls Inc.'s"
+source = "https://www.sec.gov/Archives/edgar/data/0000833444/000110465916143068/a16-17941_18k.htm"
+
+[[rename]]
+old_symbol = "DLPH"
+new_symbol = "APTV"
+date = 2017-12-05
+note = "Delphi Automotive became Aptiv as it distributed Delphi Technologies, which took the DLPH symbol; APTV from this date. Exchange notice, OCC memo 42232"
+source = "https://www.miaxglobal.com/sites/default/files/alert-files/DLPH_Dist_Name_42232.pdf"
 
 [[add]]
 symbol = "JCI"
@@ -638,3 +723,10 @@ rate = 0.36
 note = "declared by McGraw Hill Financial on 2016-04-27, record 2016-05-26, payable 2016-06-10; the ex-date falls after the symbol became SPGI, two business days before the record date under T+3"
 source = "https://press.spglobal.com/2016-04-27-McGraw-Hill-Financial-Declares-Quarterly-Dividend"
 
+[[add]]
+symbol = "SYMC"
+kind = "cash_dividends"
+ex_date = 2018-11-16
+rate = 0.075
+note = "record 2018-11-19, payable 2018-12-12; ex-date one business day before the record date under T+2"
+source = "https://www.sec.gov/Archives/edgar/data/0000849399/000115752318002271/a51892559ex99_01.htm"

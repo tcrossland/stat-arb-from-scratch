@@ -19,7 +19,7 @@ a changed rule or correction needs a rebuild, not a download:
 - a record seen twice is kept once, except the repeats `config/alpaca.toml`
   lists as separate dividends;
 - `config/alpaca.toml` lists, each with its primary source, the records to drop
-  and the dividends and spin-offs Alpaca has no record of.
+  and the name changes, dividends and spin-offs Alpaca has no record of.
 
 Only the market data host is ever called, never the trading API. The keys are
 read from the environment, never from a file in the repository.
@@ -86,8 +86,8 @@ class SpinOffPriceError(RuleError):
 
 
 class MissingRawError(RuleError):
-    """The rules need records or bars the download did not keep: a listed spin-off added
-    after it. A new download fetches them."""
+    """The rules need records or bars the download did not keep: a listed name change or
+    spin-off added after it. A new download fetches them."""
 
 
 # Requests ----------------------------------------------------------------------------------------------
@@ -265,8 +265,8 @@ class Drop:
 class Corrections:
     """Hand-checked corrections to Alpaca's corporate actions, from `config/alpaca.toml` (decision record 0004).
 
-    `added` holds Alpaca-shaped records by the symbol they are filed under:
-    dividends and spin-offs Alpaca has no record of.
+    `added` holds Alpaca-shaped records by the symbol they are filed under: name
+    changes Alpaca lacks, and dividends and spin-offs it has no record of.
     """
 
     repeats: frozenset[Repeat] = frozenset()
@@ -310,15 +310,24 @@ def _added_record(entry: Mapping[str, Any], ex: dt.date) -> tuple[str, Record]:
     raise ValueError(f"add entry {symbol} {ex}: kind must be one of {ADD_KINDS}, not {kind!r}")
 
 
+def _rename_record(entry: Mapping[str, Any]) -> tuple[str, Record]:
+    _require("rename", entry, {"old_symbol", "new_symbol", "date", "source"})
+    rec = {
+        "id": f"config:{NAME_CHANGES}:{entry['old_symbol']}:{entry['new_symbol']}",
+        "old_symbol": entry["old_symbol"], "new_symbol": entry["new_symbol"], "process_date": entry["date"].isoformat(),
+    }
+    return entry["new_symbol"], (NAME_CHANGES, rec)
+
+
 def parse_corrections(cfg: Mapping[str, Any]) -> Corrections:
-    """`config/alpaca.toml`: `[[repeat]]`, `[[drop]]` and `[[add]]`, each with its source."""
+    """`config/alpaca.toml`: `[[repeat]]`, `[[drop]]`, `[[add]]` and `[[rename]]`, each with its source."""
     drops = []
     for entry in cfg.get("drop", []):
         _require("drop", entry, {"symbol", "kind", "note", "source"})
         rate = None if entry.get("rate") is None else float(entry["rate"])
         drops += [Drop(entry["symbol"], entry["kind"], ex, rate) for ex in _ex_dates("drop", entry)]
     added: dict[str, list[Record]] = {}
-    listed = [r for e in cfg.get("add", []) for r in _added_records(e)]
+    listed = [r for e in cfg.get("add", []) for r in _added_records(e)] + [_rename_record(e) for e in cfg.get("rename", [])]
     for symbol, rec in listed:
         added.setdefault(symbol, []).append(rec)
     return Corrections(
@@ -639,10 +648,10 @@ class AlpacaSource:
     def fetch_raw(self, ticker: str, start: dt.date, end: dt.date) -> RawTicker:
         """What a download keeps: the ticker's bars, the records under each symbol it has held, and spun-off bars.
 
-        The symbols follow Alpaca's name changes back, as the build will. The
-        spun-off bars cover every spin-off in the window under those symbols,
-        before or after the corrections, from its ex-date to `SPIN_OFF_FETCH`
-        past the day the build searches from.
+        The symbols follow name changes back, Alpaca's and the listed ones, as the
+        build will. The spun-off bars cover every spin-off in the window under
+        those symbols, before or after the corrections, from its ex-date to
+        `SPIN_OFF_FETCH` past the day the build searches from.
         """
         symbol = self.source_symbol(ticker)
         bars = self._raw_bars(symbol, start, end)

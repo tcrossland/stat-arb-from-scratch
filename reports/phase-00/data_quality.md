@@ -8,7 +8,7 @@ Statistics only: no price, volume or return of any ticker on any date.
 - Price source: alpaca, basis unadjusted, snapshot 2026-11-16, digest a28ff7224e60, bars before 2026-11-16
 - Trading days: 2733 (2016-01-04 to 2026-11-13)
 - Candidates: 503; tickers with prices: 515
-- Price rows: 1349238; returns: 1348723; split days: 108; days with cash: 16675
+- Price rows: 1349238; returns: 1348723; split days: 109; days with cash: 16761
 
 ## Tickers with no data
 
@@ -46,14 +46,14 @@ None.
 
 ## Daily total returns with absolute value above 25%
 
-244 returns across 121 tickers, counted by year: on a day with a split or cash, and while the ticker was in the universe.
+243 returns across 120 tickers, counted by year: on a day with a split or cash, and while the ticker was in the universe.
 
 | year | returns | tickers | on_action_days | while_member |
 |---|---|---|---|---|
 | 2016 | 6 | 4 | 0 | 1 |
 | 2017 | 5 | 4 | 0 | 0 |
 | 2018 | 9 | 8 | 0 | 4 |
-| 2019 | 16 | 11 | 0 | 9 |
+| 2019 | 15 | 10 | 0 | 8 |
 | 2020 | 89 | 56 | 1 | 56 |
 | 2021 | 5 | 4 | 0 | 2 |
 | 2022 | 21 | 15 | 0 | 16 |
@@ -64,7 +64,7 @@ None.
 
 ## Split days
 
-Split days: 108; with an absolute return above 25%: 0.
+Split days: 109; with an absolute return above 25%: 0.
 
 ## Returns spanning missing trading days
 
