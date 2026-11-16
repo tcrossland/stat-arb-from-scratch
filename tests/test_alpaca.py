@@ -63,6 +63,14 @@ def test_bars_are_on_new_york_dates_in_window_and_paged() -> None:
     assert bar_calls[0]["end"] == "2025-02-02"   # Alpaca's end is inclusive
 
 
+def test_a_bar_with_no_volume_is_missing() -> None:
+    # A day with no trade on the consolidated tape: Alpaca repeats the last close on zero volume.
+    t = truth()
+    t.loc[t["date"] == pd.Timestamp("2025-01-15"), "volume"] = 0.0
+    bars = source(fake_alpaca({"XYZ": t})).fetch("XYZ", START, END)
+    assert pd.Timestamp("2025-01-15") not in set(bars["date"]) and len(bars) == len(t) - 1
+
+
 def test_unknown_symbol_is_empty() -> None:
     bars = source(fake_alpaca({})).fetch("NONE", START, END)
     assert bars.empty and list(bars.columns) == alpaca.BAR_COLUMNS

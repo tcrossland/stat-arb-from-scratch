@@ -178,7 +178,14 @@ def action_columns(
 
 
 def bar_frame(raw: list[Mapping[str, Any]]) -> pd.DataFrame:
-    """Alpaca daily bars to date, open, high, low, close, volume. A bar is stamped at its New York midnight."""
+    """Alpaca daily bars to date, open, high, low, close, volume. A bar is stamped at its New York midnight.
+
+    A bar with no volume is left out: Alpaca returns one repeating the last
+    close on a day the security had no trade on the consolidated tape, halted
+    all day or trading off-exchange (Super Micro, delisted from Nasdaq from
+    2018-08-23 to 2020-01-13), and that close is not a price of the day.
+    """
+    raw = [b for b in raw if float(b["v"]) > 0]
     if not raw:
         return pd.DataFrame({DATE: pd.Series(dtype="datetime64[ns]"), **{c: pd.Series(dtype="float64") for c in BAR_COLUMNS[1:6]}})
     stamps = pd.to_datetime([b["t"] for b in raw], utc=True).tz_convert(EXCHANGE_TZ).tz_localize(None).normalize()

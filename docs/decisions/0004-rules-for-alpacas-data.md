@@ -11,7 +11,7 @@ Every rule is applied by the build to the raw snapshot (`statarb.data.alpaca.app
 
 ## Decision
 
-1. **Dates.** Bars are requested with `adjustment=raw` from the consolidated feed (`feed=sip`) and dated by their New York date.
+1. **Dates and empty bars.** Bars are requested with `adjustment=raw` from the consolidated feed (`feed=sip`) and dated by their New York date. A bar with zero volume is dropped: Alpaca returns one repeating the last close on a day with no trade on the consolidated tape (a whole-day halt, or trading off-exchange), and that close is not a price of the day.
 2. **The action query.** `/v1/corporate-actions` filters `start` and `end` on the process date, which can fall weeks after the ex-date and occasionally before it. The query reaches 90 days either side of the bars' window, and records are kept by ex-date inside the window.
 3. **Splits.** Forward and reverse splits give `split_ratio = new_rate / old_rate` on the ex-date. Two actions on one ex-date multiply.
 4. **Cash dividends.** A dividend's `rate` is cash per share on its ex-date.

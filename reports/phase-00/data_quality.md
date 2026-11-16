@@ -8,7 +8,7 @@ Statistics only: no price, volume or return of any ticker on any date.
 - Price source: alpaca, basis unadjusted, snapshot 2026-11-16, digest a28ff7224e60, bars before 2026-11-16
 - Trading days: 2733 (2016-01-04 to 2026-11-13)
 - Candidates: 503; tickers with prices: 515
-- Price rows: 1356000; returns: 1355485; split days: 109; days with cash: 16391
+- Price rows: 1355072; returns: 1354557; split days: 109; days with cash: 16391
 
 ## Tickers with no data
 
@@ -22,7 +22,11 @@ None.
 
 ## Coverage below 95% of the live window
 
-None.
+| ticker | first | last | bars | expected | coverage |
+|---|---|---|---|---|---|
+| DOW | 2016-01-04 | 2026-11-13 | 2337 | 2733 | 0.8551 |
+| SMCI | 2016-01-04 | 2026-11-13 | 2384 | 2733 | 0.8723 |
+| EXE | 2016-01-04 | 2026-11-13 | 2577 | 2733 | 0.9429 |
 
 ## Rows dropped by cleaning
 
@@ -56,19 +60,21 @@ Split days: 109; with an absolute return above 25%: 2 (EQT, HON).
 
 ## Returns spanning missing trading days
 
-0 returns span more than one trading day.
+28 returns span more than one trading day.
+
+| ticker | gapped_returns |
+|---|---|
+| VRT | 20 |
+| BIIB | 2 |
+| XLRE | 2 |
+| DOW | 1 |
+| DXCM | 1 |
+| EXE | 1 |
+| SMCI | 1 |
 
 ## Zero-volume days
 
-| ticker | zero_volume_days |
-|---|---|
-| BIIB | 2 |
-| DOW | 396 |
-| DXCM | 1 |
-| EXE | 156 |
-| SMCI | 349 |
-| VRT | 22 |
-| XLRE | 2 |
+None.
 
 ## Universe
 
