@@ -71,7 +71,7 @@ def test_no_look_ahead(lab, name: str) -> None:
     noisy = (
         perturb_after(returns, cutoff, ["ret"], seed=7, scale=1.0),
         perturb_after(prices, cutoff, ["open", "high", "low", "close", "volume"], seed=8, scale=1.0),
-        perturb_after(residuals, cutoff, ["residual", "beta_market"], seed=9, scale=1.0),
+        perturb_after(residuals.assign(beta_sector=0.5), cutoff, ["residual", "beta_market", "beta_sector"], seed=9, scale=1.0),
         universe,
         sectors,
     )

@@ -175,7 +175,7 @@ def _perturbed(cutoff):
     return (
         perturb_after(returns, cutoff, ["ret"], seed=1, scale=1.0),
         perturb_after(prices, cutoff, ["open", "high", "low", "close", "volume"], seed=2, scale=1.0),
-        perturb_after(residuals, cutoff, ["residual", "beta_market"], seed=3, scale=1.0),
+        perturb_after(residuals.assign(beta_sector=0.5), cutoff, ["residual", "beta_market", "beta_sector"], seed=3, scale=1.0),
         universe,
         sectors,
     )

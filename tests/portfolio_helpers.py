@@ -47,9 +47,14 @@ def portfolio_raw() -> dict:
 
 
 def synthetic_lab(long=None, raw: dict | None = None) -> PortfolioLab:
-    """The lab on the synthetic market (or the given long tables), with Model B fitted on its returns."""
+    """The lab on the synthetic market (or the given long tables), with Model B fitted on its returns.
+
+    The synthetic residual table has no sector betas; a constant one is added unless the given tables
+    carry their own, as the look-ahead tests' perturbed tables do.
+    """
     returns, prices, residuals, universe, sectors = long or synthetic_market(seed=5)
-    residuals = residuals.assign(beta_sector=0.5)
+    if "beta_sector" not in residuals:
+        residuals = residuals.assign(beta_sector=0.5)
     tables = build_tables(returns, prices, residuals, universe, sectors, "SPY", MARKET_ETFS)
     cfg = backtest_config()
     ccfg = cost_config(cfg)
