@@ -50,7 +50,7 @@ The architecture and data model documents are empty until the first module lands
 
 The libraries and the modules each enters through are in `docs/architecture.md`; setup is in `README.md`.
 
-- Python 3.14, managed with `uv`, dependencies in `pyproject.toml` and pinned in `uv.lock`. A library enters `pyproject.toml` in the phase whose code first imports it, never earlier. The whole stack must install from prebuilt wheels on the pinned version; check before moving to a newer Python. A library that needs a system runtime is the one exception: the phase that adds it records the runtime here and the install step in `README.md`.
+- Python 3.14, managed with `uv`, dependencies in `pyproject.toml` and pinned in `uv.lock`. A library enters `pyproject.toml` in the phase whose code first imports it, never earlier. The whole stack must install from prebuilt wheels on the pinned version; check before moving to a newer Python. A library that needs a system runtime is the one exception: the phase that adds it records the runtime here and the install step in `README.md`. So far: LightGBM (phase 5), whose macOS wheel needs the OpenMP runtime, `libomp`, from Homebrew.
 - pandas 3 in long format with explicit `date` and `ticker` columns. Sort before any grouped `shift` or rolling operation, and never rely on index alignment between frames.
 - Storage: TOML for hand-written config, parquet for data, JSON Lines for experiment logs, LightGBM's native text format for models. No pickle.
 - Configuration in `config/*.toml`, never hard-coded paths or dates.

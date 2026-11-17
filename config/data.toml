@@ -38,4 +38,6 @@ min_live_coverage = 0.95
 raw = "data/raw"
 # Everything rebuilt from raw snapshots; safe to delete at any time.
 processed = "data/derived/processed"
+# Phase 5 models, one LightGBM text file per walk-forward block and horizon; rebuilt by retraining.
+models = "data/derived/models"
 reports = "reports"

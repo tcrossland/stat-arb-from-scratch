@@ -1,14 +1,16 @@
-"""Look-ahead checks: perturb data after a cut-off and confirm earlier output is unchanged.
+"""Look-ahead checks: perturb data after a cut-off, or remove the rows after it, and confirm earlier output is unchanged.
 
 Used by every phase that computes values at time t (CLAUDE.md, "Testing").
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
+
+from statarb.signals.tables import cut_after
 
 
 def perturb_after(
@@ -33,6 +35,16 @@ def perturb_after(
         values[mask] = values[mask] * noise
         out[col] = values.astype(out[col].dtype) if out[col].dtype.kind == "f" else values
     return out
+
+
+def truncate_after(tables: Mapping[str, pd.DataFrame], cutoff: pd.Timestamp) -> dict[str, pd.DataFrame]:
+    """The long tables as a live run on `cutoff` would load them (`statarb.signals.tables.cut_after`).
+
+    Perturbing values after a cut-off leaves which rows exist alone, so it cannot
+    see a value that depends on whether a later row exists. Comparing output from
+    these tables with output from the whole tables can.
+    """
+    return cut_after(tables, cutoff)
 
 
 def assert_unchanged_through(

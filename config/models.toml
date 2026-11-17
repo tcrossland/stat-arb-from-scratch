@@ -1,0 +1,79 @@
+# Phase 5 ML signal settings. See docs/phases/phase-05/brief.md, "Settled before any code".
+# Loaded by statarb.models.config.load_models_config, which rejects unknown or missing keys.
+# Set before any model was trained; a change here is a new configuration and is logged as one.
+# To try another setting, put it in a config overlay (STATARB_CONFIG_OVERLAY), never edit this file.
+
+[period]
+first_test = 2020-01-02          # the first walk-forward test block; residuals start on 2016-10-04
+development_end = 2025-11-13     # the development runner cuts every table here and refuses later dates
+holdout_start = 2025-11-14       # the snapshot's last 12 months: read once, at the end of the phase
+holdout_end = 2026-11-13
+
+[walk_forward]
+block_days = 63                  # trading days per test block; one model per block, trained at the close of its first day
+embargo_days = 5                 # rows dropped after a test block when a training set follows it; a no-op in a purely forward walk
+
+[target]
+horizons = [1, 3]                # residual return over the next H days, ranked across members to [-0.5, 0.5]
+headline_horizon = 1
+
+[features]
+residual_sums = [1, 3, 5, 20]    # residual return summed over the last n days
+volatility_windows = [20, 60]    # residual standard deviation
+volatility_min_fraction = 0.75   # observations needed, as a share of the window, for volatilities and extremes
+volume_window_days = 20          # volume over its median of the previous 20 days, split-consistent (phase 1's event ratio)
+extreme_windows = [20, 60]       # distance of the total-return index from its high and low over the window
+market_volatility_days = 20      # SPY daily return standard deviation
+# The sector feature's codes, by position in this list. Fixed here rather than read from the sectors
+# table, so a sector that first appears later cannot change the code of an earlier day.
+sectors = [
+    "Communication Services",
+    "Consumer Discretionary",
+    "Consumer Staples",
+    "Energy",
+    "Financials",
+    "Health Care",
+    "Industrials",
+    "Information Technology",
+    "Materials",
+    "Real Estate",
+    "Telecommunication Services",
+    "Utilities",
+]
+
+[model]
+library = "lightgbm"             # the backend behind statarb.models.backend; [lightgbm] holds its settings
+
+[lightgbm]
+learning_rate = 0.05
+feature_fraction = 0.8
+bagging_fraction = 0.8
+bagging_freq = 1
+max_rounds = 1000
+early_stopping_rounds = 50
+seed = 0
+num_threads = 4                  # fixed, with deterministic and force_row_wise, so a rebuilt model is byte-identical
+
+[tuning]
+# Grid points are compared on the mean daily rank IC over the validation days; the number of trees is
+# set by early stopping on squared error there. The chosen point is refitted on the whole training
+# window with that many trees.
+num_leaves = [15, 63]
+min_data_in_leaf = [500, 2000]
+validation_days = 252            # the last 252 signal dates of each training window, after the purge
+
+[runs]
+# What the development runner compares. Every forecast, the model's at each horizon and these
+# phase 3 variants, goes through every rule at both phase 4 book sizes, from the first date every
+# forecast has a calibrated move to the development end.
+variants = ["baseline", "three-day lookback"]          # [[variants]] names in config/costs.toml
+rules = ["decile sort", "no-trade zone", "optimiser", "partial adjustment"]  # phase 3's k = 5 sort and zone, phase 4's headline optimiser, record 0006
+cost_multipliers = [1.0]         # the optimiser's κ; the first must be the phase 4 headline, and only it is run here
+
+[partial_adjustment]
+# Decision record 0006. Each day the book trades theta of the way to the aim portfolio, the headline
+# optimiser's solution with no cost term. For each forecast and book size, theta is the value on this
+# grid whose mean capital traded per day over the development dates is closest to that forecast's path
+# through the optimiser at the first cost multiplier: a rule on positions, read before any return.
+# The holdout uses the development theta. Like [runs], this changes no model.
+rate_step = 0.01                 # the grid 0.01, 0.02, ..., 1.00

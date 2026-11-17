@@ -4,6 +4,90 @@ The stored tables, their columns and keys, and how they join. `tests/test_data_m
 
 All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` and `residuals_pca` by `statarb.factors.build` from them. Phases 2 to 4 store no other table: the backtest pivots these into dates by tickers panels in memory (`statarb.signals.tables`), phase 3 recomputes its cost inputs (spread estimates, volatilities, dollar volumes) from them on each run, phase 4 its risk models and optimiser decisions, and each writes only its report and experiment log, below. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
 
+## Tables and joins
+
+Every stored table with its columns, its key (PK) and how it joins; the sections below give each column's meaning, and [Joins](#joins) the rules. A dotted line is a join made at signal time, never in the table.
+
+```mermaid
+erDiagram
+    candidates ||--o{ prices : "ticker (ETFs: prices only)"
+    candidates ||--|{ sectors : "ticker, dated"
+    candidates ||--o{ universe : "ticker"
+    prices ||--o| actions : "date, ticker"
+    prices ||--o| returns : "date, ticker"
+    returns ||--o| residuals : "date, ticker (stocks only)"
+    returns ||--o| residuals_pca : "date, ticker (stocks only)"
+    universe |o..o| residuals : "date, ticker"
+
+    candidates {
+        string ticker PK
+        string security
+        string sector "current GICS"
+        string sub_industry
+        timestamp date_added
+        int cik
+    }
+    prices {
+        timestamp date PK
+        string ticker PK
+        double open
+        double high
+        double low
+        double close
+        int volume
+    }
+    actions {
+        timestamp date PK "ex-date"
+        string ticker PK
+        double split_ratio
+        double cash
+    }
+    returns {
+        timestamp date PK
+        string ticker PK
+        double ret
+        timestamp prev_date
+        double split_ratio
+        double cash
+    }
+    universe {
+        timestamp date PK
+        string ticker PK
+        timestamp rebalanced_on
+    }
+    sectors {
+        string ticker PK
+        timestamp valid_from PK
+        string sector
+        timestamp valid_to "null while current"
+    }
+    residuals {
+        timestamp date PK
+        string ticker PK
+        double ret
+        double fitted
+        double residual
+        double alpha
+        double beta_market
+        double beta_sector
+        string sector_etf
+        int n_obs
+        bool market_only
+        double volume_ratio
+        bool event
+    }
+    residuals_pca {
+        timestamp date PK
+        string ticker PK
+        double ret
+        double fitted
+        double residual
+        int n_obs
+        double beta_j "one per eigenportfolio"
+        double eigenvalue_j "one per eigenportfolio"
+    }
+```
+
 ## Raw snapshots
 
 `<raw store>/<source>/<download date>/` holds one download as the source returned it, with `manifest.json` written last; the raw store is `data/raw/` or the path in `STATARB_RAW`. A snapshot without its manifest is incomplete and never read. Every manifest holds `files`, the SHA-256 of each file by its path in the snapshot, and `digest`, the SHA-256 of the lines `path hash` sorted by path; config pins a snapshot by date and digest, and the build refuses one that does not match. A complete snapshot is read-only. The price manifest records the source, basis, layout, the first date asked for, `end_exclusive` (the New York date of the download: bars before it only), the tickers asked for, those with no data and those that failed. Alpaca snapshots keep `bars/<ticker>.parquet` with Alpaca's bar fields and `actions/<ticker>.json` with its corporate-action records; the build applies `config/alpaca.toml` to them (decision record 0004). Wikipedia snapshots keep `page.html` and the revision id.
@@ -115,6 +199,14 @@ Model B's residual returns (phase 4): each candidate's daily return less what th
 | `beta_j` | double | beta to eigenportfolio *j* over the window ending the trading day before `date` |
 | `eigenvalue_j` | double | eigenvalue *j* of that window's correlation matrix: the variance of eigenportfolio *j*'s returns over the window, the same for every stock on `date` |
 
+## Features
+
+Phase 5's features are recomputed from `returns`, `prices`, `residuals`, `universe` and `sectors` in each run and never stored (`statarb.models.features`, whose docstring defines each). One row per universe member and day with a residual, keyed by `date` and `ticker`, with fifteen columns: `res_sum_1`, `res_sum_3`, `res_sum_5`, `res_sum_20`, `res_vol_20`, `res_vol_60`, `volume_ratio`, `range`, `from_high_20`, `from_low_20`, `from_high_60`, `from_low_60`, `market_vol`, `dispersion` and `sector`, the last an integer code by position in `[features] sectors` of `config/models.toml`.
+
+## Models
+
+`data/derived/models/` (`[paths] models` of `config/data.toml`), git-ignored and rebuilt by retraining: one LightGBM model per walk-forward block and target horizon, in LightGBM's native text format, never pickle. A file is named `h{H}_train_{first}_{last}.txt` by its horizon and the first and last dates of its training rows, so each is unique; a rerun overwrites a file with identical bytes. Its SHA-256 is logged with the walk-forward entry that trained it (below), which is how a rebuilt model is checked against the logged one.
+
 ## Joins
 
 - `prices`, `actions`, `returns`, `residuals` and `residuals_pca` join on `date` and `ticker`. Never rely on index alignment.
@@ -135,3 +227,13 @@ Model B's residual returns (phase 4): each candidate's daily return less what th
 - `metrics`: the headline metrics, annualised where the name says so; non-finite values are null. Phase 2's are per dollar of gross exposure. Phase 3's and phase 4's are per dollar of capital, with idle capital earning nothing, and add each cost component (`ann_cost_spread`, `ann_cost_impact`, `ann_cost_commission`, and the same per dollar traded as `*_bps_per_dollar`), `t_stat`, `mean_exposure` (capital deployed), `median_names`, `net_dollar_imbalance`, `hard_short_share`, `ann_borrow_hard_extra` and `gross_basis_sharpe` (the net Sharpe per dollar of gross, for comparison with phase 2). Phase 4 adds the book's realised exposure against Model A's factors (`beta_mean`, `beta_sd`, `sector_abs_mean`, `sector_abs_sd`, and `fitted_ann` and `fitted_vol`, the P&L of the fitted part of each return), and for an optimiser the solver's statistics: `solver_days`, `idle_days` (nothing to optimise), `failed_days` (book held), `trades_per_day`, `dropped_per_day` (trades the minimum trade filter dropped), the largest breach of the dollar and the factor constraints beyond their tolerances (`dollar_breach_max`, `factor_breach_max`, as fractions of capital) and the days with a material one, above 0.1% of capital (`dollar_breach_material_days`, `factor_breach_material_days`), `re_solve_rounds_mean`, `re_solve_failed_days`, `ex_ante_vol` (the book's annualised volatility as its risk model predicts it) and `ex_ante_move` (the book's expected move over the horizon, μ′*w*, per dollar of capital), each over the days solved. Solve times are wall-clock and differ between runs, so they are not logged: the runner prints each path's mean with its progress, and `docs/requirements.md` records them.
 
 Key: none, since reruns repeat a `config_id`. A trial is a distinct position path: `config` reduced to the keys that set positions (`statarb.backtest.trials.PATH_KEYS`), so cost settings, book sizes and names are not trials. Each phase counts the logs up to its own.
+
+Phase 5's log has two kinds of entry, named by `config.kind`:
+
+- `walk-forward`, one per target horizon. `config`: `horizon`, `models` (every table of `config/models.toml` but `[runs]` and `[partial_adjustment]`, which train nothing), `features` (the feature names in column order) and `development_end` (the last date of the cut tables). `seed` is `[lightgbm] seed`. `metrics`: `blocks`, one per test block with `test_first`, `test_last`, `train_first`, `train_last`, `train_rows`, `grid` (every grid point tried, with its trees from early stopping, validation IC and validation squared error), `chosen` (the grid point refitted), `model_file` and `model_sha256`; and `grid_points_tried`. No metric is a return, so a walk-forward is not a trial.
+- `path`, one per forecast, rule and book size, with phase 4's keys and metrics, plus `forecast` and `rule` (names), `model` (null for a phase 3 variant; for the model's forecast its `horizon` and `walk_forward`, the `config_id` of the walk-forward entry that made it), `calibration_horizon_days`, and `first_date` and `last_date`, the dates the path ran. `start` stays the first signal date of `config/backtest.toml`, so a variant's path has the id of its phase 3 or 4 entry: the same trial over fewer dates. A model path has `signal` `model`, `source` `features`, and the holding period of the headline variant for its decile sort; `model` is in `PATH_KEYS`, so each horizon's paths are new trials. A partial-adjustment path (decision record 0006) has `optimiser` set to its aim, the headline optimiser with `cost_multiplier` 0, and `partial_adjustment` (null for every other rule): `rate_step`, the trade-rate grid's step, and `matches`, the optimiser path whose turnover it matches. `partial_adjustment` is in `PATH_KEYS`, so these paths are new trials, the variants' included. Its `metrics` add `trade_rate` (θ), `matched_turnover` (the optimiser path's turnover) and `turnover_by_rate` (every rate on the grid and its turnover: what the rule read).
+
+The holdout runner adds one read, once, in two more kinds, which `statarb.backtest.trials` never counts as trials (`HOLDOUT_KINDS`):
+
+- `holdout walk-forward`, one per horizon: the development walk-forward's `config` with `kind` changed and `holdout_start` and `holdout_end` added. `metrics`: the holdout blocks only, as above, `grid_points_tried`, and `development_models_checked`, the number of development models retrained and found to have their logged SHA-256.
+- `holdout path`, one per forecast, rule and book size: a development path's keys with `kind` changed, `model.walk_forward` naming the holdout walk-forward, and `first_date` and `last_date` the holdout's first and last days. A partial-adjustment path's `trade_rate` is the development run's, `matched_turnover` is the holdout optimiser path's turnover, and `turnover_by_rate` is empty.

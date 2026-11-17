@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from check_commits import problems
+from check_commits import EXCEPTIONS, problems, reported
 
 
 @pytest.mark.parametrize(
@@ -35,3 +35,15 @@ def test_conventional_messages_pass(message: str) -> None:
 )
 def test_bad_messages_are_caught(message: str, fragment: str) -> None:
     assert any(fragment in p for p in problems(message))
+
+
+LOGGED = "447f85eee3df29c120843868f496a37b4d6f1579"
+LONG = "feat(models): run the phase 5 development walk-forward through every rule"
+
+
+def test_an_exception_allows_only_its_own_problem_on_its_own_commit() -> None:
+    assert len(LONG) == 73 and LOGGED in EXCEPTIONS
+    assert reported(LOGGED, LONG + "\n\nBody.\n") == []
+    assert any("more than 72" in p for p in reported("0" * 40, LONG))
+    assert any("full stop" in p for p in reported(LOGGED, LONG[:-1] + "."))
+    assert any("more than 72" in p for p in reported(LOGGED, LONG + "s"))

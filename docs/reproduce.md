@@ -95,7 +95,19 @@ From step 3, every runner behaves the same way in four respects:
    ```
 
    It reads the tables phase 3 reads and `residuals_pca`, with `config/costs.toml` for the signals and cost model and `config/portfolio.toml` for the optimiser, risk models and paths, needs no network and stores no table. It runs every path at both book sizes in worker processes (`--workers`, six by default), logs one entry per path, book size and re-costed spread, and writes `reports/phase-04/portfolio.md` and its charts. It reads the earlier logs for the trial count and phase 3's no-trade zone. `--choose-risk-aversion` prints the table of the rule that set the headline λ and runs nothing else. The solver and its version are pinned in `uv.lock`, since another can return slightly different weights. Solve times vary from run to run, so the runner prints them with its progress and keeps them out of the report and log. The [phase 4 review](phases/phase-04/review.md) quotes the reports' numbers.
-6. *(phase 5)* Train the walk-forward models.
+6. Train the phase 5 walk-forward models and run every forecast through the portfolio rules. The development run needs the tables of steps 1 and 2 and the logs of steps 3 to 5:
+
+   ```bash
+   uv run python -m statarb.models.run
+   ```
+
+   It reads the tables phase 3 reads and cuts every one at the development end in `config/models.toml` before computing anything, so it never reads the holdout. With `config/costs.toml` and `config/portfolio.toml` unchanged, it trains one LightGBM model per walk-forward block at each target horizon, writes each to `data/derived/models/` in LightGBM's text format, runs the model's forecasts and the phase 3 variants through the decile sort, the no-trade zone, the headline optimiser and partial adjustment at both book sizes (the optimiser paths in worker processes, `--workers`, four by default, then the partial-adjustment paths, each with the trade rate whose turnover matches its optimiser path's), logs one walk-forward entry per horizon, with each model file's SHA-256, and one entry per path and book size, and writes `reports/phase-05/ml.md` and its charts. It reads the earlier logs for the trial count. LightGBM trains deterministically with a fixed thread count, so a rebuilt model has the bytes of the logged one; compare a model file's SHA-256 with its block in the log. The holdout runner reads the last year, which the development run never reads, once:
+
+   ```bash
+   uv run python -m statarb.models.holdout
+   ```
+
+   It refuses a tree with changes, a configuration, overlay or snapshot that differs from the last logged development run's, and a log that already holds a read. It retrains every development model and stops unless each has its logged SHA-256, then runs every path over the holdout, partial adjustment at the development run's trade rates, logs the read and writes `reports/phase-05/holdout.md` and its chart. The committed log already holds the read, so to rebuild the report pass `--repeat`: it reads the holdout again, requires every result to equal the logged one, and appends nothing. Since it compares every result with the logged read, it rebuilds the report only on the snapshot behind the published results; on a snapshot you downloaded it stops, because the last development run was logged on another snapshot or at the first result that differs.
 7. *(phase 6)* Run the daily job; its guide is `docs/daily-job.md`.
 
 ## Checking your results
