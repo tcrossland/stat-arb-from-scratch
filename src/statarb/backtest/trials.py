@@ -13,7 +13,9 @@ up to a given phase, so a configuration tried in any phase counts against the
 best result of every later one, a later phase's trials leave an earlier
 phase's report unchanged, and a rerun of the same configuration is not a new
 trial. Each path's statistic is the daily (not annualised) Sharpe ratio of its
-gross returns, from its latest entry.
+gross returns, from its latest entry. A holdout read (`HOLDOUT_KINDS`, phase 5)
+is not a trial, since nothing is chosen from it, and its paths, which repeat
+development paths over the held-out year, never replace their statistic.
 """
 
 from __future__ import annotations
@@ -34,6 +36,10 @@ PATH_KEYS = (
 )
 
 
+# Log entry kinds (`config.kind`) of the phase 5 holdout read, which `trial_sharpes` skips.
+HOLDOUT_KINDS = ("holdout walk-forward", "holdout path")
+
+
 def path_id(config: dict[str, Any]) -> str:
     """The id of the position path a configuration runs: its config_id over `PATH_KEYS` alone."""
     return config_id({k: config[k] for k in PATH_KEYS if config.get(k) is not None})
@@ -46,9 +52,11 @@ def logs(reports: Path, through: str | None = None) -> list[Path]:
 
 
 def trial_sharpes(entries: Iterable[dict[str, Any]]) -> dict[str, float]:
-    """Daily gross Sharpe ratio by path id; a later entry for the same path replaces an earlier one."""
+    """Daily gross Sharpe ratio by path id; a later entry for the same path replaces an earlier one, and a holdout entry is skipped."""
     out: dict[str, float] = {}
     for e in entries:
+        if e["config"].get("kind") in HOLDOUT_KINDS:
+            continue
         value = e["metrics"].get("gross_sharpe")
         if value is not None:
             out[path_id(e["config"])] = value / math.sqrt(TRADING_DAYS)

@@ -101,7 +101,13 @@ From step 3, every runner behaves the same way in four respects:
    uv run python -m statarb.models.run
    ```
 
-   It reads the tables phase 3 reads and cuts every one at the development end in `config/models.toml` before computing anything, so it never reads the holdout. With `config/costs.toml` and `config/portfolio.toml` unchanged, it trains one LightGBM model per walk-forward block at each target horizon, writes each to `data/derived/models/` in LightGBM's text format, runs the model's forecasts and the phase 3 variants through the decile sort, the no-trade zone and the headline optimiser at both book sizes (the optimiser paths in worker processes, `--workers`, four by default), logs one walk-forward entry per horizon, with each model file's SHA-256, and one entry per path and book size, and writes `reports/phase-05/ml.md` and its charts. It reads the earlier logs for the trial count. LightGBM trains deterministically with a fixed thread count, so a rebuilt model has the bytes of the logged one; compare a model file's SHA-256 with its block in the log. *(End of phase 5)* The holdout runner reads the last year once.
+   It reads the tables phase 3 reads and cuts every one at the development end in `config/models.toml` before computing anything, so it never reads the holdout. With `config/costs.toml` and `config/portfolio.toml` unchanged, it trains one LightGBM model per walk-forward block at each target horizon, writes each to `data/derived/models/` in LightGBM's text format, runs the model's forecasts and the phase 3 variants through the decile sort, the no-trade zone and the headline optimiser at both book sizes (the optimiser paths in worker processes, `--workers`, four by default), logs one walk-forward entry per horizon, with each model file's SHA-256, and one entry per path and book size, and writes `reports/phase-05/ml.md` and its charts. It reads the earlier logs for the trial count. LightGBM trains deterministically with a fixed thread count, so a rebuilt model has the bytes of the logged one; compare a model file's SHA-256 with its block in the log. The holdout runner reads the last year, which the development run never reads, once:
+
+   ```bash
+   uv run python -m statarb.models.holdout
+   ```
+
+   It refuses a tree with changes, a configuration, overlay or snapshot that differs from the last logged development run's, and a log that already holds a read. It retrains every development model and stops unless each has its logged SHA-256, then runs every path over the holdout, logs the read and writes `reports/phase-05/holdout.md` and its chart. The committed log already holds the read, so to rebuild the report pass `--repeat`: it reads the holdout again, requires every result to equal the logged one, and appends nothing.
 7. *(phase 6)* Run the daily job; its guide is `docs/daily-job.md`.
 
 ## Checking your results

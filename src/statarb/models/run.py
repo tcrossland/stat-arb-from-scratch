@@ -166,9 +166,15 @@ def load_settings(root: Path) -> Settings:
 
 def build_development_lab(long: Mapping[str, pd.DataFrame], s: Settings) -> PortfolioLab:
     """The phase 3 lab and phase 4's Model A risk on the development tables; expected moves are added per forecast."""
-    cut = development_tables(long, s.mc.period)
+    plab = build_period_lab(long, s, pd.Timestamp(s.mc.period.development_end))
+    check_development(plab.lab.tables, s.mc.period)
+    return plab
+
+
+def build_period_lab(long: Mapping[str, pd.DataFrame], s: Settings, last: pd.Timestamp) -> PortfolioLab:
+    """The lab on every table cut at `last`: the development end, or, for `statarb.models.holdout` only, the holdout's last day."""
+    cut = cut_after(long, last)
     tables = build_tables(*(cut[k] for k in ("returns", "prices", "residuals", "universe", "sectors")), s.market, s.sector_etfs)
-    check_development(tables, s.mc.period)
     lab = build_lab(tables, s.cfg, s.ccfg, s.sector_etfs)
     r = s.pc.risk
     beta_sector = wide(cut["residuals"], "beta_sector", tables.dates, tables.stocks).to_numpy()
@@ -293,12 +299,12 @@ def optimiser_spec(pc: PortfolioConfig, forecast: str, kappa: float) -> PathSpec
 _PLAB: PortfolioLab | None = None
 
 
-def _init_worker(root: str, moves: dict[str, np.ndarray], start: int) -> None:
+def _init_worker(root: str, moves: dict[str, np.ndarray], start: int, last: str) -> None:
     global _PLAB
     root_path = Path(root)
     s = load_settings(root_path)
     processed = resolve_path(load_config("data", root_path)["paths"]["processed"], root_path)
-    _PLAB = starting_at(build_development_lab(load_long(processed), s), start, moves)
+    _PLAB = starting_at(build_period_lab(load_long(processed), s, pd.Timestamp(last)), start, moves)
 
 
 def _run_optimiser(job: tuple[str, float, float]) -> tuple[Outcome, float]:
@@ -312,8 +318,8 @@ def _run_optimiser(job: tuple[str, float, float]) -> tuple[Outcome, float]:
 def run_paths(plab: PortfolioLab, fc: Forecasts, mc: ModelsConfig, root: Path | None, workers: int, progress: Progress | None = None) -> list[Outcome]:
     """Every forecast through every rule at every book size, from `fc.start`, in a fixed order.
 
-    With `workers` above 1 and a `root`, each worker process rebuilds the
-    development lab from the processed tables under `root`.
+    With `workers` above 1 and a `root`, each worker process rebuilds the lab
+    from the processed tables under `root`, cut at the last date of `plab`'s.
     """
     global _PLAB
     say = progress or (lambda line: None)
@@ -329,7 +335,7 @@ def run_paths(plab: PortfolioLab, fc: Forecasts, mc: ModelsConfig, root: Path | 
             outcomes.append(out)
             say(f"  [{i + 1}/{len(jobs)}] {out.name}, ${job[2]:,.0f}: {seconds:.0f}s")
     elif jobs:
-        init = (str(root), fc.move, fc.start)
+        init = (str(root), fc.move, fc.start, str(plab.lab.tables.dates[-1].date()))
         with ProcessPoolExecutor(min(workers, len(jobs)), mp_context=get_context("spawn"), initializer=_init_worker, initargs=init) as ex:
             for i, (out, seconds) in enumerate(ex.map(_run_optimiser, jobs)):
                 outcomes.append(out)
@@ -350,14 +356,15 @@ def evaluation_rows(fc: Forecasts) -> np.ndarray:
     return ok
 
 
-def ic_analysis(tables: Tables, fc: Forecasts) -> dict[str, pd.DataFrame]:
+def ic_analysis(tables: Tables, fc: Forecasts, rows: np.ndarray | None = None) -> dict[str, pd.DataFrame]:
     """Daily rank IC of each forecast against ranked residual moves: by target horizon, by year (1-day), and against single later days.
 
-    Outcomes past the development end are missing from the cut tables, so they never count.
+    Over `rows`, by default every row all forecasts cover. Outcomes past the
+    last date of the tables are missing, so they never count.
     """
     residual = tables.residual.to_numpy()
     fs = fc.features
-    rows = evaluation_rows(fc)
+    rows = evaluation_rows(fc) if rows is None else rows
     day = fs.day[rows]
     summary, by_year, decay = [], [], []
     for name, panel in fc.signal.items():
@@ -486,10 +493,10 @@ def _plain(value):
     return json.loads(json.dumps(value, default=str))
 
 
-def walk_forward_config(mc: ModelsConfig, fs: FeatureSet, horizon: int, last: pd.Timestamp) -> dict:
+def walk_forward_config(mc: ModelsConfig, names: list[str], horizon: int, development_end: str) -> dict:
     """What defines a horizon's walk-forward; `[runs]` is left out, since it changes no model."""
     models = {k: v for k, v in asdict(mc).items() if k != "runs"}
-    return {"kind": "walk-forward", "horizon": horizon, "models": _plain(models), "features": list(fs.names), "development_end": str(last.date())}
+    return {"kind": "walk-forward", "horizon": horizon, "models": _plain(models), "features": list(names), "development_end": development_end}
 
 
 def walk_forward_metrics(run: ForecastRun, dates: pd.DatetimeIndex, saved: Mapping[tuple[int, int], tuple[str, str]], horizon: int) -> dict:
@@ -586,7 +593,8 @@ class Logged:
 def records(outcomes: list[Outcome], plab: PortfolioLab, fc: Forecasts, mc: ModelsConfig, saved: Mapping[tuple[int, int], tuple[str, str]]) -> Logged:
     lab = plab.lab
     dates = lab.tables.dates
-    wf = {H: (walk_forward_config(mc, fc.features, H, dates[-1]), walk_forward_metrics(run, dates, saved, H)) for H, run in fc.runs.items()}
+    end = str(dates[-1].date())
+    wf = {H: (walk_forward_config(mc, fc.features.names, H, end), walk_forward_metrics(run, dates, saved, H)) for H, run in fc.runs.items()}
     ids = {H: experiments.config_id(c) for H, (c, _) in wf.items()}
     base_cfg = lab.cfg
     paths = [path_record(o, base_cfg, lab.ccfg, plab.pc, rule_variant(plab, o.forecast), ids, dates[fc.start], dates[-1]) for o in outcomes]

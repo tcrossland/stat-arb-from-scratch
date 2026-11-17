@@ -261,7 +261,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Gain.** The total reduction in training loss from a feature's splits, summed over a model's trees.
 
-**Holdout.** The most recent data, kept out of every model choice and read once at the end.
+**Holdout.** The most recent data, kept out of every model choice and read once at the end. In phase 5 the read is logged as entries that are not trials, and `--repeat` can only reproduce it.
 
 **Development end.** The last date the development runner reads: every table is cut there before anything is computed, and the holdout starts the next trading day.
 

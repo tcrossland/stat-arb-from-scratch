@@ -9,9 +9,8 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from helpers import MARKET_CAL, MARKET_ETFS, synthetic_market
-from models_helpers import market_config
-from portfolio_helpers import backtest_config, cost_config, portfolio_raw
+from helpers import MARKET_CAL, MARKET_ETFS
+from runner_helpers import DEV_END, market_long, market_settings
 from statarb.backtest import cost_run
 from statarb.backtest.cost_run import headline
 from statarb.backtest.trials import path_id
@@ -22,7 +21,6 @@ from statarb.models.run import (
     OPTIMISER,
     ZONE,
     Outcome,
-    Settings,
     build_development_lab,
     check_development,
     log_entries,
@@ -31,28 +29,11 @@ from statarb.models.run import (
     run_development,
 )
 from statarb.portfolio import run as portfolio_run
-from statarb.portfolio.config import PortfolioConfig
 from statarb.portfolio.paths import DECILE as PHASE_4_DECILE
 from statarb.portfolio.paths import optimiser_specs
 from statarb.signals.tables import build_tables
 
-DEV_END = 260
-
-
-def _long() -> dict[str, pd.DataFrame]:
-    returns, prices, residuals, universe, sectors = synthetic_market(seed=5)
-    return {"returns": returns, "prices": prices, "residuals": residuals.assign(beta_sector=0.5), "universe": universe, "sectors": sectors}
-
-
-def _settings(**runs) -> Settings:
-    cfg = backtest_config()
-    ccfg = cost_config(cfg)
-    mc = market_config(first_test=150, block_days=40)
-    period = dataclasses.replace(
-        mc.period, development_end=MARKET_CAL[DEV_END].date(), holdout_start=MARKET_CAL[DEV_END + 1].date(), holdout_end=MARKET_CAL[-1].date()
-    )
-    mc = dataclasses.replace(mc, period=period, runs=dataclasses.replace(mc.runs, **runs))
-    return Settings(mc, cfg, ccfg, PortfolioConfig.from_dict(portfolio_raw(), ccfg), "SPY", MARKET_ETFS, 3.0)
+_long, _settings = market_long, market_settings
 
 
 @pytest.fixture(scope="module")

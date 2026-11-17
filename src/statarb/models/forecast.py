@@ -7,10 +7,14 @@ calibration, the cost model and the portfolio rules by the baseline's route.
 
 On day t in a test block starting on s, the score is the forecast of the model
 trained at the close of s, on rows whose target was known by then, from the
-features on t. The walk-forward runs from `[period] first_test` to the last
-date of the tables it is given; the development runner cuts every table at
-the development end first, so no block reaches the holdout. Days before the
-first block, and member-days without features, have no score.
+features on t. The walk-forward runs in blocks from `[period] first_test` to
+the development end, or the last date of the tables if earlier, and, when the
+tables reach the holdout, in blocks that restart on its first day
+(`forecast_folds`). No block straddles the boundary, so every development
+block, and its model, is the same whether or not the holdout is loaded. The
+development runner cuts every table at the development end first; only the
+holdout runner loads more. Days before the first block, and member-days
+without features, have no score.
 
 The calibration is phase 3's: the slope of the residual move over the next h
 days on the demeaned score, from signal-outcome pairs whose outcome is known by
@@ -28,11 +32,21 @@ import pandas as pd
 from statarb.models.backend import make_backend
 from statarb.models.config import ModelsConfig
 from statarb.models.features import FeatureSet, build_features, ranked_target
-from statarb.models.splitter import walk_forward
+from statarb.models.splitter import Fold, walk_forward
 from statarb.models.training import WalkForward, walk_forward_forecast
 from statarb.signals.base import Scores
 from statarb.signals.calibration import calibration_slope, expected_move, forward_sum
 from statarb.signals.tables import TABLES, Tables
+
+
+def forecast_folds(dates: pd.DatetimeIndex, cfg: ModelsConfig, horizon: int) -> list[Fold]:
+    """Development blocks from `first_test`, the last cut short at the development end; then, when the
+    dates reach the holdout, holdout blocks from its first day to its last."""
+    p, block = cfg.period, cfg.walk_forward.block_days
+    folds = walk_forward(dates, pd.Timestamp(p.first_test), min(dates[-1], pd.Timestamp(p.development_end)), block, horizon)
+    if dates[-1] >= pd.Timestamp(p.holdout_start):
+        folds += walk_forward(dates, pd.Timestamp(p.holdout_start), min(dates[-1], pd.Timestamp(p.holdout_end)), block, horizon)
+    return folds
 
 
 @dataclass(frozen=True)
@@ -69,7 +83,7 @@ class ForecastSignal:
         cfg = self.config
         fs = build_features(tables, cfg.features) if features is None else features
         y = fs.values_of(ranked_target(tables.residual.to_numpy(), tables.members, self.horizon))
-        folds = walk_forward(tables.dates, pd.Timestamp(cfg.period.first_test), tables.dates[-1], cfg.walk_forward.block_days, self.horizon)
+        folds = forecast_folds(tables.dates, cfg, self.horizon)
         backend = make_backend(cfg.model.library, cfg.lightgbm)
         walk = walk_forward_forecast(
             backend, fs, y, tables.dates, folds, cfg.tuning, cfg.lightgbm.max_rounds, cfg.lightgbm.early_stopping_rounds,
