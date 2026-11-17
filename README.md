@@ -60,7 +60,7 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 
 ## Running it
 
-Needs Python 3.14 and [uv](https://docs.astral.sh/uv/). No GPU is needed. The tests run on small synthetic fixtures committed under `tests/` and need no download, no keys and no network:
+Needs Python 3.14 and [uv](https://docs.astral.sh/uv/). No GPU is needed. On macOS, LightGBM needs the OpenMP runtime, for the tests too: install it once with [Homebrew](https://brew.sh/) (`brew install libomp`). On Linux the wheel uses GCC's OpenMP runtime, `libgomp`, which most distributions install with GCC. The tests run on small synthetic fixtures committed under `tests/` and need no download, no keys and no network:
 
 ```bash
 uv sync --locked
