@@ -75,7 +75,7 @@ The rules. What each phase may use when is in `docs/time-discipline.md`.
 - A dedicated look-ahead test: shift future data by random noise and confirm historical signals do not change.
 - Backtests must reproduce exactly from a fixed config and seed in the environment fixed by `uv.lock`. After a dependency upgrade, results must match in content even if file bytes differ.
 - Tests never touch the network. They run on small synthetic fixtures committed under `tests/`; only the data build reads the cache or downloads. `tests/conftest.py` enforces this.
-- `uv run ruff check` and `uv run pytest` must pass before every commit. CI runs both on push to `main` and on pull requests, and checks each pull request's commit messages with `scripts/check_commits.py`. Ruff uses its default rules; `[tool.ruff]` in `pyproject.toml` records any exceptions. pytest runs in strict mode.
+- `uv run ruff check` and `uv run pytest -m "not slow"` must pass before every commit, and the full `uv run pytest` before every push and every logged run. Tests that take seconds each, such as a runner end to end, are marked `slow`; a look-ahead check stays unmarked unless another unmarked test covers the same code. A commit that touches only docs needs only the tests that check docs against the code, and only when it changes a page they read. CI runs both on push to `main` and on pull requests, with the full suite, and checks each pull request's commit messages with `scripts/check_commits.py`. Ruff uses its default rules; `[tool.ruff]` in `pyproject.toml` records any exceptions. pytest runs in strict mode.
 
 ## Commits
 
