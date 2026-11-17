@@ -37,6 +37,8 @@ testpaths = ["tests"]
 pythonpath = ["tests", "scripts"]
 # Strict config, markers, xfail and parametrisation ids.
 strict = true
+# Tests that take seconds each; `-m "not slow"` skips them before a commit (CLAUDE.md, "Testing").
+markers = ["slow: runs with the full suite, before a push and in CI, not before every commit"]
 
 [tool.ruff]
 # Ruff's default rule set, with no exceptions so far; any added go under [tool.ruff.lint] with the reason.

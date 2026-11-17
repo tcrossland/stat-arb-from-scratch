@@ -57,16 +57,19 @@ def read(logged):
 # --- the read ----------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_paths_cover_the_holdout_only(read) -> None:
     assert {o.daily.index.min() for o in read.outcomes} == {MARKET_CAL[DEV_END + 1]}
     assert {o.daily.index.max() for o in read.outcomes} == {MARKET_CAL[-1]}
 
 
+@pytest.mark.slow
 def test_every_development_model_is_retrained_with_its_logged_hash(logged, read) -> None:
     _, _, res, _ = logged
     assert read.checked == sum(len(r.walk.fits) for r in res.fc.runs.values())
 
 
+@pytest.mark.slow
 def test_holdout_blocks_restart_on_its_first_day(read) -> None:
     for config, metrics in read.entries[: len(read.fc.runs)]:
         assert config["kind"] == "holdout walk-forward"
@@ -75,6 +78,7 @@ def test_holdout_blocks_restart_on_its_first_day(read) -> None:
         assert not any(f.fold.test_start <= DEV_END < f.fold.test_stop - 1 for f in run.walk.fits)
 
 
+@pytest.mark.slow
 def test_partial_adjustment_keeps_its_development_rate(logged, read) -> None:
     _, _, res, log = logged
     rates = development_rates(log)
@@ -85,12 +89,14 @@ def test_partial_adjustment_keeps_its_development_rate(logged, read) -> None:
         assert o.metrics["trade_rate"] == rates[(o.forecast, o.book)] and o.metrics["turnover_by_rate"] == {}
 
 
+@pytest.mark.slow
 def test_development_forecasts_do_not_change_when_the_holdout_is_loaded(logged, read) -> None:
     _, _, res, _ = logged
     for name, panel in res.fc.signal.items():
         np.testing.assert_array_equal(panel, read.fc.signal[name][: DEV_END + 1])
 
 
+@pytest.mark.slow
 def test_the_holdout_adds_no_trial(logged, read) -> None:
     log = logged[3]
     assert trial_sharpes(log + _holdout_log(read)) == trial_sharpes(log)
@@ -99,6 +105,7 @@ def test_the_holdout_adds_no_trial(logged, read) -> None:
     assert {c["kind"] for c, _ in read.entries} == set(HOLDOUT_KINDS)
 
 
+@pytest.mark.slow
 def test_each_book_is_judged_against_its_development_trial_set(logged) -> None:
     s, _, res, log = logged
     earlier = {"earlier path": 0.01}
@@ -109,6 +116,7 @@ def test_each_book_is_judged_against_its_development_trial_set(logged) -> None:
     assert small.keys() == large.keys() and small != large
 
 
+@pytest.mark.slow
 def test_holdout_report_rebuilds_byte_for_byte(read, tmp_path) -> None:
     a, b = tmp_path / "a", tmp_path / "b"
     report.write_holdout_report(read, a)
@@ -118,6 +126,7 @@ def test_holdout_report_rebuilds_byte_for_byte(read, tmp_path) -> None:
     assert "## Against the bar" in (a / "holdout.md").read_text()
 
 
+@pytest.mark.slow
 def test_repeat_reproduces_the_logged_read(logged, read) -> None:
     s, models, _, log = logged
     full = log + _holdout_log(read)
@@ -132,12 +141,14 @@ def test_repeat_reproduces_the_logged_read(logged, read) -> None:
 # --- refusals --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_refuses_a_dirty_tree(logged) -> None:
     s, _, _, log = logged
     with pytest.raises(ValueError, match="commit first"):
         check_ready(log, s, {**STATE, "git_dirty": True}, repeat=False)
 
 
+@pytest.mark.slow
 def test_refuses_a_second_read(logged, read) -> None:
     s, _, _, log = logged
     with pytest.raises(ValueError, match="already been read"):
@@ -146,6 +157,7 @@ def test_refuses_a_second_read(logged, read) -> None:
         check_ready(log, s, STATE, repeat=True)
 
 
+@pytest.mark.slow
 def test_refuses_without_a_clean_development_run(logged) -> None:
     s, _, _, log = logged
     with pytest.raises(ValueError, match="no development run"):
@@ -156,6 +168,7 @@ def test_refuses_without_a_clean_development_run(logged) -> None:
         check_ready(log, s, {**STATE, "price_snapshot": "2026-02-01"}, repeat=False)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "change",
     [
@@ -171,6 +184,7 @@ def test_refuses_a_configuration_unlike_the_last_development_run(logged, change)
         check_ready(log, change(s), STATE, repeat=False)
 
 
+@pytest.mark.slow
 def test_refuses_a_development_model_unlike_its_logged_hash(logged, read) -> None:
     s, _, _, log = logged
     walks = check_ready(log, s, STATE, repeat=False)
@@ -182,6 +196,7 @@ def test_refuses_a_development_model_unlike_its_logged_hash(logged, read) -> Non
         check_development_models(read.fc, saved, tampered, read.plab.lab.tables.dates, read.fc.start)
 
 
+@pytest.mark.slow
 def test_refuses_tables_that_end_before_the_holdout_does(logged, tmp_path) -> None:
     s, _, _, log = logged
     walks = check_ready(log, s, STATE, repeat=False)

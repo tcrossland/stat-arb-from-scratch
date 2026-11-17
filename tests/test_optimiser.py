@@ -219,6 +219,7 @@ def test_the_decile_sort_policy_is_the_phase_3_path() -> None:
     np.testing.assert_array_equal(here.pnl, phase_3.pnl)
 
 
+@pytest.mark.slow
 def test_runs_reproduce_exactly() -> None:
     spec = optimiser_specs(synthetic_lab().pc)[0]
     a, b = synthetic_lab().run_path(spec, 5_000_000), synthetic_lab().run_path(spec, 5_000_000)
@@ -249,6 +250,7 @@ def _short_market(last: int) -> tuple[pd.DataFrame, ...]:
     return tuple(df[df["date"] <= cut] if "date" in df else df for df in synthetic_market(seed=5))
 
 
+@pytest.mark.slow
 def test_trials_log_and_report(tmp_path) -> None:
     # Every path runs at both book sizes, and each optimiser day is a fresh cvxpy solve, so this
     # test runs on 70 decision days rather than the market's 260. Every path still trades, the
