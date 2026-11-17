@@ -29,6 +29,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
 
+### Multi-period optimiser
+
+- **Trigger:** phase 5 review.
+- **Why:** the phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book, and in all but three of its 34 pairs of path and book size costs exceeded the gross return. Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each decays. The phase 4 review moved it into the phase 5 brief, which deferred it: its trials would count against the deflated-Sharpe bar the model's forecast must clear, and it needs forecasts at several horizons, so a result in the same phase would mix the forecast with the trading rule.
+- **Action:** at the phase 5 review, with the forecasts' decay by horizon measured, carry it to a later chapter, with the trade rate set by a rule on positions before any return is seen and the comparison with the one-period optimiser at matched turnover, or delete it if the decay leaves nothing to weight.
+
 ### Measured effective spreads
 
 - **Trigger:** the start of phase 6, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption.
