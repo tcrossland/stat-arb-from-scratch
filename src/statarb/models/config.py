@@ -70,6 +70,16 @@ class Tuning:
     validation_days: int
 
 
+RULES = ("decile sort", "no-trade zone", "optimiser")
+
+
+@dataclass(frozen=True)
+class Runs:
+    variants: tuple[str, ...]    # [[variants]] names in config/costs.toml
+    rules: tuple[str, ...]       # names in RULES
+    cost_multipliers: tuple[float, ...]
+
+
 @dataclass(frozen=True)
 class ModelsConfig:
     period: Period
@@ -79,6 +89,7 @@ class ModelsConfig:
     model: ModelChoice
     lightgbm: LightGbm
     tuning: Tuning
+    runs: Runs
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ModelsConfig:
@@ -107,6 +118,11 @@ class ModelsConfig:
             raise ValueError("lightgbm: num_threads must be fixed and positive, for determinism")
         if self.tuning.validation_days < 1 or not self.tuning.num_leaves or not self.tuning.min_data_in_leaf:
             raise ValueError("tuning: needs a grid and a positive validation window")
+        r = self.runs
+        if not r.rules or set(r.rules) - set(RULES) or len(set(r.rules)) != len(r.rules):
+            raise ValueError(f"runs: rules must be distinct names in {RULES}")
+        if len(set(r.variants)) != len(r.variants) or not r.cost_multipliers or min(r.cost_multipliers) <= 0:
+            raise ValueError("runs: variants must be distinct and cost multipliers positive")
 
 
 def load_models_config(root: Path | None = None) -> ModelsConfig:

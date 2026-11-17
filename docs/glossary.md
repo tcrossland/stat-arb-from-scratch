@@ -263,6 +263,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Holdout.** The most recent data, kept out of every model choice and read once at the end.
 
+**Development end.** The last date the development runner reads: every table is cut there before anything is computed, and the holdout starts the next trading day.
+
+**Common dates.** The dates every forecast's path is compared over in phase 5: from the first date every forecast has a calibrated move to the development end.
+
 ## Paper trading
 
 **Ledger.** The record of the forward run: trades, positions and P&L by day.

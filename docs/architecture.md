@@ -40,9 +40,18 @@ flowchart LR
     CP["config/portfolio.toml"] --> PR
     CRR -->|trials, no-trade zone| PR
     PR --> PRR["reports/phase-04/<br/>portfolio.md, charts and<br/>experiments.jsonl"]
+    P --> MR["statarb.models.run"]
+    RS --> MR
+    CB --> MR
+    CC --> MR
+    CP --> MR
+    CM["config/models.toml"] --> MR
+    PRR -->|trials| MR
+    MR --> MM["data/derived/models/<br/>one model per block and horizon"]
+    MR --> MRR["reports/phase-05/<br/>ml.md, charts and<br/>experiments.jsonl"]
 ```
 
-Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 to 4 store no table but Model B's residuals: every backtest, every cost input (spread estimates, volatilities, volumes), the risk models and every optimiser decision are recomputed from the phase 0, 1 and 4 tables, and only reports and experiment logs are written.
+Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 to 4 store no table but Model B's residuals: every backtest, every cost input (spread estimates, volatilities, volumes), the risk models and every optimiser decision are recomputed from the phase 0, 1 and 4 tables, and only reports and experiment logs are written. Phase 5 stores no table either: its features are recomputed in each run, and its models, written to `data/derived/models/` in LightGBM's text format with each file's SHA-256 in the experiment log, are rebuilt by retraining.
 
 **Where data lives.** The raw store, `data/raw/` or the absolute path in `STATARB_RAW`, holds the raw snapshots: kept, read-only once complete and backed up outside the repository. Worktrees set `STATARB_RAW` to the main checkout's `data/raw/`, so there is one store. `data/derived/` holds everything rebuilt from it and can be deleted. Nothing under `data/` is committed or versioned: snapshots are versioned by convention instead, by date and content digest pinned in config.
 
@@ -55,7 +64,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.config` | 0 | Loads `config/<name>.toml` with any config overlay merged over it (`STATARB_CONFIG_OVERLAY`, from phase 2), resolves configured paths against the repository root, and finds the raw store (`STATARB_RAW`). |
 | `statarb.io` | 0 | Deterministic parquet: fixed compression, rows sorted by key, written to a temporary file and renamed. |
 | `statarb.testing` | 0 | Helpers for tests that the package itself also provides. |
-| `statarb.testing.lookahead` | 0 | The look-ahead checks: perturb data after a cut-off, or (from phase 5) remove the rows after it, and assert outputs up to it are unchanged. |
+| `statarb.testing.lookahead` | 0 | The look-ahead checks: perturb data after a cut-off, or (from phase 5) remove the rows after it with `statarb.signals.tables`, and assert outputs up to it are unchanged. |
 | `statarb.testing.prices` | 3 | Simulated daily prices with a known spread, reversal and opening noise, for the spread estimators' tests and the phase 3 report. |
 | `statarb.data` | 0 | The data build. |
 | `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
@@ -81,7 +90,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report; from phase 4, with `--model pca`, Model B's residuals and their comparison with Model A's. |
 | `statarb.factors.sensitivity` | 1 | Runner: Model A at 60, 126 and 252 days compared on common rows; feeds nothing later. |
 | `statarb.signals` | 2 | Signals behind the `Signal` interface. |
-| `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, and the s-score's factor inputs. |
+| `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, the s-score's factor inputs, and (from phase 5) the long tables cut at a date as a run on that day would load them. |
 | `statarb.signals.base` | 2 | The `Signal` protocol, and the scores and hedge ratios a signal returns. |
 | `statarb.signals.reversal` | 2 | Cross-sectional reversal on residuals or on total returns, optionally scaled by volatility. |
 | `statarb.signals.sscore` | 2 | Avellaneda and Lee's s-score from a 60-day in-sample regression and an AR(1) fit. |
@@ -117,6 +126,8 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models.training` | 5 | Per block: the grid tried inside the training window with early stopping and scored by validation IC, the chosen point refitted on the whole window, and the walk-forward forecast. |
 | `statarb.models.ic` | 5 | The daily rank information coefficient and its mean, standard deviation and t-statistic. |
 | `statarb.models.forecast` | 5 | The walk-forward forecast as a `Signal` (`model`), with the run behind it, and the phase 3 calibration of any forecast to an expected move. |
+| `statarb.models.run` | 5 | Development runner: the tables cut at the development end, the walk-forward at each horizon and its saved models, every forecast through every rule at each book size with optimiser paths in worker processes, IC, importance, event response, the dispersion measurement, the judgement against the bar and the experiment log. |
+| `statarb.models.report` | 5 | The phase 5 development report and its charts: statistics only. |
 
 ## Seams
 
@@ -144,31 +155,32 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.backtest.run` | 2 | `returns`, `prices`, `residuals`, `universe` and `sectors` in `data/derived/processed/`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, and the experiment logs up to phase 2 for the trial count | `reports/phase-02/backtest.md` and its charts; appends to `reports/phase-02/experiments.jsonl` unless `--no-log` |
 | `statarb.backtest.cost_run` | 3 | the same tables as `statarb.backtest.run`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, and the experiment logs before phase 3 for the trial count and phase 2's break-even | `reports/phase-03/costs.md` and its charts; appends to `reports/phase-03/experiments.jsonl` unless `--no-log` |
 | `statarb.portfolio.run` | 4 | the same tables as `statarb.backtest.run` and `residuals_pca`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, `config/portfolio.toml`, and the experiment logs before phase 4 for the trial count and phase 3's no-trade zone | `reports/phase-04/portfolio.md` and its charts; appends to `reports/phase-04/experiments.jsonl` unless `--no-log`; with `--choose-risk-aversion` only prints the rule's table. `--workers` sets how many processes run the paths, six by default |
+| `statarb.models.run` | 5 | the same tables as `statarb.backtest.run`, cut at the development end, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, `config/portfolio.toml`, `config/models.toml`, and the experiment logs up to phase 4 for the trial count | one model per walk-forward block and horizon in `data/derived/models/`, `reports/phase-05/ml.md` and its charts; appends to `reports/phase-05/experiments.jsonl` unless `--no-log`. `--workers` sets how many processes run the optimiser paths, four by default |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths. |
+| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' among them). |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
 | `alpaca.toml` | `statarb.data.alpaca` | Withholding, repeated dividends and corrections to Alpaca's corporate actions, each with a primary source. |
-| `factors.toml` | `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run` | Model A's window, minimum history and sector factor, Model B's factor count, window and minimum history, the ETF of each GICS sector, the event flag's settings and the report's buckets, lags and calm year. |
+| `factors.toml` | `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run` | Model A's window, minimum history and sector factor, Model B's factor count, window and minimum history, the ETF of each GICS sector, the event flag's settings and the report's buckets, lags and calm year. |
 | `backtest.toml` | `statarb.backtest.config` | The first signal date, the placebo's seed and runs, the decile and volatility window, cost levels and borrow, fill timings and slippage, holding periods, the headline, the decile signals and the s-score's settings. Phase 3 reads its signals, portfolio and s-score settings unchanged. |
 | `costs.toml` | `statarb.backtest.config` | The phase 3 fill, book sizes and configurations; the assumed half-spread, its bracket and floor, and the estimators' window and size groups; the impact coefficients and windows; the commission schedules with the date and page they were read from; the borrow rates and hard-to-borrow proxy; the no-trade zone's calibration window, which phase 4's expected moves use too. |
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
-| `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid. |
+| `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers. |
 
 ## External libraries
 
 | Library | Licence | Enters through | Used for |
 |---|---|---|---|
-| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables` and `backtest.engine`; `portfolio.risk`, `portfolio.run`, `portfolio.report` | long-format tables, and the wide panels the backtest pivots them into |
-| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore`; `backtest.costs`, `backtest.spreads`, `signals.calibration`, `testing.prices`; `factors.pca`, `factors.compare`, `portfolio.optimiser`, `portfolio.risk`, `portfolio.run`, `portfolio.report` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
+| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables` and `backtest.engine`; `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | long-format tables, and the wide panels the backtest pivots them into |
+| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore`; `backtest.costs`, `backtest.spreads`, `signals.calibration`, `testing.prices`; `factors.pca`, `factors.compare`, `portfolio.optimiser`, `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
 | lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
-| matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report`; `statarb.backtest.report`, `statarb.backtest.cost_report`; `statarb.factors.compare`, `statarb.portfolio.report` | charts, saved with no date or software metadata |
+| matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report`; `statarb.backtest.report`, `statarb.backtest.cost_report`; `statarb.factors.compare`, `statarb.portfolio.report`, `statarb.models.report` | charts, saved with no date or software metadata |
 | SciPy 1.18.1 | BSD-3-Clause; its wheels bundle OpenBLAS (BSD-3-Clause), LAPACK (BSD-3-Clause-Open-MPI) and the GCC runtime library (GPL-3.0-or-later with the GCC Runtime Library Exception 3.1) | `statarb.factors.pca`; through cvxpy, the solver's sparse matrices | the top eigenvectors of the correlation matrix (`scipy.linalg.eigh`) |
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |

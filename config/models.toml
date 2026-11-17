@@ -61,3 +61,11 @@ num_threads = 4                  # fixed, with deterministic and force_row_wise,
 num_leaves = [15, 63]
 min_data_in_leaf = [500, 2000]
 validation_days = 252            # the last 252 signal dates of each training window, after the purge
+
+[runs]
+# What the development runner compares. Every forecast, the model's at each horizon and these
+# phase 3 variants, goes through every rule at both phase 4 book sizes, from the first date every
+# forecast has a calibrated move to the development end.
+variants = ["baseline", "three-day lookback"]          # [[variants]] names in config/costs.toml
+rules = ["decile sort", "no-trade zone", "optimiser"]  # phase 3's k = 5 sort and zone, phase 4's headline optimiser
+cost_multipliers = [1.0]         # the optimiser's κ; the first must be the phase 4 headline, and only it is run here

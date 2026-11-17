@@ -7,6 +7,7 @@ after the close of that date (docs/time-discipline.md).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -95,5 +96,30 @@ def sector_inputs(tables: Tables, sector_etfs: dict[str, str]) -> tuple[np.ndarr
     return y, market, sector, k
 
 
+def cut_after(tables: Mapping[str, pd.DataFrame], last: pd.Timestamp) -> dict[str, pd.DataFrame]:
+    """The long tables as a run on `last` would load them: no row dated after it.
+
+    Tables with a `date` column keep the rows on or before `last`; the sectors
+    table keeps the spells that started by then, open-ended where they end
+    later, since a later end is not yet known.
+    """
+    cut = pd.Timestamp(last)
+    out = {}
+    for name, frame in tables.items():
+        if DATE in frame.columns:
+            out[name] = frame.loc[frame[DATE] <= cut].reset_index(drop=True)
+        elif {"valid_from", "valid_to"} <= set(frame.columns):
+            kept = frame.loc[frame["valid_from"] <= cut]
+            out[name] = kept.assign(valid_to=kept["valid_to"].where(kept["valid_to"] <= cut)).reset_index(drop=True)
+        else:
+            raise ValueError(f"table {name!r} has neither a date column nor validity dates")
+    return out
+
+
+def load_long(processed: Path) -> dict[str, pd.DataFrame]:
+    """The stored tables of `TABLES`, in long format."""
+    return {name: read_parquet(processed / f"{name}.parquet") for name in TABLES}
+
+
 def load_tables(processed: Path, market: str, sector_etfs: dict[str, str]) -> Tables:
-    return build_tables(*(read_parquet(processed / f"{name}.parquet") for name in TABLES), market, sector_etfs)
+    return build_tables(*load_long(processed).values(), market, sector_etfs)

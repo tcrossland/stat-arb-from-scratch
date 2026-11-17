@@ -64,9 +64,10 @@ class ForecastSignal:
         if self.horizon not in self.config.target.horizons:
             raise ValueError(f"horizon {self.horizon} is not in [target] horizons {self.config.target.horizons}")
 
-    def run(self, tables: Tables) -> ForecastRun:
+    def run(self, tables: Tables, features: FeatureSet | None = None) -> ForecastRun:
+        """The walk-forward on `tables`; `features`, if given, must be `build_features` of the same tables."""
         cfg = self.config
-        fs = build_features(tables, cfg.features)
+        fs = build_features(tables, cfg.features) if features is None else features
         y = fs.values_of(ranked_target(tables.residual.to_numpy(), tables.members, self.horizon))
         folds = walk_forward(tables.dates, pd.Timestamp(cfg.period.first_test), tables.dates[-1], cfg.walk_forward.block_days, self.horizon)
         backend = make_backend(cfg.model.library, cfg.lightgbm)
