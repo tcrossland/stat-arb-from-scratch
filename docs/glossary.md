@@ -18,7 +18,11 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | *m* | number of PCA components in Model B | 4 |
 | λ | risk aversion: the weight on risk in the optimiser's objective | 4 |
 | κ | cost multiplier: the weight on trading cost in the optimiser's objective | 4 |
-| *τ* | turnover budget: the cap on a day's turnover, as a share of gross | 4 |
+| *τ* | turnover budget: the cap on a day's turnover, as a share of capital | 4 |
+| *h* | the optimiser's horizon: the days of expected move and of risk it weighs | 4 |
+| μ | the expected move over *h* days, in return units | 4 |
+| Σ | the daily covariance of stock returns from a risk model | 4 |
+| *w*, *w*₀ | the book's weights as fractions of capital: chosen, and as known at the decision | 4 |
 
 ## Data and universe
 
@@ -208,11 +212,25 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Cost multiplier (κ).** The weight on trading cost in the optimiser's objective.
 
-**Turnover budget (*τ*).** A hard cap on the sum of absolute weight changes in a day, as a share of gross.
+**Turnover budget (*τ*).** A hard cap on the sum of absolute weight changes in a day, as a share of capital. Forced exits of names leaving the universe sit outside it.
 
-**Minimum trade size.** After solving, trades smaller than this many dollars are dropped.
+**Horizon (*h*).** The days over which the optimiser weighs the expected move and the risk: the baseline's holding period, 5. The daily covariance is multiplied by it.
 
-**Hold the previous book.** If the solver fails or the problem is infeasible on a day, the previous day's book is kept and the day logged. Constraints are never relaxed automatically.
+**Risk model.** The daily covariance of stock returns as factor loadings times a factor covariance times their transpose, plus a diagonal of specific variances. Model A risk takes the market and sector factors and Model A's betas; Model B risk the eigenportfolios, whose covariance is the diagonal of their eigenvalues, and Model B's betas. Specific variance is each stock's residual variance over the trailing 60 days.
+
+**Factor exposure.** The book's weights times its loadings on a factor, per dollar of capital. The optimiser keeps each within 1% of capital; the report measures it against Model A's factors for every path.
+
+**Ex-ante volatility.** The book's annualised volatility as its risk model predicts it on the day of the decision.
+
+**Minimum trade size.** After solving, trades smaller than this many dollars are dropped, a target below it is set to zero so small positions close, and closes always go through. It stands in for the commission's per-order minimum, which is not convex.
+
+**Re-solve.** After the minimum trade filter, the names it changed are fixed where it left them and the problem is solved again over the rest, so the others restore neutrality; up to five rounds, keeping the last filtered book if a re-solve fails.
+
+**Idle day.** A decision day with nothing to optimise: no expected move or risk model yet, or fewer than two eligible names. Counted apart from failed days.
+
+**Risk aversion rule.** How the headline λ was set before any backtest return was seen: the largest candidate at which the book deploys at least 70% of its capital on average over the first 60 days with an expected move, at both book sizes.
+
+**Hold the previous book.** If the solver returns anything but an optimal solution on a day, the previous fill's holdings are kept, nothing trades, and the day is logged as failed. Constraints are never relaxed automatically.
 
 ## ML signal
 

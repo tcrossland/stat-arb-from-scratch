@@ -61,6 +61,11 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 3 | No-trade decision for a fill at *s* | the expected move decided at *t*, the drifted holdings at *s*, and costs estimated at the close before *s* | that fill time |
 | 4 | Model B's eigenportfolios, betas and eigenvalues used on *t* | the returns of the stocks with a complete window over the 252 trading days ending *t* − 1 for the eigenportfolios; each stock's returns over the same window, at least 189 of them, for its betas | after the close of *t* − 1 |
 | 4 | Model B's fitted return and residual on *t* | those betas and weights, and the stocks' returns on *t* | after the close of *t* |
+| 4 | Model A risk on *t* | SPY's and the sector factors' returns over the 252 trading days ending *t*; Model A's betas on *t*, from its window ending *t* − 1; residual variance over the 60 trading days ending *t* | after the close of *t* |
+| 4 | Model B risk on *t* | the eigenvalues and betas of Model B's row on *t*; residual variance over the 60 trading days ending *t* | after the close of *t* |
+| 4 | Expected move over *h* = 5 days on *t* | phase 3's calibration with *k* = 5: signal-outcome pairs whose outcome is known by the close of *t* | after the close of *t* |
+| 4 | Optimiser's book decided at *t* | the expected move and risk on *t*, universe membership on *t*, the previous fill's holdings drifted to the close of *t*, and the cost inputs a fill at *t* + 1 is charged with, all from the close of *t* or before | after the close of *t*, filled at the open of *t* + 1 |
+| 4 | Held book on a failed day | the holdings after the previous fill | as the day's decision |
 
 Notes for phase 0:
 
@@ -92,3 +97,7 @@ Notes for phase 3:
 Notes for phase 4:
 
 - Model B's window ends the day before *t*, like Model A's, so the eigenvectors, the eigenportfolio weights and the betas used for the residual on *t* are fixed before *t*'s returns arrive. The eigenportfolios' returns on *t* use those weights and *t*'s returns; a stock with no return on *t* counts as zero in them. `tests/test_pca.py` perturbs returns after a cut-off and requires every residual, beta and eigenvalue up to it to be unchanged.
+- The risk models use rows up to and including *t*, the day of the decision, which the rules allow: everything on *t* is known at its close, and the book trades at the open of *t* + 1.
+- The optimiser's cost term uses the same inputs the cost model charges a fill at *t* + 1 with, all from the close of *t*, so the price it optimises against is the price it is charged before the fill price itself, which only counts shares for the commission.
+- If the solver returns anything but an optimal solution, the previous fill's holdings are kept: the book drifts, and nothing is traded at *t* + 1. Constraints are never relaxed. Days with fewer than two eligible names, or before the risk model or the expected move exists, are idle, not failed.
+- `tests/test_optimiser.py` perturbs prices, volumes, returns and residuals after a cut-off and requires the risk models, the expected moves, the optimiser's holdings and its decision notes up to the cut-off to be unchanged; `tests/contract/test_portfolio.py` checks the decile sort and the optimiser the same way.

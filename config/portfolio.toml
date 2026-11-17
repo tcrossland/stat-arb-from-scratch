@@ -1,0 +1,52 @@
+# Phase 4 portfolio construction settings. See docs/phases/phase-04/brief.md.
+# Loaded by statarb.portfolio.config.load_portfolio_config, which rejects unknown or missing keys.
+# Signals come from config/backtest.toml and the cost model from config/costs.toml, unchanged.
+# To try another setting, put it in a config overlay (STATARB_CONFIG_OVERLAY), never edit this file.
+
+[run]
+fill = "open_t1"                        # decided at the close of t, filled at the open of t+1
+book_sizes = [500_000, 5_000_000]       # capital, US dollars; each must be a phase 3 book size
+variant = "baseline"                    # a [[variants]] name in config/costs.toml: the signal optimised
+comparison = "three-day lookback"       # another variant, run through the headline optimiser only
+
+[optimiser]
+horizon_days = 5                # the expected move and the risk over the baseline's holding period
+position_cap = 0.02             # |w_i| as a fraction of capital
+adv_cap = 0.01                  # the position in dollars as a fraction of 20-day average dollar volume
+gross_cap = 1.0                 # gross exposure at most this many times the capital
+dollar_tolerance = 0.0          # |sum of weights|; 0 is exactly dollar neutral
+factor_tolerance = 0.01         # |exposure| to each risk factor, as a fraction of capital
+solver = "CLARABEL"             # pinned in pyproject.toml with cvxpy
+# 1e-7 of capital is $0.50 of objective or constraint slack on a $5m book. Objective values are of
+# order 1e-5, near Clarabel's default absolute gap of 1e-8, where many days stop at reduced accuracy.
+solver_options = { tol_gap_abs = 1e-7, tol_gap_rel = 1e-7, tol_feas = 1e-7, max_iter = 200 }
+re_solve_rounds = 5             # most re-solves a day after the minimum-trade filter, in the re-solve variant
+
+[risk]
+model = "etf"                   # the headline risk model: "etf" (Model A) or "pca" (Model B)
+factor_window_days = 252        # factor covariance from rows up to and including t
+factor_min_observations = 189
+specific_window_days = 60       # residual variance from rows up to and including t
+specific_min_observations = 40
+
+[risk_aversion_rule]
+# The headline lambda is set before any backtest return is seen: the largest candidate at which the
+# book deploys at least min_capital of its capital on average, at every book size, over the first
+# `days` decision days with an expected move, with Model A risk and the headline cost.
+# `uv run python -m statarb.portfolio.run --choose-risk-aversion` applies it.
+candidates = [1.0, 3.0, 10.0, 30.0, 100.0]
+days = 60
+min_capital = 0.70
+
+[headline]
+risk_aversion = 30.0            # from [risk_aversion_rule], applied on 2026-11-16 before any backtest return
+cost_multiplier = 1.0           # prices costs as the cost model measures them
+min_trade_dollars = 1_000.0     # a $1 commission minimum is 10 bps of a $1,000 order
+re_solve = false                # the filter alone, as the brief drafted it
+
+[sweep]
+risk_aversions = [10.0, 30.0, 100.0]            # the headline and its neighbours in the rule's candidates
+cost_multipliers = [0.5, 1.0, 2.0]
+turnover_budgets = [0.10, 0.25, 0.50, 1.00]     # fraction of capital traded a day, with the cost multiplier at 1
+min_trade_dollars = [0.0, 1_000.0, 5_000.0]
+re_solve_min_trade_dollars = [1_000.0, 5_000.0]
