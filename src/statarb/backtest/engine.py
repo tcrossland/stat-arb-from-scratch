@@ -17,7 +17,9 @@ means "keep the drifted holding" (used by threshold rules that hold until a
 close signal); a name with no bar at s cannot trade and keeps its holding. A
 held name with no return at s is booked at zero and counted. An optional
 policy sees each grid time's targets after the delay and may leave names
-untraded (phase 3's no-trade zone); without one nothing changes.
+untraded (phase 3's no-trade zone) or set them itself (phase 4's optimiser),
+and may return a note for the day, which the result keeps in order; without
+one nothing changes.
 
 Weights are dollars per unit of capital, with no leverage built in. Results are
 reported per dollar of gross exposure (metrics.daily_returns), so the scale of
@@ -27,7 +29,7 @@ the targets does not matter.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 import numpy as np
 import pandas as pd
@@ -96,17 +98,20 @@ class EngineResult:
     gross_held: np.ndarray   # sum |holdings filled at s-1|, per day
     gross_after: np.ndarray  # sum |holdings filled at s|, per day
     missing_returns: int     # held name-days with no return (booked as zero)
+    notes: tuple[Any, ...] = ()   # the policy's notes, one per grid time it returned one
 
 
 
 class Policy(Protocol):
     """Adjusts the targets due at grid time s; NaN means keep the drifted holding.
 
-    `drifted` is the holdings filled at s-1 moved with prices to s, and `target`
-    the row of targets due at s. A policy keeps no state between calls.
+    `held` is the holdings filled at s-1, `drifted` the same moved with prices
+    to s, and `target` the row of targets due at s. It returns the targets and
+    a note for the day, or None. A policy keeps no state between calls: the
+    notes are returned, not kept.
     """
 
-    def __call__(self, s: int, drifted: np.ndarray, target: np.ndarray) -> np.ndarray: ...
+    def __call__(self, s: int, held: np.ndarray, drifted: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -120,6 +125,7 @@ class Step:
     holdings: np.ndarray     # after the fill
     trades: np.ndarray       # holdings minus drifted
     missing: int             # held names with no return (booked as zero)
+    note: Any = None         # the policy's note, if any
 
 
 def step(
@@ -138,10 +144,11 @@ def step(
     r = np.where(known, returns, 0.0)
     owed = rate * np.minimum(held, 0.0)
     drifted = held * (1.0 + r)
+    note = None
     if policy is not None:
-        target = policy(s, drifted, target)
+        target, note = policy(s, held, drifted, target)
     new = np.where(np.isfinite(target) & tradable, target, drifted)
-    return Step(r, held * r, -owed, drifted, new, new - drifted, missing)
+    return Step(r, held * r, -owed, drifted, new, new - drifted, missing, note)
 
 
 def daily_rates(borrow_annual: float | np.ndarray, shape: tuple[int, int]) -> np.ndarray:
@@ -169,7 +176,7 @@ def run(
     `borrow_annual` is a flat rate or a (dates x tickers) panel of rates, where
     row s applies to the shorts held from s-1 to s. `policy`, if given, sees the
     targets due at each grid time and may replace entries with NaN to leave a
-    name untraded.
+    name untraded; its notes are kept in the result.
     """
     T, N = grid.returns.shape
     if targets.shape != (T, N):
@@ -184,6 +191,7 @@ def run(
     gross_held = np.zeros(T)
     held = np.zeros(N)
     missing = 0
+    notes = []
     for s in range(T):
         out = step(s, held, grid.returns[s], grid.tradable[s], shifted[s], rates[s], policy)
         pnl[s] = out.pnl
@@ -192,6 +200,8 @@ def run(
         trades[s] = out.trades
         holdings[s] = out.holdings
         missing += out.missing
+        if out.note is not None:
+            notes.append(out.note)
         held = out.holdings
     return EngineResult(
         dates=grid.dates,
@@ -203,6 +213,7 @@ def run(
         gross_held=gross_held,
         gross_after=np.abs(holdings).sum(axis=1),
         missing_returns=missing,
+        notes=tuple(notes),
     )
 
 

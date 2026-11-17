@@ -309,10 +309,10 @@ class NoTradeZone:
     decision_price: np.ndarray     # grid-aligned: row s holds the close before s
     delay: int
 
-    def __call__(self, s: int, drifted: np.ndarray, target: np.ndarray) -> np.ndarray:
+    def __call__(self, s: int, held: np.ndarray, drifted: np.ndarray, target: np.ndarray) -> tuple[np.ndarray, None]:
         decided = s - self.delay
         if decided < 0:
-            return target
+            return target, None
         mu = np.nan_to_num(self.expected_move[decided])
         want = np.isfinite(target)
         tgt = np.where(want, target, drifted)
@@ -323,4 +323,4 @@ class NoTradeZone:
         exiting = (tgt == 0) | (np.sign(tgt) * np.sign(drifted) < 0)
         resizing = ~opening & ~exiting & (delta != 0)
         skip = (opening & (mu * np.sign(tgt) < 2 * unit)) | (resizing & (mu * np.sign(delta) < unit))
-        return np.where(want & skip, np.nan, target)
+        return np.where(want & skip, np.nan, target), None
