@@ -111,6 +111,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models` | 5 | The ML signal: features, the walk-forward splitter, the model behind its interface, and the phase 5 runners. |
 | `statarb.models.config` | 5 | `config/models.toml` as frozen dataclasses that reject unknown or missing keys, with the development end before the holdout. |
 | `statarb.models.features` | 5 | The fifteen features and the ranked target, recomputed from the signal tables; a feature across stocks counts only the stocks known on the day. |
+| `statarb.models.splitter` | 5 | Walk-forward blocks with a purge and an embargo, the inner validation split for tuning, and the rows whose target is known by the development end. |
 
 ## Seams
 
