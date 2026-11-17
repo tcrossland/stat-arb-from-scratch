@@ -15,10 +15,11 @@ from statarb.backtest import cost_run
 from statarb.backtest.cost_run import headline
 from statarb.backtest.trials import path_id
 from statarb.models import report
-from statarb.models.config import ModelsConfig
+from statarb.models.config import RULES, ModelsConfig
 from statarb.models.run import (
     DECILE,
     OPTIMISER,
+    PARTIAL,
     ZONE,
     Outcome,
     build_development_lab,
@@ -64,7 +65,7 @@ def test_every_path_runs_over_the_same_dates(developed) -> None:
     assert first == {res.plab.lab.tables.dates[res.fc.start]} and len(last) == 1
     assert res.fc.start > 150                                    # the model's forecast starts with the first block, then calibrates
     forecasts = [*s.mc.runs.variants, *(model_forecast(H) for H in s.mc.target.horizons)]
-    expected = {(f, r, b) for f in forecasts for r in (DECILE, ZONE, OPTIMISER) for b in s.pc.run.book_sizes}
+    expected = {(f, r, b) for f in forecasts for r in RULES for b in s.pc.run.book_sizes}
     assert {(o.forecast, o.rule, o.book) for o in res.outcomes} == expected
 
 
@@ -88,7 +89,7 @@ def test_log_has_a_walk_forward_entry_per_horizon_then_every_path(developed) -> 
         assert (model is None) == (e["config"]["signal"] != "model")
         if model is not None:
             assert model["walk_forward"] == ids[model["horizon"]]
-    assert "runs" not in entries[0]["config"]["models"]          # what to run changes no model
+    assert "runs" not in entries[0]["config"]["models"] and "partial_adjustment" not in entries[0]["config"]["models"]   # neither changes a model
 
 
 def test_model_paths_are_new_trials_and_variant_paths_are_not(developed) -> None:
@@ -121,6 +122,20 @@ def test_the_run_reproduces(developed, tmp_path) -> None:
         assert o.metrics == p.metrics
 
 
+def test_partial_adjustment_matches_the_optimisers_turnover_over_the_whole_grid(developed) -> None:
+    s, _, res = developed
+    optimiser = {(o.forecast, o.book): o.metrics["turnover"] for o in res.outcomes if o.rule == OPTIMISER and o.kappa == s.mc.runs.cost_multipliers[0]}
+    partial = [o for o in res.outcomes if o.rule == PARTIAL]
+    assert len(partial) == len(optimiser)
+    for o in partial:
+        m = o.metrics
+        tried = {float(r): x for r, x in m["turnover_by_rate"].items()}
+        assert len(tried) == round(1 / s.mc.partial_adjustment.rate_step)
+        target = optimiser[(o.forecast, o.book)]
+        assert m["matched_turnover"] == target and m["turnover"] == tried[m["trade_rate"]]
+        assert abs(m["turnover"] - target) == min(abs(x - target) for x in tried.values())
+
+
 def test_dispersion_defect_is_measured_on_a_late_starter(developed) -> None:
     _, _, res = developed
     # Every synthetic stock's residuals start on day 20: before it, only the whole-axis definition has a value.
@@ -146,6 +161,17 @@ def test_refuses_tables_past_the_development_end() -> None:
     with pytest.raises(ValueError, match="holdout"):
         check_development(tables, s.mc.period)
     assert build_development_lab(_long(), s).lab.tables.dates[-1] == MARKET_CAL[DEV_END]
+
+
+def test_refuses_partial_adjustment_without_the_optimiser() -> None:
+    raw = dataclasses.asdict(_settings().mc)
+    raw["runs"]["rules"] = ["decile sort", "partial adjustment"]
+    with pytest.raises(ValueError, match="optimiser must run too"):
+        ModelsConfig.from_dict(raw)
+    raw["runs"]["rules"] = list(RULES)
+    raw["partial_adjustment"]["rate_step"] = 0.3
+    with pytest.raises(ValueError, match="divide 1"):
+        ModelsConfig.from_dict(raw)
 
 
 def test_refuses_a_development_end_in_the_holdout() -> None:
@@ -182,7 +208,7 @@ def test_variant_paths_share_their_phase_3_and_4_ids() -> None:
 
     def ours(rule, kappa=None):
         o = Outcome("baseline", rule, kappa, book, pd.DataFrame(), {})
-        return path_id(path_record(o, s.cfg, s.ccfg, s.pc, variant, {}, first, last))
+        return path_id(path_record(o, s.cfg, s.ccfg, s.pc, s.mc, variant, {}, first, last))
 
     zone_3 = cost_run.record(SimpleNamespace(variant=variant, name="baseline", book=book, setting=head, no_trade=True), lab)
     assert ours(ZONE) == path_id(zone_3)
@@ -193,4 +219,5 @@ def test_variant_paths_share_their_phase_3_and_4_ids() -> None:
         phase_4 = portfolio_run.record(SimpleNamespace(spec=spec, book=book, setting=head), plab)
         assert ours(rule, 1.0 if rule == OPTIMISER else None) == path_id(phase_4)
     model = Outcome(model_forecast(1), DECILE, None, book, pd.DataFrame(), {})
-    assert path_id(path_record(model, s.cfg, s.ccfg, s.pc, variant, {1: "wf"}, first, last)) != ours(DECILE)
+    assert path_id(path_record(model, s.cfg, s.ccfg, s.pc, s.mc, variant, {1: "wf"}, first, last)) != ours(DECILE)
+    assert ours(PARTIAL) not in {ours(DECILE), ours(ZONE), ours(OPTIMISER, 1.0)}          # partial adjustment is a new trial

@@ -18,9 +18,10 @@ from statarb.models.holdout import (
     check_development_models,
     check_ready,
     check_reproduced,
+    development_rates,
     run_holdout,
 )
-from statarb.models.run import log_entries, run_development
+from statarb.models.run import PARTIAL, log_entries, run_development
 from statarb.signals.tables import cut_after
 
 STATE = {"git_commit": "c0ffee", "git_dirty": False, "config_overlay": None, "price_source": "synthetic", "price_snapshot": "2026-01-01"}
@@ -49,7 +50,7 @@ def logged(tmp_path_factory):
 def read(logged):
     s, models, _, log = logged
     walks = check_ready(log, s, STATE, repeat=False)
-    return run_holdout(s, market_long(), models, walks, trial_sharpes(log))
+    return run_holdout(s, market_long(), models, walks, trial_sharpes(log), development_rates(log))
 
 
 # --- the read ----------------------------------------------------------------------------------------
@@ -71,6 +72,16 @@ def test_holdout_blocks_restart_on_its_first_day(read) -> None:
         assert metrics["blocks"][0]["test_first"] == str(MARKET_CAL[DEV_END + 1].date())
     for run in read.fc.runs.values():
         assert not any(f.fold.test_start <= DEV_END < f.fold.test_stop - 1 for f in run.walk.fits)
+
+
+def test_partial_adjustment_keeps_its_development_rate(logged, read) -> None:
+    _, _, res, log = logged
+    rates = development_rates(log)
+    assert rates == {(o.forecast, o.book): o.metrics["trade_rate"] for o in res.outcomes if o.rule == PARTIAL}
+    held = [o for o in read.outcomes if o.rule == PARTIAL]
+    assert len(held) == len(rates)
+    for o in held:
+        assert o.metrics["trade_rate"] == rates[(o.forecast, o.book)] and o.metrics["turnover_by_rate"] == {}
 
 
 def test_development_forecasts_do_not_change_when_the_holdout_is_loaded(logged, read) -> None:
@@ -99,7 +110,7 @@ def test_repeat_reproduces_the_logged_read(logged, read) -> None:
     s, models, _, log = logged
     full = log + _holdout_log(read)
     walks = check_ready(full, s, STATE, repeat=True)
-    again = run_holdout(s, market_long(), models, walks, trial_sharpes(log))
+    again = run_holdout(s, market_long(), models, walks, trial_sharpes(log), development_rates(full))
     check_reproduced(full, again.entries)
     tampered = [dict(e, metrics={**e["metrics"], "sharpe": 9.0}) if e["config"]["kind"] == "holdout path" else e for e in full]
     with pytest.raises(ValueError, match="differs from the logged"):
@@ -163,4 +174,4 @@ def test_refuses_tables_that_end_before_the_holdout_does(logged, tmp_path) -> No
     s, _, _, log = logged
     walks = check_ready(log, s, STATE, repeat=False)
     with pytest.raises(ValueError, match="before the holdout's last day"):
-        run_holdout(s, cut_after(market_long(), MARKET_CAL[-10]), tmp_path, walks, {})
+        run_holdout(s, cut_after(market_long(), MARKET_CAL[-10]), tmp_path, walks, {}, development_rates(log))

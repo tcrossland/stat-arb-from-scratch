@@ -67,5 +67,13 @@ validation_days = 252            # the last 252 signal dates of each training wi
 # phase 3 variants, goes through every rule at both phase 4 book sizes, from the first date every
 # forecast has a calibrated move to the development end.
 variants = ["baseline", "three-day lookback"]          # [[variants]] names in config/costs.toml
-rules = ["decile sort", "no-trade zone", "optimiser"]  # phase 3's k = 5 sort and zone, phase 4's headline optimiser
+rules = ["decile sort", "no-trade zone", "optimiser", "partial adjustment"]  # phase 3's k = 5 sort and zone, phase 4's headline optimiser, record 0006
 cost_multipliers = [1.0]         # the optimiser's κ; the first must be the phase 4 headline, and only it is run here
+
+[partial_adjustment]
+# Decision record 0006. Each day the book trades theta of the way to the aim portfolio, the headline
+# optimiser's solution with no cost term. For each forecast and book size, theta is the value on this
+# grid whose mean capital traded per day over the development dates is closest to that forecast's path
+# through the optimiser at the first cost multiplier: a rule on positions, read before any return.
+# The holdout uses the development theta. Like [runs], this changes no model.
+rate_step = 0.01                 # the grid 0.01, 0.02, ..., 1.00

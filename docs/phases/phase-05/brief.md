@@ -46,19 +46,19 @@ Each has its own row in [`docs/lessons.md`](../../lessons.md).
 - **The model library sits behind a small interface, selected in config:** fit with early stopping, predict, feature contributions, gain, and save returning the file's SHA-256. LightGBM is the one implementation; a second library would be a config change whose models are checked byte for byte, and comparing one is a set of new trials for a later phase.
 - **Runners stop at the development end and refuse holdout dates,** as above, with a test for each refusal.
 
-### The multi-period variant is deferred
+### Partial adjustment enters after the development run
 
-The phase 4 backlog walk moved the multi-period optimiser into this brief: costs exceeded the gross return in all but three of phase 4's 34 optimiser pairs, and every step towards trading less helped. It is not built in this phase, for two reasons:
+The phase 4 backlog walk moved the multi-period optimiser into this brief, and this revision first deferred it: its trials would raise the bar the model must clear, and an aim that blends forecasts at several horizons would mix the forecast with the trading rule. After the development run, and before the holdout read, [decision record 0006](../../decisions/0006-partial-adjustment-in-phase-5.md) brings in the part that needs neither: a partial-adjustment rule with one forecast per path.
 
-- **Its trials would count against the bar the model must clear.** Every partial-adjustment path is a new position path, and the deflated-Sharpe bar rises with the number of trials. Built here, it would raise the bar the model's forecast is judged against, in the phase whose question is whether that forecast adds anything.
-- **A result would mix the forecast with the trading rule.** The aim portfolio blends forecasts at several horizons, weighted by how fast each decays, so the variant needs the model's forecasts at several horizons and their decay rates, which are what this phase builds and measures. Run together, a gain or a loss could not be put down to the forecast or to the rule. Comparing the forecast and the baseline through the same one-period optimiser keeps the rule fixed.
-
-It goes back to [`docs/backlog.md`](../../backlog.md) as "Multi-period optimiser", triggered by this phase's review, which carries it to a later chapter or deletes it.
+- **The rule.** Each day it trades a fraction θ of the way from the book as known at the decision to an aim portfolio *w*\*, the headline optimiser's solution with no cost term (κ = 0), then applies the $1,000 minimum-trade filter. It is a fourth entry in `[runs] rules`.
+- **θ by a rule on positions.** For each forecast and book size, θ is the grid value whose mean capital traded per day over the development dates is closest to that forecast's one-period optimiser path, so the two rules are compared at matched turnover. The rule reads no return; its grid points are not trials, and the holdout uses the development θ.
+- **No blend.** Every forecast, the model's at each horizon and both phase 3 variants, runs through it alone, so no path mixes forecasts and each forecast is compared within each rule.
+- **Trials.** Four new paths, one per forecast, added to the development run's count before the bar is recomputed. The development run is repeated with the rule; the walk-forward and its model files do not change.
 
 ### Backlog items whose trigger is the phase 5 review
 
 - **A second price source for cross-checking** and **an independent short-term reversal series.** Both need a new data source and a decision record, and neither is phase 5's work. The review walks each one.
-- **Multi-period optimiser**, back in the backlog from this brief, as above. The review carries it to a later chapter or deletes it, with the forecasts' measured decay in hand.
+- **Multi-period optimiser**, narrowed by decision record 0006 to the aim that blends forecasts at several horizons. The review carries it to a later chapter or deletes it, with the forecasts' measured decay and the partial-adjustment result in hand.
 
 ### What earlier phases leave to this phase
 
@@ -92,7 +92,7 @@ Start with ten to fifteen features. Add more only when the validation process is
 
 - **A signal like any other.** The walk-forward forecast enters through the `Signal` interface of phase 2, so it passes the same look-ahead contract and reaches the cost model and the optimiser by the same route as the baseline.
 - **Calibration to return units.** The model predicts a ranked or z-scored target, so its output has no units. Before it enters the phase 4 optimiser, convert it to expected residual return with the same trailing calibration used for the baseline signal. Without this, the trade-off against risk and cost in the objective is arbitrary.
-- **Multi-period trading, from the phase 4 backlog walk.** The phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book, and its costs still exceed its gross return after the turnover controls ([phase 4 review](../phase-04/review.md#backlog-walk)). Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each signal decays. Implement the partial-adjustment rule as a variant behind the same portfolio interface and compare it with the one-period optimiser at matched turnover. Deferred to the backlog; [the revision](#the-multi-period-variant-is-deferred) says why.
+- **Multi-period trading, from the phase 4 backlog walk.** The phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book, and its costs still exceed its gross return after the turnover controls ([phase 4 review](../phase-04/review.md#backlog-walk)). Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each signal decays. Implement the partial-adjustment rule as a variant behind the same portfolio interface and compare it with the one-period optimiser at matched turnover. Built with one forecast per path, after the development run; [the revision](#partial-adjustment-enters-after-the-development-run) says how, and the multi-horizon blend stays in the backlog.
 - **Optimiser parameters.** The phase 4 headline: λ = 30, κ = 1, no turnover budget, a $1,000 minimum trade. Any retuning for the model forecast happens inside each walk-forward training window, is logged in the experiment log like any other configuration, and never touches the holdout year; this phase does none ([the revision](#carried-from-phase-4)).
 
 ## Deliverables
@@ -104,7 +104,7 @@ Start with ten to fifteen features. Add more only when the validation process is
    - IC of each model against the baseline and the three-day lookback, with t-statistics, by year and by decay day 1 to 5
    - feature importance (gain and out-of-sample SHAP), with a short interpretation, and reversal after event moves
    - how far a dispersion over the whole stock axis would have been from the correct one: days that differ, median and largest difference
-   - every forecast through the decile sort, the no-trade zone and the optimiser at both book sizes, with net return by year, against the bar
+   - every forecast through the decile sort, the no-trade zone, the optimiser and partial adjustment at both book sizes, with net return by year, against the bar, and each forecast's θ and its turnover beside the optimiser's
 5. Tests: splitter produces no train-test overlap after purging; both sides of the purge and the embargo; features at *t* do not change when data after *t* is perturbed or when later rows are removed; the forecast calibration on day *t* does not change when data after *t* is perturbed; byte-identical models; each runner's refusals; both runners end to end on the fixture.
 6. LightGBM 4.7.0 in `pyproject.toml`, its licence read from its own metadata and stated in the commit. On macOS its wheel needs the OpenMP runtime (`brew install libomp`), for the tests too: the system-runtime exception in `CLAUDE.md`, recorded in its Stack section and the install step in `README.md` in the same commit.
 7. Reference docs: the features (recomputed, not stored) and the model files in `docs/data-model.md`; a walk-forward diagram (training, purge, test and embargo blocks along a time axis) and the phase 5 rows in `docs/time-discipline.md`; the new modules, runners, config and library in `docs/architecture.md`; both runners in `docs/requirements.md`; step 6 of `docs/reproduce.md`.
@@ -126,3 +126,4 @@ Start with ten to fifteen features. Add more only when the validation process is
 - Does the higher IC survive costs once the optimiser controls turnover?
 - How much did the final holdout year differ from the walk-forward average?
 - Does the model beat the three-day lookback through the optimiser in more years than it loses?
+- At matched turnover, does partial adjustment keep more of the gross than the one-period optimiser, and for which forecasts?

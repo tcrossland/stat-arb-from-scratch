@@ -26,6 +26,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | μ | the expected move over *h* days, in return units | 4 |
 | Σ | the daily covariance of stock returns from a risk model | 4 |
 | *w*, *w*₀ | the book's weights as fractions of capital: chosen, and as known at the decision | 4 |
+| *w*\* | the aim portfolio: the book partial adjustment trades towards | 5 |
+| θ | trade rate: the fraction of the gap to the aim portfolio traded each day | 5 |
 
 ## Data and universe
 
@@ -129,7 +131,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Portfolio rule.** What turns signals and universe membership into the book to hold: the decile sort with *k* slices, or the s-score's thresholds. It decides how often the book trades; the signal does not. A second seam beside the signal (`PortfolioRule`).
 
-**Policy.** What the engine applies at each fill time *s* to the targets due then: it sees the holdings of the last fill, the same moved with prices to *s*, and the targets, and returns the targets to trade to with a note for the day. The no-trade zone (phase 3) and the optimiser and decile sort (phase 4) are policies. Another seam (`Policy`).
+**Policy.** What the engine applies at each fill time *s* to the targets due then: it sees the holdings of the last fill, the same moved with prices to *s*, and the targets, and returns the targets to trade to with a note for the day. The no-trade zone (phase 3), the optimiser and decile sort (phase 4) and partial adjustment (phase 5) are policies. Another seam (`Policy`).
 
 **Threshold rule.** The s-score's portfolio rule: a position opens when the s-score crosses an opening threshold and is held unchanged until it crosses a closing one, the stock leaves the universe or its fit stops qualifying. Each position is hedged with its sector ETF and SPY at the betas of the day it opened.
 
@@ -220,6 +222,12 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Risk aversion (λ).** The weight on risk in the optimiser's objective.
 
 **Cost multiplier (κ).** The weight on trading cost in the optimiser's objective.
+
+**Partial adjustment.** A rule that trades a fixed fraction θ of the way each day from the book held to an aim portfolio *w*\*, after Gârleanu and Pedersen (2013). In phase 5 the aim is the optimiser's solution with no cost term, and θ is set for each forecast and book size so the path's turnover matches the optimiser's (decision record 0006).
+
+**Aim portfolio (*w*\*).** The book partial adjustment trades towards: what the optimiser would hold if trading were free.
+
+**Trade rate (θ).** The fraction of the gap to the aim portfolio partial adjustment trades each day.
 
 **Turnover budget (*τ*).** A hard cap on the sum of absolute weight changes in a day, as a share of capital. Forced exits of names leaving the universe sit outside it.
 

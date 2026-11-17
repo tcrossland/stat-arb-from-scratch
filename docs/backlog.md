@@ -32,8 +32,8 @@ Deferred work, variants and open questions that do not belong in the current pha
 ### Multi-period optimiser
 
 - **Trigger:** phase 5 review.
-- **Why:** the phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book, and in all but three of its 34 pairs of path and book size costs exceeded the gross return. Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each decays. The phase 4 review moved it into the phase 5 brief, which deferred it: its trials would count against the deflated-Sharpe bar the model's forecast must clear, and it needs forecasts at several horizons, so a result in the same phase would mix the forecast with the trading rule.
-- **Action:** at the phase 5 review, with the forecasts' decay by horizon measured, carry it to a later chapter, with the trade rate set by a rule on positions before any return is seen and the comparison with the one-period optimiser at matched turnover, or delete it if the decay leaves nothing to weight.
+- **Why:** Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each decays. [Decision record 0006](decisions/0006-partial-adjustment-in-phase-5.md) built the part that needs one forecast per path in phase 5: partial adjustment towards the cost-free optimiser's book, at a trade rate matched to the one-period optimiser's turnover. What remains is the blend: an aim built from forecasts at several horizons, which would mix forecasts within a path.
+- **Action:** at the phase 5 review, with the forecasts' decay by horizon and the partial-adjustment result measured, carry the blend to a later chapter, or delete it if the decay leaves nothing to weight or partial adjustment with one forecast kept nothing over the one-period optimiser.
 
 ### Signals that count members before their first residual
 

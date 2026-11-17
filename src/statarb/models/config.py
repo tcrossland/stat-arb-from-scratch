@@ -70,7 +70,7 @@ class Tuning:
     validation_days: int
 
 
-RULES = ("decile sort", "no-trade zone", "optimiser")
+RULES = ("decile sort", "no-trade zone", "optimiser", "partial adjustment")
 
 
 @dataclass(frozen=True)
@@ -78,6 +78,11 @@ class Runs:
     variants: tuple[str, ...]    # [[variants]] names in config/costs.toml
     rules: tuple[str, ...]       # names in RULES
     cost_multipliers: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class PartialAdjustment:
+    rate_step: float             # the trade-rate grid: rate_step, 2 rate_step, ..., 1
 
 
 @dataclass(frozen=True)
@@ -90,6 +95,7 @@ class ModelsConfig:
     lightgbm: LightGbm
     tuning: Tuning
     runs: Runs
+    partial_adjustment: PartialAdjustment
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ModelsConfig:
@@ -123,6 +129,11 @@ class ModelsConfig:
             raise ValueError(f"runs: rules must be distinct names in {RULES}")
         if len(set(r.variants)) != len(r.variants) or not r.cost_multipliers or min(r.cost_multipliers) <= 0:
             raise ValueError("runs: variants must be distinct and cost multipliers positive")
+        if "partial adjustment" in r.rules and "optimiser" not in r.rules:
+            raise ValueError("runs: partial adjustment matches the optimiser's turnover, so the optimiser must run too")
+        step = self.partial_adjustment.rate_step
+        if not 0 < step <= 1 or abs(round(1 / step) * step - 1) > 1e-9:
+            raise ValueError("partial_adjustment: rate_step must be in (0, 1] and divide 1")
 
 
 def load_models_config(root: Path | None = None) -> ModelsConfig:

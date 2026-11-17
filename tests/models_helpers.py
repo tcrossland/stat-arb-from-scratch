@@ -41,4 +41,5 @@ def market_config(first_test: int = 150, block_days: int = 40):
         walk_forward=dataclasses.replace(CFG.walk_forward, block_days=block_days),
         tuning=TUNING,
         lightgbm=LIGHTGBM,
+        partial_adjustment=dataclasses.replace(CFG.partial_adjustment, rate_step=0.1),
     )

@@ -7,7 +7,8 @@ but it is one rule tried once, so book sizes are not separate trials; the same
 holds for an optimiser setting (phase 4), whose `optimiser` key holds every
 setting that moves its positions, and for the residuals a signal is built from
 (`residuals`, null for Model A, so earlier entries keep their ids), and for a
-phase 5 model forecast the walk-forward that made it (`model`). The count
+phase 5 model forecast the walk-forward that made it (`model`), and for a
+partial-adjustment path its trade-rate rule (`partial_adjustment`). The count
 reads the experiment logs of the repository (`reports/phase-NN/experiments.jsonl`)
 up to a given phase, so a configuration tried in any phase counts against the
 best result of every later one, a later phase's trials leave an earlier
@@ -32,7 +33,7 @@ from statarb.backtest.experiments import config_id, read
 # a phase 2 entry and a phase 3 entry for the same path share an id.
 PATH_KEYS = (
     "signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade", "residuals", "optimiser",
-    "model",
+    "model", "partial_adjustment",
 )
 
 

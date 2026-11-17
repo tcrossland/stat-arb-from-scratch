@@ -18,7 +18,7 @@ from statarb.backtest.metrics import by_year
 from statarb.factors.report import fmt, save_figure, table
 from statarb.models.config import RULES
 
-DECILE, ZONE, OPTIMISER = RULES
+DECILE, ZONE, OPTIMISER, PARTIAL = RULES
 
 
 def _mean_t(frame: pd.DataFrame, column: str) -> pd.DataFrame:
@@ -88,6 +88,27 @@ def _result_row(o) -> list:
         fmt(m["gross_sharpe"], 2), pct(m["ann_cost"]), pct(m["ann_borrow"]), fmt(m["turnover"], 3), fmt(m["mean_exposure"], 2),
         f"{m['median_names']:.0f}", pct(m["max_drawdown"]),
     ]
+
+
+def _partial_table(outcomes, kappa: float) -> pd.DataFrame | None:
+    """Each forecast's partial-adjustment path beside its optimiser path at cost multiplier `kappa`, whose turnover it matched."""
+    optimiser = {(o.forecast, o.book): o.metrics for o in outcomes if o.rule == OPTIMISER and o.kappa == kappa}
+    rows = [
+        [
+            money(o.book), o.forecast, fmt(o.metrics["trade_rate"], 2), fmt(q["turnover"], 3), fmt(o.metrics["turnover"], 3),
+            pct(q["ann_gross_return"]), pct(o.metrics["ann_gross_return"]), pct(q["ann_cost"]), pct(o.metrics["ann_cost"]),
+            fmt(q["sharpe"], 2), fmt(o.metrics["sharpe"], 2),
+        ]
+        for o in outcomes
+        if o.rule == PARTIAL and (q := optimiser.get((o.forecast, o.book))) is not None
+    ]
+    if not rows:
+        return None
+    cols = [
+        "book", "forecast", "θ", "turnover, optimiser", "turnover, partial", "gross %, optimiser", "gross %, partial",
+        "cost %, optimiser", "cost %, partial", "net Sharpe, optimiser", "net Sharpe, partial",
+    ]
+    return pd.DataFrame(rows, columns=cols)
 
 
 def _walk_summary(fc, dates) -> pd.DataFrame:
@@ -260,6 +281,19 @@ def write_report(res, out_dir: Path) -> str:
     if any(o.rule == OPTIMISER for o in res.outcomes):
         lines += ["![Cumulative net return, optimiser](cumulative_net.png)", ""]
         _cumulative_chart(res.outcomes, books, OPTIMISER, out_dir / "cumulative_net.png")
+    partial = _partial_table(res.outcomes, mc.runs.cost_multipliers[0])
+    if partial is not None:
+        lines += [
+            "### Partial adjustment at matched turnover",
+            "",
+            "Decision record 0006. Each day the book trades θ of the way to the optimiser's solution with no cost term. For each",
+            f"forecast and book size, θ is the value on the grid {mc.partial_adjustment.rate_step:g} to 1 whose mean capital traded per day over",
+            "these dates is closest to that forecast's optimiser path: it was chosen from turnovers only, before any return of the",
+            "path was read. Gross and cost are % of capital a year.",
+            "",
+            table(partial),
+            "",
+        ]
 
     lines += ["### Net return by year", "", "% of capital.", ""]
     for book in books:
@@ -276,8 +310,9 @@ def write_report(res, out_dir: Path) -> str:
         "## Against the bar",
         "",
         "The phase 3 bar: a t-statistic of at least 2 and a deflated-Sharpe probability of at least 0.95, against every position",
-        "path in this repository's logs from phase 2 on and each model path here. A variant's paths repeat earlier paths over",
-        "fewer dates and add no trial; book sizes are not separate trials.",
+        "path in this repository's logs from phase 2 on and each new path here. A variant's paths through the decile sort, the",
+        "zone and the optimiser repeat earlier paths over fewer dates and add no trial; each model path and each path through",
+        "partial adjustment is new. Book sizes are not separate trials.",
         "",
         _verdict_table(v),
         "",
@@ -359,6 +394,17 @@ def write_holdout_report(res, out_dir: Path) -> str:
     if any(o.rule == OPTIMISER for o in res.outcomes):
         lines += ["![Cumulative net return in the holdout, optimiser](holdout_cumulative_net.png)", ""]
         _cumulative_chart(res.outcomes, books, OPTIMISER, out_dir / "holdout_cumulative_net.png")
+    partial = _partial_table(res.outcomes, mc.runs.cost_multipliers[0])
+    if partial is not None:
+        lines += [
+            "### Partial adjustment",
+            "",
+            "Each forecast's θ is the one the development run chose, so its turnover here need not match the optimiser's.",
+            "Gross and cost are % of capital a year.",
+            "",
+            table(partial),
+            "",
+        ]
     lines += [
         "## Against the bar",
         "",

@@ -20,8 +20,11 @@ Every forecast, the model's at each horizon and each variant in `[runs]`, is
 calibrated to the optimiser's expected move by phase 3's trailing calibration
 and run through each rule in `[runs]` at both phase 4 book sizes. All paths
 start flat on the first date every forecast has a calibrated move, so they are
-compared over the same dates. Optimiser paths are independent and run in worker
-processes; results do not depend on how many.
+compared over the same dates. Partial adjustment (decision record 0006) sets
+its trade rate for each forecast and book size to match the turnover of that
+forecast's optimiser path at the first cost multiplier, so it runs after them.
+Optimiser and partial-adjustment paths are independent of each other within
+each stage and run in worker processes; results do not depend on how many.
 """
 
 from __future__ import annotations
@@ -58,6 +61,7 @@ from statarb.backtest.cost_run import (
     variants,
 )
 from statarb.backtest.engine import TRADING_DAYS, EngineResult
+from statarb.backtest.engine import run as run_engine
 from statarb.backtest.metrics import deflated_sharpe
 from statarb.backtest.sweep import Variant, targets
 from statarb.backtest.trials import path_id, repository_trials
@@ -76,6 +80,13 @@ from statarb.models.forecast import ForecastRun, ForecastSignal
 from statarb.models.ic import daily_rank_ic, ic_summary
 from statarb.models.training import model_name
 from statarb.portfolio.config import PortfolioConfig, load_portfolio_config
+from statarb.portfolio.partial import (
+    PartialAdjustment,
+    RateChoice,
+    aims,
+    choose_rate,
+    rate_grid,
+)
 from statarb.portfolio.paths import PathSpec, optimiser_specs
 from statarb.portfolio.risk import etf_risk
 from statarb.portfolio.run import PortfolioLab, exposures, solver_stats
@@ -91,7 +102,7 @@ from statarb.signals.tables import (
 
 PHASE = "phase-05"
 PRIOR = "phase-04"
-DECILE, ZONE, OPTIMISER = RULES
+DECILE, ZONE, OPTIMISER, PARTIAL = RULES
 MODEL_SIGNAL = "model"
 IC_HORIZONS = (1, 3, 5)
 DECAY_DAYS = 5
@@ -296,6 +307,20 @@ def optimiser_spec(pc: PortfolioConfig, forecast: str, kappa: float) -> PathSpec
     return replace(head, name=f"{forecast}, {rule_label(OPTIMISER, kappa)}", variant=forecast, cost_multiplier=kappa)
 
 
+def aim_spec(pc: PortfolioConfig, forecast: str) -> PathSpec:
+    """Partial adjustment's aim portfolio: the headline optimiser with no cost term (decision record 0006)."""
+    return replace(optimiser_spec(pc, forecast, 0.0), name=f"{forecast}, {PARTIAL}")
+
+
+def rate_metrics(choice: RateChoice) -> dict:
+    """The trade rate and how it was chosen, for the log: only turnovers, never a return."""
+    return {
+        "trade_rate": choice.rate,
+        "matched_turnover": choice.target,
+        "turnover_by_rate": {f"{r:g}": x for r, x in choice.tried.items()},
+    }
+
+
 _PLAB: PortfolioLab | None = None
 
 
@@ -315,31 +340,94 @@ def _run_optimiser(job: tuple[str, float, float]) -> tuple[Outcome, float]:
     return _outcome(_PLAB, forecast, OPTIMISER, kappa, book, result), time.perf_counter() - began
 
 
-def run_paths(plab: PortfolioLab, fc: Forecasts, mc: ModelsConfig, root: Path | None, workers: int, progress: Progress | None = None) -> list[Outcome]:
+def partial_path(plab: PortfolioLab, forecast: str, book: float, grid: tuple[float, ...], target: float | None, rate: float | None) -> Outcome:
+    """A forecast through partial adjustment at a book size.
+
+    In development `target` is the turnover to match and the rate is chosen by
+    `choose_rate`, which reads each candidate's turnover only. On the holdout
+    `rate` is the development's, used as it is.
+    """
+    lab = plab.lab
+    opt = plab.optimiser(aim_spec(plab.pc, forecast), book)
+    engine_grid = getattr(lab.grids, plab.kind)
+    aim = aims(opt, len(engine_grid.dates))
+    results: dict[float, EngineResult] = {}
+
+    def path_at(r: float) -> EngineResult:
+        if r not in results:
+            results[r] = run_engine(np.full(engine_grid.returns.shape, np.nan), engine_grid, plab.delay, lab.borrow_rate[: len(engine_grid.dates)], PartialAdjustment(opt, aim, r))
+        return results[r]
+
+    def turnover_at(r: float) -> float:
+        _, m = evaluate(lab, path_at(r), plab.head_setting(), book, plab.kind)
+        return m["turnover"]
+
+    if rate is None:
+        if target is None:
+            raise ValueError("partial adjustment needs a turnover to match or a trade rate")
+        choice = choose_rate(turnover_at, target, grid)
+    else:
+        choice = RateChoice(rate, float("nan") if target is None else target, turnover_at(rate), {})
+    out = _outcome(plab, forecast, PARTIAL, None, book, path_at(choice.rate))
+    out.metrics.update(rate_metrics(choice))
+    return out
+
+
+def _run_partial(job: tuple[str, float, tuple[float, ...], float | None, float | None]) -> tuple[Outcome, float]:
+    assert _PLAB is not None
+    began = time.perf_counter()
+    return partial_path(_PLAB, *job), time.perf_counter() - began
+
+
+def _collect(done, n: int, say: Progress) -> list[Outcome]:
+    out = []
+    for i, (o, seconds) in enumerate(done):
+        out.append(o)
+        say(f"  [{i + 1}/{n}] {o.name}, ${o.book:,.0f}: {seconds:.0f}s")
+    return out
+
+
+def _stage(plab: PortfolioLab, fc: Forecasts, root: Path | None, workers: int, fn, jobs: list, label: str, say: Progress) -> list[Outcome]:
+    """Run `fn` over `jobs`, in this process or in spawned workers that rebuild the lab under `root`."""
+    global _PLAB
+    say(f"{label}: {len(jobs)} on {max(1, min(workers, len(jobs)))} worker(s)")
+    if not jobs:
+        return []
+    if workers <= 1 or root is None:
+        _PLAB = plab
+        return _collect((fn(job) for job in jobs), len(jobs), say)
+    init = (str(root), fc.move, fc.start, str(plab.lab.tables.dates[-1].date()))
+    with ProcessPoolExecutor(min(workers, len(jobs)), mp_context=get_context("spawn"), initializer=_init_worker, initargs=init) as ex:
+        return _collect(ex.map(fn, jobs), len(jobs), say)
+
+
+def run_paths(
+    plab: PortfolioLab, fc: Forecasts, mc: ModelsConfig, root: Path | None, workers: int,
+    progress: Progress | None = None, rates: Mapping[tuple[str, float], float] | None = None,
+) -> list[Outcome]:
     """Every forecast through every rule at every book size, from `fc.start`, in a fixed order.
 
-    With `workers` above 1 and a `root`, each worker process rebuilds the lab
-    from the processed tables under `root`, cut at the last date of `plab`'s.
+    Partial adjustment runs after the optimiser: in development each of its
+    paths matches the turnover of the same forecast's optimiser path at the
+    first cost multiplier; given `rates`, (forecast, book) -> trade rate, it
+    uses those instead (the holdout). With `workers` above 1 and a `root`, each
+    worker process rebuilds the lab from the processed tables under `root`, cut
+    at the last date of `plab`'s.
     """
-    global _PLAB
     say = progress or (lambda line: None)
     plab = starting_at(plab, fc.start, fc.move)
     rules = mc.runs.rules
+    books = plab.pc.run.book_sizes
     outcomes = [o for f in fc.names for o in rule_paths(plab, fc, f, rules)]
-    jobs = [(f, k, b) for f in fc.names for k in mc.runs.cost_multipliers for b in plab.pc.run.book_sizes] if OPTIMISER in rules else []
-    say(f"optimiser paths: {len(jobs)} on {max(1, min(workers, len(jobs)))} worker(s)")
-    if workers <= 1 or root is None:
-        _PLAB = plab
-        for i, job in enumerate(jobs):
-            out, seconds = _run_optimiser(job)
-            outcomes.append(out)
-            say(f"  [{i + 1}/{len(jobs)}] {out.name}, ${job[2]:,.0f}: {seconds:.0f}s")
-    elif jobs:
-        init = (str(root), fc.move, fc.start, str(plab.lab.tables.dates[-1].date()))
-        with ProcessPoolExecutor(min(workers, len(jobs)), mp_context=get_context("spawn"), initializer=_init_worker, initargs=init) as ex:
-            for i, (out, seconds) in enumerate(ex.map(_run_optimiser, jobs)):
-                outcomes.append(out)
-                say(f"  [{i + 1}/{len(jobs)}] {out.name}, ${jobs[i][2]:,.0f}: {seconds:.0f}s")
+    if OPTIMISER in rules:
+        jobs = [(f, k, b) for f in fc.names for k in mc.runs.cost_multipliers for b in books]
+        outcomes += _stage(plab, fc, root, workers, _run_optimiser, jobs, "optimiser paths", say)
+    if PARTIAL in rules:
+        head = mc.runs.cost_multipliers[0]
+        matched = {(o.forecast, o.book): o.metrics["turnover"] for o in outcomes if o.rule == OPTIMISER and o.kappa == head}
+        grid = rate_grid(mc.partial_adjustment.rate_step)
+        jobs = [(f, b, grid, matched[(f, b)], None if rates is None else rates[(f, b)]) for f in fc.names for b in books]
+        outcomes += _stage(plab, fc, root, workers, _run_partial, jobs, "partial-adjustment paths", say)
     order = {f: k for k, f in enumerate(fc.names)}
     rank = {r: k for k, r in enumerate(RULES)}
     return sorted(outcomes, key=lambda o: (o.book, order[o.forecast], rank[o.rule], o.kappa or 0.0))
@@ -494,8 +582,8 @@ def _plain(value):
 
 
 def walk_forward_config(mc: ModelsConfig, names: list[str], horizon: int, development_end: str) -> dict:
-    """What defines a horizon's walk-forward; `[runs]` is left out, since it changes no model."""
-    models = {k: v for k, v in asdict(mc).items() if k != "runs"}
+    """What defines a horizon's walk-forward; `[runs]` and `[partial_adjustment]` are left out, since they change no model."""
+    models = {k: v for k, v in asdict(mc).items() if k not in ("runs", "partial_adjustment")}
     return {"kind": "walk-forward", "horizon": horizon, "models": _plain(models), "features": list(names), "development_end": development_end}
 
 
@@ -521,7 +609,8 @@ def walk_forward_metrics(run: ForecastRun, dates: pd.DatetimeIndex, saved: Mappi
 
 
 def path_record(
-    o: Outcome, cfg: BacktestConfig, ccfg: CostConfig, pc: PortfolioConfig, variant: Variant, wf_ids: Mapping[int, str], first: pd.Timestamp, last: pd.Timestamp
+    o: Outcome, cfg: BacktestConfig, ccfg: CostConfig, pc: PortfolioConfig, mc: ModelsConfig, variant: Variant, wf_ids: Mapping[int, str],
+    first: pd.Timestamp, last: pd.Timestamp,
 ) -> dict:
     """The configuration part of a path's log entry, which its config_id hashes.
 
@@ -538,9 +627,9 @@ def path_record(
         model = {"horizon": horizon, "walk_forward": wf_ids[horizon]}
     else:
         signal, model = asdict(variant), None
-    optimiser = None
-    if o.rule == OPTIMISER:
-        spec = optimiser_spec(pc, o.forecast, o.kappa)
+    optimiser = partial = None
+    if o.rule in (OPTIMISER, PARTIAL):
+        spec = optimiser_spec(pc, o.forecast, o.kappa) if o.rule == OPTIMISER else aim_spec(pc, o.forecast)
         optimiser = {
             "risk_model": spec.risk,
             "risk_aversion": spec.risk_aversion,
@@ -551,6 +640,8 @@ def path_record(
             **asdict(pc.optimiser),
             "risk": {k: v for k, v in asdict(pc.risk).items() if k != "model"},
         }
+    if o.rule == PARTIAL:
+        partial = {"rate_step": mc.partial_adjustment.rate_step, "matches": rule_label(OPTIMISER, mc.runs.cost_multipliers[0])}
     zone = o.rule == ZONE
     return {
         "kind": "path",
@@ -567,11 +658,12 @@ def path_record(
         "commission": asdict(ccfg.schedule(ccfg.commission.headline)),
         "borrow": asdict(ccfg.borrow),
         "no_trade": asdict(ccfg.no_trade) if zone else None,
-        "decile": cfg.portfolio.decile if o.rule != OPTIMISER else None,
+        "decile": cfg.portfolio.decile if o.rule in (DECILE, ZONE) else None,
         "start": cfg.period.start.isoformat(),
         "residuals": None,
         "optimiser": optimiser,
         "model": model,
+        "partial_adjustment": partial,
         "calibration_horizon_days": pc.optimiser.horizon_days,
         "first_date": str(first.date()),
         "last_date": str(last.date()),
@@ -597,7 +689,7 @@ def records(outcomes: list[Outcome], plab: PortfolioLab, fc: Forecasts, mc: Mode
     wf = {H: (walk_forward_config(mc, fc.features.names, H, end), walk_forward_metrics(run, dates, saved, H)) for H, run in fc.runs.items()}
     ids = {H: experiments.config_id(c) for H, (c, _) in wf.items()}
     base_cfg = lab.cfg
-    paths = [path_record(o, base_cfg, lab.ccfg, plab.pc, rule_variant(plab, o.forecast), ids, dates[fc.start], dates[-1]) for o in outcomes]
+    paths = [path_record(o, base_cfg, lab.ccfg, plab.pc, mc, rule_variant(plab, o.forecast), ids, dates[fc.start], dates[-1]) for o in outcomes]
     return Logged(wf, paths)
 
 
