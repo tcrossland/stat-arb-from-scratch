@@ -66,6 +66,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 4 | Expected move over *h* = 5 days on *t* | phase 3's calibration with *k* = 5: signal-outcome pairs whose outcome is known by the close of *t* | after the close of *t* |
 | 4 | Optimiser's book decided at *t* | the expected move and risk on *t*, universe membership on *t*, the previous fill's holdings drifted to the close of *t*, and the cost inputs a fill at *t* + 1 is charged with, all from the close of *t* or before | after the close of *t*, filled at the open of *t* + 1 |
 | 4 | Held book on a failed day | the holdings after the previous fill | as the day's decision |
+| 5 | Features on *t* | residuals, total returns, highs, lows, closes and split-consistent volumes over the trailing windows ending *t*; SPY's returns over the 20 days ending *t*; for dispersion, the members on *t* with a residual on or before *t*; the sector on *t* | after the close of *t* |
+| 5 | Ranked target of horizon *H* on *t* | the residuals of *t* + 1 to *t* + *H*, ranked across the members on *t* | after the close of *t* + *H*: a training label, never a decision input on *t* |
 
 Notes for phase 0:
 
@@ -98,6 +100,11 @@ Notes for phase 4:
 
 - Model B's window ends the day before *t*, like Model A's, so the eigenvectors, the eigenportfolio weights and the betas used for the residual on *t* are fixed before *t*'s returns arrive. The eigenportfolios' returns on *t* use those weights and *t*'s returns; a stock with no return on *t* counts as zero in them. `tests/test_pca.py` perturbs returns after a cut-off and requires every residual, beta and eigenvalue up to it to be unchanged.
 - The risk models use rows up to and including *t*, the day of the decision, which the rules allow: everything on *t* is known at its close, and the book trades at the open of *t* + 1.
+
+Notes for phase 5:
+
+- The stock axis of the signal tables is every stock with a residual anywhere in the loaded tables. A value across stocks over that axis would depend on whether a stock has a residual later: a member before its first residual would count on *t* in a backtest and not in a live run on *t*. Dispersion counts only the members with a residual on or before *t*, and the sector codes come from `[features] sectors` of `config/models.toml`, not from the sectors present in the table.
+- Perturbing values after a cut-off cannot see a value that depends on whether a later row exists, since it leaves the rows alone. `tests/test_features.py` therefore also builds the features from tables cut at a date (`statarb.testing.lookahead.truncate_after`), with a member whose residuals start after the cut, and requires every row up to the cut to equal the one built from the whole tables. It keeps a dispersion over the whole stock axis as a known defect and checks that the perturbation test passes it and the row-removal test fails it.
 - The optimiser's cost term uses the same inputs the cost model charges a fill at *t* + 1 with, all from the close of *t*, so the price it optimises against is the price it is charged before the fill price itself, which only counts shares for the commission.
 - If the solver returns anything but an optimal solution, the previous fill's holdings are kept: the book drifts, and nothing is traded at *t* + 1. Constraints are never relaxed. Days with fewer than two eligible names, or before the risk model or the expected move exists, are idle, not failed.
 - `tests/test_optimiser.py` perturbs prices, volumes, returns, residuals and Model A's market and sector betas after a cut-off and requires the risk models, the expected moves, the optimiser's holdings and its decision notes up to the cut-off to be unchanged; `tests/contract/test_portfolio.py` checks the decile sort and the optimiser the same way.

@@ -115,6 +115,10 @@ Model B's residual returns (phase 4): each candidate's daily return less what th
 | `beta_j` | double | beta to eigenportfolio *j* over the window ending the trading day before `date` |
 | `eigenvalue_j` | double | eigenvalue *j* of that window's correlation matrix: the variance of eigenportfolio *j*'s returns over the window, the same for every stock on `date` |
 
+## Features
+
+Phase 5's features are recomputed from `returns`, `prices`, `residuals`, `universe` and `sectors` in each run and never stored (`statarb.models.features`, whose docstring defines each). One row per universe member and day with a residual, keyed by `date` and `ticker`, with fifteen columns: `res_sum_1`, `res_sum_3`, `res_sum_5`, `res_sum_20`, `res_vol_20`, `res_vol_60`, `volume_ratio`, `range`, `from_high_20`, `from_low_20`, `from_high_60`, `from_low_60`, `market_vol`, `dispersion` and `sector`, the last an integer code by position in `[features] sectors` of `config/models.toml`.
+
 ## Joins
 
 - `prices`, `actions`, `returns`, `residuals` and `residuals_pca` join on `date` and `ticker`. Never rely on index alignment.

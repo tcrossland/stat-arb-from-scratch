@@ -249,6 +249,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Ranked target.** The residual move to be predicted, ranked across stocks each day.
 
+**Row-removal test.** The look-ahead check that builds a value from tables cut at a date and from the whole tables, and requires the two to agree up to the cut. It catches a value that depends on whether a later row exists, which perturbing later values cannot.
+
+**Stock axis.** The columns of the signal tables: every stock with a residual anywhere in the loaded tables. A value across stocks counts only those known on the day.
+
 **Information coefficient (IC).** The daily rank correlation between a forecast and the realised outcome across stocks.
 
 **Walk-forward, purge, embargo.** Validation that trains on the past and tests on the next block of time, dropping training rows whose outcomes overlap the test block (purge) and a gap after it (embargo).

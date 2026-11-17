@@ -41,3 +41,4 @@ The episodes are told in the phase reviews and decision records: what happened, 
 | A tuning parameter's headline value is set by a rule on ex-ante properties, before any return is seen | phase 4 | | [`src/statarb/portfolio/config.py`](../src/statarb/portfolio/config.py) (the headline λ must be one of the rule's candidates), `statarb.portfolio.run --choose-risk-aversion` |
 | Model B's residuals up to a day do not change with data after it | phase 4 | | [`tests/test_pca.py`](../tests/test_pca.py) |
 | Every portfolio construction passes the same contract tests | phase 4 | | [`tests/contract/test_portfolio.py`](../tests/contract/test_portfolio.py) |
+| The look-ahead test also removes the rows after a cut-off: perturbing values cannot see a value that depends on whether a later row exists | phase 5 | | [`tests/test_features.py`](../tests/test_features.py) |

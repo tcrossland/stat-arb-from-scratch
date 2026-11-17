@@ -55,7 +55,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.config` | 0 | Loads `config/<name>.toml` with any config overlay merged over it (`STATARB_CONFIG_OVERLAY`, from phase 2), resolves configured paths against the repository root, and finds the raw store (`STATARB_RAW`). |
 | `statarb.io` | 0 | Deterministic parquet: fixed compression, rows sorted by key, written to a temporary file and renamed. |
 | `statarb.testing` | 0 | Helpers for tests that the package itself also provides. |
-| `statarb.testing.lookahead` | 0 | The look-ahead check: perturb data after a cut-off, assert outputs up to it are unchanged. |
+| `statarb.testing.lookahead` | 0 | The look-ahead checks: perturb data after a cut-off, or (from phase 5) remove the rows after it, and assert outputs up to it are unchanged. |
 | `statarb.testing.prices` | 3 | Simulated daily prices with a known spread, reversal and opening noise, for the spread estimators' tests and the phase 3 report. |
 | `statarb.data` | 0 | The data build. |
 | `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
@@ -108,6 +108,9 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.portfolio.paths` | 4 | The phase 4 position paths: the decile sorts, the headline optimiser and each setting that differs from it in one respect. |
 | `statarb.portfolio.report` | 4 | The phase 4 report and its charts: statistics only. |
 | `statarb.portfolio.run` | 4 | Runner: every path at each book size in worker processes, the headline risk aversion's rule, the judgement against the bar and the experiment log. |
+| `statarb.models` | 5 | The ML signal: features, the walk-forward splitter, the model behind its interface, and the phase 5 runners. |
+| `statarb.models.config` | 5 | `config/models.toml` as frozen dataclasses that reject unknown or missing keys, with the development end before the holdout. |
+| `statarb.models.features` | 5 | The fifteen features and the ranked target, recomputed from the signal tables; a feature across stocks counts only the stocks known on the day. |
 
 ## Seams
 
@@ -148,6 +151,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `backtest.toml` | `statarb.backtest.config` | The first signal date, the placebo's seed and runs, the decile and volatility window, cost levels and borrow, fill timings and slippage, holding periods, the headline, the decile signals and the s-score's settings. Phase 3 reads its signals, portfolio and s-score settings unchanged. |
 | `costs.toml` | `statarb.backtest.config` | The phase 3 fill, book sizes and configurations; the assumed half-spread, its bracket and floor, and the estimators' window and size groups; the impact coefficients and windows; the commission schedules with the date and page they were read from; the borrow rates and hard-to-borrow proxy; the no-trade zone's calibration window, which phase 4's expected moves use too. |
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
+| `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, LightGBM's fixed settings and the tuning grid. |
 
 ## External libraries
 
