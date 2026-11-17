@@ -12,6 +12,7 @@ requires-python = "==3.14.*"
 dependencies = [
     "clarabel==0.11.1",             # the optimiser's solver, pinned with cvxpy for exact reproduction, phase 4
     "cvxpy==1.9.3",                 # the optimiser, phase 4
+    "exchange-calendars>=4.13.3",   # New York sessions for the daily job, phase 6
     "lightgbm==4.7.0",              # the model, pinned exactly so a rebuilt model is byte-identical, phase 5
     "lxml>=6.1.3",                  # parsing the constituent list, phase 0
     "matplotlib>=3.11.2",           # report charts, phase 1

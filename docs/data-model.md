@@ -207,6 +207,73 @@ Phase 5's features are recomputed from `returns`, `prices`, `residuals`, `univer
 
 `data/derived/models/` (`[paths] models` of `config/data.toml`), git-ignored and rebuilt by retraining: one LightGBM model per walk-forward block and target horizon, in LightGBM's native text format, never pickle. A file is named `h{H}_train_{first}_{last}.txt` by its horizon and the first and last dates of its training rows, so each is unique; a rerun overwrites a file with identical bytes. Its SHA-256 is logged with the walk-forward entry that trained it (below), which is how a rebuilt model is checked against the logged one.
 
+## Paper trading
+
+Phase 6's forward run (`statarb.paper`) stores its record under `data/paper/` (`[paths] paper` of `config/data.toml`), git-ignored, and its notes and reports under `reports/phase-06/`, committed. Nothing here exists until the forward run's decision record sets `[frozen]` and `[run]` in `config/paper.toml` and the daily job first runs.
+
+### `data/paper/ledger/date=YYYY-MM-DD.parquet`
+
+One file per ledger day *d*, immutable (`statarb.paper.ledger`): one engine step on the open grid (`statarb.backtest.engine.step`), plus the decision made at the close of *d*. One row for every ticker on the day's grid, stocks and hedge ETFs, sorted by ticker. Weights are per unit of capital; dollars are weight times `book_size`. The ledger is the only record of the run, so every run copies it to the backup repository (`data/paper/backup/` below). A rerun of a day rewrites only that day's file, with the same bytes.
+
+| column | type | meaning |
+|---|---|---|
+| `date` | timestamp[ns] | the ledger day *d* |
+| `ticker` | string | stock or hedge ETF on the day's grid |
+| `held` | double | weight filled at the open of the previous ledger day, carried in |
+| `ret` | double | total return from the previous open to the open of *d*; zero where the name had none, counted in `missing_returns` |
+| `pnl` | double | `held` × `ret` |
+| `borrow` | double | borrow cost of a short `held` over the day, per unit of capital |
+| `drifted` | double | `held` × (1 + `ret`): the carried weight at the open of *d* before trading |
+| `trade` | double | weight traded at the open of *d*: `holding` − `drifted` |
+| `holding` | double | weight after the fill at the open of *d*, from the decision recorded on the previous ledger day |
+| `target` | double | the decile rule's decision at the close of *d*, filled at the next open; NaN for the optimiser, and NaN keeps the drifted holding |
+| `expected_move` | double | the calibrated move behind the decision: what the no-trade zone checks `target` against, or the optimiser solves on, at the next open |
+| `missing_returns` | int64 | held names with no return on *d*; the same on every row |
+| `cost_spread` | double | half-spread cost of the day's trades, per unit of capital; the same on every row |
+| `cost_impact` | double | market impact cost of the day's trades, per unit of capital; the same on every row |
+| `cost_commission` | double | commission on the day's trades, per unit of capital; the same on every row |
+| `slope` | double | the calibration slope behind the decision at the close of *d*, by the frozen slope rule; the same on every row |
+| `status` | string | the optimiser's solver status for the fill at the open of *d* (`optimal`, or why it failed and held the book); empty for the other rules; the same on every row |
+| `book_size` | double | capital in US dollars; the same on every row |
+| `config_hash` | string | `[frozen] config_hash`, the hash of the frozen record the day ran under; the same on every row |
+| `git_commit` | string | the commit the day ran at; the same on every row |
+| `git_dirty` | bool | whether the working tree had changes, the daily notes and drift reports aside; the same on every row |
+| `snapshot` | string | download date of the price snapshot the day was built from; the same on every row |
+
+Consecutive days chain exactly: `held` on *d* is the previous day's `holding` for the same ticker, bit for bit, and a ticker new to the grid enters with `held` = 0. A ticker held on one day cannot be missing from the next day's grid. `statarb.paper.ledger.check` verifies the chain, that the first day holds nothing, and that every day carries the same `book_size` and `config_hash`.
+
+### `data/paper/processed/<snapshot>/`
+
+The tables the daily job reads, built from one daily price snapshot by the phase 0 build and the Model A residual build: `candidates`, `prices`, `actions`, `returns`, `universe`, `sectors` and `residuals`, with the same columns as above, plus the build's `data_quality.md`, `failed.json` (each ticker the snapshot gave no bars for, a failed download or a failed rule, with the reason; the daily note lists them) and a `COMPLETE` marker written last. The directory is built under a temporary name and renamed into place, and one without the marker is never read. Only the snapshot in use is kept; the snapshot itself stays in the raw store.
+
+### `data/paper/reference/<snapshot>/`
+
+The reproduction check's reference tables (`statarb.paper.reproduce`): the same tables as `data/paper/processed/<snapshot>/`, built by the same code from the snapshot pinned in `[source]` of `config/data.toml`. Every daily run with a session due rebuilds them, rebuilds the frozen path on them and requires the metrics of its log entry exactly. They are rebuilt rather than reused, so a change to the data or residual build is checked too. The drift report reads them for its reference.
+
+### `data/paper/runs.jsonl`
+
+One JSON object per run of the daily job, appended and never rewritten: when it ran (`recorded_at`) and as of when (`as_of`), its `status` (`done`, `nothing due`, `incomplete`, `refused` or `failed`) and `message`, the sessions `due` and `processed`, any `problems` that refused it, the `snapshot`, the `config_id` of the log entry the frozen path `reproduced` (null when the run processed nothing or the check failed), the `backup` result (`pushed`, `up to date`, `not configured` or `failed`, with a message; null when the ledger was refused, since a damaged ledger is never backed up), the `config_hash`, and `git_commit` and `git_dirty`. A run that raises is recorded as `failed` with the error before it stops. The drift report reads it.
+
+### `data/paper/backup/`
+
+A clone of the private repository in `[backup] remote` of `config/paper.toml` (`statarb.paper.backup`). Every run whose ledger passes its checks copies each ledger day whose bytes differ into `ledger/` of the clone under the same file name, commits and pushes to `main`. Days are added or updated, never deleted. The remote is the copy that matters: the clone can be deleted, and the next run clones it again and continues its history.
+
+### Frozen record
+
+`reports/phase-06/frozen-config.json` (`statarb.paper.frozen`), committed, written once when the forward run's decision record sets `[frozen]`:
+
+- `strategy`: the `config` of the frozen strategy's `choice path` log entry (below), built from config by the code that logged it, less `kind`, `first_date` and `last_date`, plus `price_source`;
+- `files`: the parsed contents of `data`, `universe`, `factors`, `sector_changes`, `listing_starts`, `alpaca`, `backtest`, `costs`, `portfolio` and `models` in `config/`, without `data.toml`'s `[download]`, `[paths]` and `[source]` `snapshot` and `digest`, or `models.toml`'s `[runs]` and `[partial_adjustment]`; dates as ISO strings;
+- `models`: for a model forecast, each block's `test_first`, `file` and `sha256`, from phase 5's last development walk-forward and its holdout walk-forward; empty for a phase 3 variant.
+
+Its hash, computed as `config_id` is, is `[frozen] config_hash` and the `config_hash` of every ledger day.
+
+### Daily notes and drift reports
+
+`reports/phase-06/daily/YYYY-MM-DD.md`, one per ledger day, committed: the day's P&L, costs and borrow in dollars, the book before and after the open, the decision for the next open with its calibration slope and, for the optimiser, its status, the tickers the source failed to return, the log entry the reproduction check matched, and the previous run's backup result. A note is written before its ledger day, so a crash between the two reruns the day and rewrites the note.
+
+`reports/phase-06/drift/YYYY-MM-DD.md` and a chart of the same name, one per run of `statarb.paper.drift`, named after the last ledger day it covers. Each covers the run from its first session: the live measures against the frozen path over development, each ledger day's measures, the changes between consecutive daily snapshots, the decisions rebuilt from the latest snapshot, and the run log's failures. A rerun with no new ledger day rewrites the same files. The dirty flag in the ledger and the run log ignores both directories, so an uncommitted note or report does not mark the next day dirty.
+
 ## Joins
 
 - `prices`, `actions`, `returns`, `residuals` and `residuals_pca` join on `date` and `ticker`. Never rely on index alignment.
@@ -237,3 +304,8 @@ The holdout runner adds one read, once, in two more kinds, which `statarb.backte
 
 - `holdout walk-forward`, one per horizon: the development walk-forward's `config` with `kind` changed and `holdout_start` and `holdout_end` added. `metrics`: the holdout blocks only, as above, `grid_points_tried`, and `development_models_checked`, the number of development models retrained and found to have their logged SHA-256.
 - `holdout path`, one per forecast, rule and book size: a development path's keys with `kind` changed, `model.walk_forward` naming the holdout walk-forward, and `first_date` and `last_date` the holdout's first and last days. A partial-adjustment path's `trade_rate` is the development run's, `matched_turnover` is the holdout optimiser path's turnover, and `turnover_by_rate` is empty.
+
+Phase 6's choice runner (`statarb.paper.choice`) adds two more kinds, each with a development path's keys and metrics plus `slope_rule`, the rule that turns the trailing calibration slope into the slope the expected move uses (`trailing`, `floored` or `expanding`, from `[choice] slope_rules` of `config/paper.toml`):
+
+- `choice path`, one per forecast, rule, slope rule and book size, on development dates. The trailing paths repeat phase 5's and must give its metrics. `slope_rule` is in `PATH_KEYS` but left out of the trial id when it is `trailing`, so a trailing path keeps its phase 5 id. `metrics` add `identical_to`: the name and book of the trailing path whose daily results this path equals, which then is not a trial; null otherwise. The decile sort does not read the slope, so it runs with the trailing slope only.
+- `diagnostic path`, the decile sort and the no-trade zone of each forecast with the trailing slope, from the first calibrated date through the holdout's last day, for the slope chart. Nothing is chosen from them, so `statarb.backtest.trials` never counts them (`NOT_TRIALS`).

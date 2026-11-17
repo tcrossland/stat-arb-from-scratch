@@ -41,9 +41,33 @@ flowchart TB
     T -->|cut at the holdout end| MH["statarb.models.holdout<br/>read once"]
     MRR -->|development run, model hashes,<br/>trade rates| MH
     MH --> MHR["reports/phase-05/<br/>holdout.md, chart, experiments.jsonl"]
+    T -->|development, and through the holdout<br/>for the slope chart| CH["statarb.paper.choice<br/>phase 6"]
+    MRR -->|phase 5 paths, model hashes, trials| CH
+    MHR -->|holdout model hashes| CH
+    CH --> CHR["reports/phase-06/<br/>choice.md, charts, experiments.jsonl"]
 ```
 
-Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 to 4 store no table but Model B's residuals: every backtest, every cost input (spread estimates, volatilities, volumes), the risk models and every optimiser decision are recomputed from the phase 0, 1 and 4 tables, and only reports and experiment logs are written. Phase 5 stores no table either: its features are recomputed in each run, and its models, written to `data/derived/models/` in LightGBM's text format with each file's SHA-256 in the experiment log, are rebuilt by retraining.
+The forward run, once its decision record freezes the strategy, reads no development table. Each morning the daily job builds its own tables from the day's snapshot, and the reproduction check builds reference tables from the pinned one:
+
+```mermaid
+flowchart TB
+    FZ["statarb.paper.frozen --write<br/>once"] --> FR["reports/phase-06/<br/>frozen-config.json"]
+    FR --> D["statarb.paper.daily<br/>each morning"]
+    CHR["reports/phase-06/<br/>experiments.jsonl: choice paths"] --> D
+    MM["data/derived/models/<br/>by recorded SHA-256"] --> D
+    A["Alpaca<br/>today's snapshot"] --> D
+    D --> PT["data/paper/processed/&lt;snapshot&gt;/<br/>and reference/&lt;pinned&gt;/"]
+    D --> L["data/paper/ledger/<br/>one file per day"]
+    D --> RL["data/paper/runs.jsonl"]
+    D --> N["reports/phase-06/daily/"]
+    L --> BK["backup repository"]
+    L --> DR["statarb.paper.drift<br/>weekly"]
+    PT --> DR
+    RL --> DR
+    DR --> DRR["reports/phase-06/drift/"]
+```
+
+Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 to 4 store no table but Model B's residuals: every backtest, every cost input (spread estimates, volatilities, volumes), the risk models and every optimiser decision are recomputed from the phase 0, 1 and 4 tables, and only reports and experiment logs are written. Phase 5 stores no table either: its features are recomputed in each run, and its models, written to `data/derived/models/` in LightGBM's text format with each file's SHA-256 in the experiment log, are rebuilt by retraining. Phase 6's forward run stores its ledger, its daily tables and its run log under `data/paper/`, and backs the ledger up to a private repository (`docs/data-model.md`).
 
 **Where data lives.** The raw store, `data/raw/` or the absolute path in `STATARB_RAW`, holds the raw snapshots: kept, read-only once complete and backed up outside the repository. Worktrees set `STATARB_RAW` to the main checkout's `data/raw/`, so there is one store. `data/derived/` holds everything rebuilt from it and can be deleted. Nothing under `data/` is committed or versioned: snapshots are versioned by convention instead, by date and content digest pinned in config.
 
@@ -95,8 +119,8 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.backtest.engine` | 2 | Fill grids at the close and the open, the daily engine from target weights to holdings, trades and P&L with an optional `Policy` at each fill (phase 3), which from phase 4 also sees the previous fill's holdings and returns a note for the day, and daily returns on gross. |
 | `statarb.backtest.rules` | 2 | The `PortfolioRule` protocol: decile books held in *k* slices, and the s-score thresholds with their hedges. |
 | `statarb.backtest.metrics` | 2 | Sharpe, drawdown, break-even cost, hit rates, P&L by year and the deflated Sharpe ratio. |
-| `statarb.backtest.experiments` | 2 | The experiment log: entries with `config_id`, `run_state` and metrics, appended as JSON Lines. |
-| `statarb.backtest.trials` | 2 | Every distinct position path in the repository's experiment logs up to a phase, for the deflated Sharpe. |
+| `statarb.backtest.experiments` | 2 | The experiment log: entries with `config_id`, `run_state` and metrics, appended as JSON Lines; from phase 6 the working tree's state can ignore named directories. |
+| `statarb.backtest.trials` | 2 | Every distinct position path in the repository's experiment logs up to a phase, for the deflated Sharpe; from phase 6 without the holdout, diagnostic and identical paths, and with the slope rule in a path's id unless it is trailing. |
 | `statarb.backtest.sweep` | 2 | The phase 2 configurations: each variant's signal and rule, the fill grids, costs and the logged record. |
 | `statarb.backtest.report` | 2 | The phase 2 report and its charts: statistics only. |
 | `statarb.backtest.run` | 2 | Runner: the phase 2 sweep, the placebo, the experiment log and the report. |
@@ -114,14 +138,27 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models.config` | 5 | `config/models.toml` as frozen dataclasses that reject unknown or missing keys, with the development end before the holdout. |
 | `statarb.models.features` | 5 | The fifteen features and the ranked target, recomputed from the signal tables; a feature across stocks counts only the stocks known on the day. |
 | `statarb.models.splitter` | 5 | Walk-forward blocks with a purge and an embargo, the inner validation split for tuning, and the rows whose target is known by the development end. |
-| `statarb.models.backend` | 5 | The model interface: a `Backend` fits with or without early stopping, and its `Model` predicts, gives TreeSHAP contributions and gain, and saves itself returning the file's SHA-256; backends by name for `[model] library`. |
-| `statarb.models.lgbm` | 5 | LightGBM behind the model interface: fixed parameters, deterministic training and models saved in its native text format. |
+| `statarb.models.backend` | 5 | The model interface: a `Backend` fits with or without early stopping, and its `Model` predicts, gives TreeSHAP contributions and gain, and saves itself returning the file's SHA-256; backends by name for `[model] library`; from phase 6 a backend loads a saved model. |
+| `statarb.models.lgbm` | 5 | LightGBM behind the model interface: fixed parameters, deterministic training and models saved in and (phase 6) loaded from its native text format. |
 | `statarb.models.training` | 5 | Per block: the grid tried inside the training window with early stopping and scored by validation IC, the chosen point refitted on the whole window, and the walk-forward forecast. |
 | `statarb.models.ic` | 5 | The daily rank information coefficient and its mean, standard deviation and t-statistic. |
-| `statarb.models.forecast` | 5 | The walk-forward forecast as a `Signal` (`model`), with the run behind it, and the phase 3 calibration of any forecast to an expected move. |
+| `statarb.models.forecast` | 5 | The walk-forward forecast as a `Signal` (`model`), with the run behind it, and the phase 3 calibration of any forecast to an expected move; from phase 6, the forecast from saved models, each loaded only if its file has the recorded SHA-256. |
 | `statarb.models.run` | 5 | Development runner: the tables cut at the development end, the walk-forward at each horizon and its saved models, every forecast through every rule at each book size with optimiser paths in worker processes and then partial adjustment's, each matched to an optimiser path's turnover, IC, importance, event response, the dispersion measurement, the judgement against the bar and the experiment log. |
 | `statarb.models.holdout` | 5 | Holdout runner: refuses a dirty tree, a configuration, overlay or snapshot unlike the last development run's, and a second read; retrains every development model and checks its hash, then runs every path over the holdout, partial adjustment at its development trade rate, and logs entries that are not trials. |
 | `statarb.models.report` | 5 | The phase 5 development and holdout reports and their charts: statistics only. |
+| `statarb.paper` | 6 | Paper trading: the evidence for the forward run's choice, and the daily job, ledger, checks and drift report that run it once a decision record freezes it. Places no order. |
+| `statarb.paper.config` | 6 | `config/paper.toml` as frozen dataclasses that reject unknown or missing keys, and the names of the slope rules, rules and forecasts. |
+| `statarb.paper.choice` | 6 | Runner: the evidence before the choice on development data (slope over time, realised move by decile, IC by fill timing, every forecast and rule under each slope rule), with the phase 5 models retrained and checked against their hashes and the trailing paths against phase 5's metrics. |
+| `statarb.paper.report` | 6 | The choice report and the drift report, with their charts: statistics only. |
+| `statarb.paper.sessions` | 6 | The exchange's sessions, and which are due as of a time: the snapshot rule and the New York run time, with catch-up after missed days. |
+| `statarb.paper.ledger` | 6 | The ledger: one immutable parquet file per day, what a day carries to the next, and the check that consecutive days chain exactly. |
+| `statarb.paper.loop` | 6 | One live engine step: the backtest's step and policy, filling the decision the ledger recorded rather than one recomputed. |
+| `statarb.paper.day` | 6 | The frozen strategy on tables cut at a session: its forecast, slope, expected move and decision, the backtest it must equal, and the ledger day. |
+| `statarb.paper.frozen` | 6 | Runner: the frozen record of the strategy, every config file that shapes a decision and the model files' hashes; checks the config against it, or writes it once. |
+| `statarb.paper.reproduce` | 6 | Runner: rebuilds the frozen path on reference tables from the pinned snapshot and requires every metric of its log entry. |
+| `statarb.paper.daily` | 6 | Runner: the daily job. Locks, refuses on a changed config, model file or damaged ledger, checks the reproduction, builds the day's tables, processes each due session, writes the note and the ledger day, backs up and logs the run. |
+| `statarb.paper.backup` | 6 | Copies the ledger into a clone of a private repository, commits and pushes; a failure is recorded, never raised. |
+| `statarb.paper.drift` | 6 | Runner: the weekly drift report, the forward run against the frozen path over development, with the source's revisions and the run log's failures. |
 
 ## Seams
 
@@ -151,12 +188,17 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.portfolio.run` | 4 | the same tables as `statarb.backtest.run` and `residuals_pca`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, `config/portfolio.toml`, and the experiment logs before phase 4 for the trial count and phase 3's no-trade zone | `reports/phase-04/portfolio.md` and its charts; appends to `reports/phase-04/experiments.jsonl` unless `--no-log`; with `--choose-risk-aversion` only prints the rule's table. `--workers` sets how many processes run the paths, six by default |
 | `statarb.models.run` | 5 | the same tables as `statarb.backtest.run`, cut at the development end, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, `config/portfolio.toml`, `config/models.toml`, and the experiment logs up to phase 4 for the trial count | one model per walk-forward block and horizon in `data/derived/models/`, `reports/phase-05/ml.md` and its charts; appends to `reports/phase-05/experiments.jsonl` unless `--no-log`. `--workers` sets how many processes run the optimiser and partial-adjustment paths, four by default |
 | `statarb.models.holdout` | 5 | what `statarb.models.run` reads, cut at the holdout's last day instead, and `reports/phase-05/experiments.jsonl` for the last development run, its model hashes, partial adjustment's trade rates and the trial set at each book size, earlier phases' logs for the trials before phase 5 | the holdout blocks' models in `data/derived/models/`, `reports/phase-05/holdout.md` and its chart; appends the read to `reports/phase-05/experiments.jsonl` once. `--repeat` reproduces the logged read, requires every result to equal it, and appends nothing |
+| `statarb.paper.choice` | 6 | the same tables as `statarb.backtest.run`, cut at the development end, and for the slope chart's diagnostic paths at the holdout's last day; the config files `statarb.models.run` reads and `config/paper.toml`; `reports/phase-05/experiments.jsonl` for the model hashes and the trailing paths' metrics; the experiment logs up to phase 5 for the trial count | `reports/phase-06/choice.md` and its charts; appends to `reports/phase-06/experiments.jsonl` unless `--no-log`. Retrains the models into a temporary directory, never over `data/derived/models/`. `--workers` as for `statarb.models.run` |
+| `statarb.paper.frozen` | 6 | every config file in the record, `config/paper.toml`, and `reports/phase-05/experiments.jsonl` for a model forecast's files | nothing; with `--write`, `reports/phase-06/frozen-config.json`, once |
+| `statarb.paper.reproduce` | 6 | the pinned snapshot in the raw store, the frozen record, the models it names, and `reports/phase-06/experiments.jsonl` | `data/paper/reference/<snapshot>/` |
+| `statarb.paper.daily` | 6 | what `statarb.paper.reproduce` reads, `data/paper/ledger/` and `runs.jsonl`; today's snapshot from the raw store, or Alpaca unless `--no-download` | a new snapshot in the raw store, `data/paper/processed/<snapshot>/`, the due ledger days, `reports/phase-06/daily/`, `data/paper/runs.jsonl`, the backup clone and its remote. `--now` runs as of another time |
+| `statarb.paper.drift` | 6 | `data/paper/` (the ledger, the daily and reference tables, the run log), the daily snapshots in the raw store, the frozen record and `reports/phase-06/experiments.jsonl` | `reports/phase-06/drift/<last ledger day>.md` and its chart |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout` | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' among them). |
+| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout`, and every phase 6 runner | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' and the phase 6 run's among them). |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
@@ -166,6 +208,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `costs.toml` | `statarb.backtest.config` | The phase 3 fill, book sizes and configurations; the assumed half-spread, its bracket and floor, and the estimators' window and size groups; the impact coefficients and windows; the commission schedules with the date and page they were read from; the borrow rates and hard-to-borrow proxy; the no-trade zone's calibration window, which phase 4's expected moves use too. |
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
+| `paper.toml` | `statarb.paper.config` | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash; the run's first session, calendar and New York run time; the backup remote. Empty until the forward run's decision record. |
 
 ## External libraries
 
@@ -180,7 +223,8 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |
 | LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` of `config/models.toml` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
+| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml` | the New York Stock Exchange's sessions, holidays included |
 
-cvxpy brings its own dependencies, none imported by the project: OSQP (Apache-2.0), SCS (MIT), HiGHS through `highspy` (MIT), QDLDL (Apache-2.0), cffi (MIT-0), pycparser (BSD-3-Clause), Jinja2 (BSD-3-Clause), MarkupSafe (BSD-3-Clause), joblib (BSD-3-Clause), cloudpickle (BSD-3-Clause), setuptools (MIT) and SparseDiffPy (Apache-2.0). Each licence is read from the distribution's own metadata; `tests/test_licences.py` checks every installed distribution. cvxpy, Clarabel and SciPy are pinned exactly: another solver or version can return slightly different weights. LightGBM brings narwhals (MIT), not imported by the project, and is pinned exactly so a rebuilt model is byte-identical. On macOS its wheel links the OpenMP runtime, `libomp`, which it does not bundle: the one system runtime in the stack (`README.md`).
+cvxpy brings its own dependencies, none imported by the project: OSQP (Apache-2.0), SCS (MIT), HiGHS through `highspy` (MIT), QDLDL (Apache-2.0), cffi (MIT-0), pycparser (BSD-3-Clause), Jinja2 (BSD-3-Clause), MarkupSafe (BSD-3-Clause), joblib (BSD-3-Clause), cloudpickle (BSD-3-Clause), setuptools (MIT) and SparseDiffPy (Apache-2.0). Each licence is read from the distribution's own metadata; `tests/test_licences.py` checks every installed distribution. cvxpy, Clarabel and SciPy are pinned exactly: another solver or version can return slightly different weights. exchange-calendars brings korean-lunar-calendar (MIT), pyluach (MIT) and toolz (BSD-3-Clause), none imported by the project. LightGBM brings narwhals (MIT), not imported by the project, and is pinned exactly so a rebuilt model is byte-identical. On macOS its wheel links the OpenMP runtime, `libomp`, which it does not bundle: the one system runtime in the stack (`README.md`).
 
-The HTTP clients use the standard library (`urllib`), so no client library is pinned, and the deflated Sharpe's normal distribution is the standard library's `statistics.NormalDist`. Phases 2 and 3 add no library; phase 4 adds SciPy, cvxpy and Clarabel; phase 5 adds LightGBM. Each later phase adds its libraries to `pyproject.toml` and to this table when it first uses them.
+The HTTP clients use the standard library (`urllib`), so no client library is pinned, and the deflated Sharpe's normal distribution is the standard library's `statistics.NormalDist`. Phases 2 and 3 add no library; phase 4 adds SciPy, cvxpy and Clarabel; phase 5 adds LightGBM; phase 6 adds exchange-calendars. Each later phase adds its libraries to `pyproject.toml` and to this table when it first uses them.

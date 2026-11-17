@@ -21,4 +21,6 @@ The optimiser's solve times are wall-clock, so they stay out of the phase 4 repo
 
 The phase 5 optimiser paths took 43 to 47 seconds each with four running at once, and a walk-forward block 2 to 5 seconds to tune and refit. A partial-adjustment path took 95 to 99 seconds with four at once: its aim, one solve a day, takes about as long as an optimiser path, and the rest is the hundred engine runs of the trade-rate grid, about half a second each. Over the holdout year an optimiser path took 8 to 9 seconds and a partial-adjustment path 6 to 8, with its development trade rate and no grid.
 
+Phase 6's forward-run runners (`statarb.paper.daily`, `statarb.paper.drift`, `statarb.paper.reproduce` and `statarb.paper.frozen`) have not run on real data: the forward run's decision record measures them with its first daily download.
+
 The download made 515 tickers' requests at the adapter's pace of 190 a minute, with a pause between tickers; nearly all its time is waiting on that pace, not computing.
