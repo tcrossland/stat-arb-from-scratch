@@ -50,6 +50,8 @@ Firms that trade this for a living run it intraday, with order-book data and ins
 
 Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phases/) and ends with a written review and a tag, `phase-00` to `phase-06`, so checking out a tag gives the project as it stood at the end of that phase. Decisions that change scope, data or method are recorded in [`docs/decisions/`](docs/decisions/).
 
+The project is built with Claude Code under the working rules in [CLAUDE.md](CLAUDE.md), and its commits carry Claude Code's co-author trailer. Each phase is a brief, then the commits that build it, then a review and a tag. Each lesson the work has taught is a row in [docs/lessons.md](docs/lessons.md), with the episode that taught it where there was one, and the test or check that enforces it now.
+
 | Phase | Adds | Status |
 |-------|------|--------|
 | 0 | Prices, returns and a liquidity-ranked universe | done |
