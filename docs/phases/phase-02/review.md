@@ -1,6 +1,6 @@
 # Phase 2 review: Baseline signal and backtest
 
-Written on 2026-11-16 at the end of the phase. The numbers below are quoted from the generated report, [`reports/phase-02/backtest.md`](../../../reports/phase-02/backtest.md), and its log, [`reports/phase-02/experiments.jsonl`](../../../reports/phase-02/experiments.jsonl), built from the phase 0 and 1 tables of the pinned snapshot with no new download. Unless a line says otherwise, a number is for the headline configuration: residual reversal over one day (*n* = 1), held one day (*k* = 1), filled at the open of *t+1*, with returns per dollar of gross exposure from 2017-01-03 to 2026-11-13.
+Written on 2026-11-16 at the end of the phase. The numbers below are quoted from the generated report, [`reports/phase-02/backtest.md`](../../../reports/phase-02/backtest.md), and its log, [`reports/phase-02/experiments.jsonl`](../../../reports/phase-02/experiments.jsonl), built from the phase 0 and 1 tables of the pinned snapshot with no new download. Unless a line says otherwise, a number is for the headline configuration: residual reversal over one day (*n* = 1), held one day (*k* = 1), filled at the open of *t+1*, with returns per dollar of gross exposure from 2017-01-03 to 2026-11-13. Phase 6 opened with a fix to the raw reversal signal and the s-score, which moved some numbers quoted below by a little; [the phase 6 review](../phase-06/review.md#the-signal-fix) lists them, and the report holds the current values.
 
 ## What was built
 

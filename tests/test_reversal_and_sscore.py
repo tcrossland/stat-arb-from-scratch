@@ -65,3 +65,22 @@ def test_sscore_centring_removes_the_cross_sectional_mean_of_m() -> None:
     # so shift_i = s_centred_i - s_i = mean(m) / sigma_i, and then mean(-s_i / shift_i) = 1.
     s, shift = plain.s[t, ok], (centred.s[t] - plain.s[t])[ok]
     assert np.mean(-s / shift) == pytest.approx(1.0, rel=1e-6)
+
+
+def test_sscore_fits_and_centres_only_stocks_known_on_the_day() -> None:
+    rng = np.random.default_rng(5)
+    T, N, W = 70, 6, 60
+    market = rng.normal(0, 0.01, T)
+    sector = rng.normal(0, 0.005, (T, N))
+    y = market[:, None] + rng.normal(0, 0.01, (T, N))
+    members = np.ones((T, N), dtype=bool)
+    known = np.ones((T, N), dtype=bool)
+    known[: T - 1, 0] = False                                # stock 0 is first known on the last day
+    everyone = fit_sscores(y, market, sector, members, W, 30, centre_means=True)
+    counted = fit_sscores(y, market, sector, members, W, 30, centre_means=True, known=known)
+    assert np.isnan(counted.s[: T - 1, 0]).all() and not counted.tradeable[: T - 1, 0].any()
+    # Before the last day the centre leaves stock 0 out, so the others' scores move.
+    t = T - 2
+    others = np.isfinite(everyone.s[t, 1:])
+    assert others.any() and not np.allclose(everyone.s[t, 1:][others], counted.s[t, 1:][others])
+    np.testing.assert_array_equal(everyone.s[T - 1], counted.s[T - 1])   # all known: the same fit

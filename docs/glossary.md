@@ -277,9 +277,27 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 ## Paper trading
 
-**Ledger.** The record of the forward run: trades, positions and P&L by day.
+**Forward run.** The frozen strategy run on each new trading day as it happens, with simulated fills and no orders. It starts flat on its first session.
 
-**Drift report.** The weekly check that the forward run behaves like its backtest.
+**Calibration slope.** The coefficient of the expected-move calibration: how many units of realised residual move one unit of signal has meant. Phase 3's is trailing, fitted over the last calibration window of pairs whose outcome is known.
+
+**Slope rule.** How the calibration slope behind an expected move is set in phase 6: `trailing`, phase 3's slope as it is; `floored`, the trailing slope never below zero, so a forecast that has stopped working moves nothing rather than its own reverse; `expanding`, fitted over every pair known since the first signal date, the backtestable form of a slope fixed from development.
+
+**Choice path.** A development path of phase 6's evidence for the choice: a forecast through a rule at a book size under one slope rule. A choice path whose daily results equal its trailing version's adds no trial.
+
+**Diagnostic path.** A path run through the holdout only to chart a forecast's slope beside its P&L. Nothing is chosen from it, so it is not a trial.
+
+**Frozen record.** Everything that produces a decision in the forward run, written once when its decision record sets the strategy: the strategy's configuration, every config file that shapes a decision, and each saved model's SHA-256. Its hash is on every ledger day, and the daily job refuses to run if the config no longer gives it.
+
+**Reproduction check.** Before each day's run, the frozen path is rebuilt over development on tables from the pinned snapshot, and every metric must equal its logged entry. It catches a code change that alters behaviour, which the frozen record cannot see.
+
+**Session, due session.** A day the exchange is open, from its calendar. A session is due once New York's date has passed it and its clock has reached the run time, 06:00, so a run processes the same sessions however early, late or often the scheduler fires it.
+
+**Catch-up.** A run after missed days processes every due session after the last ledger day, in order, each on tables cut at it.
+
+**Ledger, ledger day.** The record of the forward run: one immutable file per session, holding the engine step at that day's open and the decision made at its close. The next day fills the decision recorded, never a recomputed one.
+
+**Drift report.** The weekly check that the forward run behaves like its backtest: each live measure over the run's days against the same measure over every window of as many days in the frozen path over development, with the source's revisions and the run's failures.
 
 ## Process
 

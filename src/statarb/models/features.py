@@ -48,7 +48,7 @@ from statarb.factors.events import volume_ratio
 from statarb.factors.model import sector_etf_panel, wide
 from statarb.models.config import Features
 from statarb.signals.calibration import forward_sum
-from statarb.signals.tables import Tables
+from statarb.signals.tables import Tables, known_on
 
 SECTOR = "sector"
 
@@ -91,11 +91,6 @@ class FeatureSet:
 
 def _min_periods(window: int, fraction: float) -> int:
     return max(2, int(np.ceil(window * fraction)))
-
-
-def known_on(residual: np.ndarray) -> np.ndarray:
-    """(dates x stocks) True from a stock's first residual on: what a live run on t knows of the stock."""
-    return np.maximum.accumulate(np.isfinite(residual), axis=0)
 
 
 def dispersion(raw: np.ndarray, counted: np.ndarray) -> np.ndarray:

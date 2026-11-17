@@ -22,11 +22,10 @@ from statarb.models.features import (
     build_features,
     dispersion,
     feature_names,
-    known_on,
     ranked_target,
 )
 from statarb.signals.calibration import forward_sum
-from statarb.signals.tables import TABLES, build_tables
+from statarb.signals.tables import TABLES, build_tables, known_on
 from statarb.testing.lookahead import (
     assert_unchanged_through,
     perturb_after,

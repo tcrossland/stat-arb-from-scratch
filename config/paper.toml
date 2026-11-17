@@ -1,0 +1,41 @@
+# Phase 6 paper trading. See docs/phases/phase-06/brief.md.
+# Loaded by statarb.paper.config.load_paper_config, which rejects unknown or missing keys.
+
+[choice]
+# Evidence before the strategy is chosen (statarb.paper.choice), on development data only.
+# Each rule turns the phase 3 calibration slope into the one the rules that use the
+# expected move (the zone, the optimiser, partial adjustment) see:
+#   trailing   the phase 3 slope as it is, over the last calibration window
+#   floored    the trailing slope, never below zero
+#   expanding  over every signal date since the start: the backtestable form of a slope
+#              fixed from development
+slope_rules = ["trailing", "floored", "expanding"]
+
+[frozen]
+# The strategy the forward run trades, set by the decision record that starts it, and the
+# hash of its frozen record (statarb.paper.frozen). Empty: nothing is frozen, and the daily
+# job and the drift report refuse to run.
+#   forecast    a [[variants]] name of config/costs.toml, or "model H=<horizon>"
+#   rule        "decile sort", "no-trade zone" or "optimiser κ = <cost multiplier>"
+#   slope_rule  one of [choice] slope_rules
+#   book_size   dollars of capital
+forecast = ""
+rule = ""
+slope_rule = ""
+book_size = 0
+config_hash = ""
+
+[run]
+# The forward run. first_session is a TOML date set by its decision record; empty means not
+# set. The book starts flat: the first decision is made at the close of first_session.
+first_session = ""
+calendar = "XNYS"   # exchange_calendars name
+# New York time before which a run on the morning after a session leaves it for later: the
+# source has settled the close and its corporate actions by then. The scheduler may fire at or
+# after it; earlier runs do nothing.
+run_time = 06:00:00
+
+[backup]
+# A private git repository the job copies the ledger into after each run (statarb.paper.backup).
+# Empty means not configured. Creating it and the key that can push to it is the owner's.
+remote = ""

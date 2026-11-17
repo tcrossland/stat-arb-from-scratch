@@ -41,3 +41,6 @@ processed = "data/derived/processed"
 # Phase 5 models, one LightGBM text file per walk-forward block and horizon; rebuilt by retraining.
 models = "data/derived/models"
 reports = "reports"
+# Phase 6 forward run: the ledger, the run log, the daily tables, the reference tables of the
+# reproduction check and the backup clone. The ledger is the only record of the run: never delete it.
+paper = "data/paper"

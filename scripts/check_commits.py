@@ -22,6 +22,8 @@ MAX_SUBJECT = 72
 EXCEPTIONS = {
     # Phase 5's first development run, 26 entries in reports/phase-05/experiments.jsonl.
     "447f85eee3df29c120843868f496a37b4d6f1579": ("subject is 73 characters",),
+    # Phase 6's signal fix: phase 2's rerun after it, 735 entries in reports/phase-02/experiments.jsonl.
+    "7cecc3d07d57a3888f52125c61af90275db7c089": ("subject is 80 characters",),
 }
 
 

@@ -108,7 +108,15 @@ From step 3, every runner behaves the same way in four respects:
    ```
 
    It refuses a tree with changes, a configuration, overlay or snapshot that differs from the last logged development run's, and a log that already holds a read. It retrains every development model and stops unless each has its logged SHA-256, then runs every path over the holdout, partial adjustment at the development run's trade rates, logs the read and writes `reports/phase-05/holdout.md` and its chart. The committed log already holds the read, so to rebuild the report pass `--repeat`: it reads the holdout again, requires every result to equal the logged one, and appends nothing. Since it compares every result with the logged read, it rebuilds the report only on the snapshot behind the published results; on a snapshot you downloaded it stops, because the last development run was logged on another snapshot or at the first result that differs.
-7. *(phase 6)* Run the daily job; its guide is `docs/daily-job.md`.
+7. Build the evidence for choosing the forward run's strategy. It needs the tables of steps 1 and 2, the models and log of step 6 and the logs of steps 3 to 5:
+
+   ```bash
+   uv run python -m statarb.paper.choice
+   ```
+
+   It reads the tables phase 5 reads, cut at the development end, and through the holdout only for the slope chart's diagnostic paths, with `config/paper.toml` for the slope rules. It retrains every phase 5 model into a temporary directory and stops unless each has its logged SHA-256, then runs every forecast through the decile sort, the no-trade zone and the optimiser under each slope rule at both book sizes (the optimiser paths in worker processes, `--workers`), and stops unless every trailing path gives the metrics phase 5 logged. It logs one entry per path, slope rule and book size and writes `reports/phase-06/choice.md` and its charts. It reads the earlier logs for the trial count. Like the holdout runner, it stops on a snapshot other than the one behind the published results, at the first model or trailing path that differs from phase 5's.
+
+   The forward run starts only with the decision record that freezes its strategy, and its daily job downloads every day; its guide, `docs/daily-job.md`, comes with that record.
 
 ## Checking your results
 

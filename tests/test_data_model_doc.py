@@ -24,6 +24,7 @@ from statarb.io import read_parquet, write_parquet
 DOC = (repo_root() / "docs" / "data-model.md").read_text()
 ARROW_NAMES = {"large_string": "string"}
 NUMBERED = re.compile(r"_\d+$")          # beta_1, beta_2, ... documented once as beta_j
+PAPER = "Paper trading"                  # the phase 6 ledger, which tests/test_paper_ledger.py checks
 
 
 def _documented() -> dict[str, list[tuple[str, str]]]:
@@ -83,7 +84,7 @@ def _columns(path) -> list[tuple[str, str]]:
 
 
 def test_documented_tables_match_the_written_ones(written) -> None:
-    assert _documented() == written
+    assert {k: v for k, v in _documented().items() if k != PAPER} == written
 
 
 def test_no_em_dashes() -> None:

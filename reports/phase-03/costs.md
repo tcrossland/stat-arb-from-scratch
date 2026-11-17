@@ -33,11 +33,11 @@ Headline cost model. Costs and returns in % a year of capital.
 | three-day lookback | $5m | 6.34 | 1.42 | 1.38 | 1.02 | 0.46 | 2.08 | 0.28 | 0.86 | 0.35 |
 | three-day lookback | $50m | 6.34 | 1.42 | 4.36 | 0.62 | 0.46 | -0.51 | -0.07 | -0.21 | 0.35 |
 | three-day lookback | $500m | 6.34 | 1.42 | 13.78 | 0.60 | 0.46 | -9.90 | -1.32 | -4.15 | 0.35 |
-| s-score | $50k | 3.05 | 1.49 | 0.17 | 15.73 | 0.53 | -14.87 | -2.47 | -7.74 | 0.38 |
-| s-score | $500k | 3.05 | 1.49 | 0.53 | 1.71 | 0.53 | -1.21 | -0.20 | -0.63 | 0.38 |
-| s-score | $5m | 3.05 | 1.49 | 1.67 | 0.62 | 0.53 | -1.26 | -0.21 | -0.65 | 0.38 |
-| s-score | $50m | 3.05 | 1.49 | 5.28 | 0.60 | 0.53 | -4.85 | -0.80 | -2.53 | 0.38 |
-| s-score | $500m | 3.05 | 1.49 | 16.70 | 0.60 | 0.53 | -16.27 | -2.71 | -8.50 | 0.38 |
+| s-score | $50k | 3.11 | 1.49 | 0.17 | 15.69 | 0.52 | -14.77 | -2.46 | -7.71 | 0.38 |
+| s-score | $500k | 3.11 | 1.49 | 0.53 | 1.71 | 0.52 | -1.14 | -0.19 | -0.59 | 0.38 |
+| s-score | $5m | 3.11 | 1.49 | 1.66 | 0.62 | 0.52 | -1.18 | -0.20 | -0.62 | 0.38 |
+| s-score | $50m | 3.11 | 1.49 | 5.26 | 0.60 | 0.52 | -4.76 | -0.79 | -2.49 | 0.38 |
+| s-score | $500m | 3.11 | 1.49 | 16.63 | 0.59 | 0.52 | -16.13 | -2.69 | -8.45 | 0.38 |
 
 ![net Sharpe by book size](capacity.png)
 
@@ -65,11 +65,11 @@ Headline cost model, bps one-way per dollar traded. Commission per dollar falls 
 | three-day lookback | $5m | 1.60 | 1.56 | 1.15 | 4.32 | spread |
 | three-day lookback | $50m | 1.60 | 4.93 | 0.71 | 7.24 | impact |
 | three-day lookback | $500m | 1.60 | 15.60 | 0.68 | 17.89 | impact |
-| s-score | $50k | 1.55 | 0.17 | 16.35 | 18.07 | commission |
+| s-score | $50k | 1.55 | 0.17 | 16.35 | 18.08 | commission |
 | s-score | $500k | 1.55 | 0.55 | 1.78 | 3.88 | commission |
-| s-score | $5m | 1.55 | 1.74 | 0.64 | 3.93 | impact |
-| s-score | $50m | 1.55 | 5.49 | 0.62 | 7.66 | impact |
-| s-score | $500m | 1.55 | 17.36 | 0.62 | 19.53 | impact |
+| s-score | $5m | 1.55 | 1.73 | 0.64 | 3.93 | impact |
+| s-score | $50m | 1.55 | 5.48 | 0.62 | 7.65 | impact |
+| s-score | $500m | 1.55 | 17.33 | 0.62 | 19.50 | impact |
 
 Phase 2's break-even for the baseline was 3.66 bps one-way per dollar of gross under its flat cost. At $500k the baseline deploys 0.63 of its capital on average and holds a median of 144 names.
 
@@ -157,15 +157,15 @@ Net Sharpe by book size when one part of the headline cost model changes. The fi
 
 | cost model | $50k | $500k | $5m | $50m | $500m |
 |---|---|---|---|---|---|
-| half-spread 1.5 bps, impact 1, ibkr_pro_fixed | -2.47 | -0.20 | -0.21 | -0.80 | -2.71 |
-| half-spread 1 bps, impact 1, ibkr_pro_fixed | -2.40 | -0.13 | -0.14 | -0.73 | -2.64 |
-| half-spread 2.5 bps, impact 1, ibkr_pro_fixed | -2.62 | -0.35 | -0.36 | -0.96 | -2.86 |
-| half-spread 5 bps, impact 1, ibkr_pro_fixed | -3.02 | -0.75 | -0.76 | -1.36 | -3.26 |
-| edge estimate, impact 1, ibkr_pro_fixed | -4.42 | -2.13 | -2.14 | -2.74 | -4.64 |
-| ar estimate, impact 1, ibkr_pro_fixed | -4.71 | -2.43 | -2.43 | -3.03 | -4.91 |
-| cs estimate, impact 1, ibkr_pro_fixed | -2.66 | -0.39 | -0.40 | -1.00 | -2.90 |
-| half-spread 1.5 bps, impact 0.5, ibkr_pro_fixed | -2.45 | -0.16 | -0.07 | -0.37 | -1.32 |
-| half-spread 1.5 bps, impact 1, ibkr_pro_tiered | -0.77 | -0.03 | -0.18 | -0.77 | -2.68 |
+| half-spread 1.5 bps, impact 1, ibkr_pro_fixed | -2.46 | -0.19 | -0.20 | -0.79 | -2.69 |
+| half-spread 1 bps, impact 1, ibkr_pro_fixed | -2.39 | -0.12 | -0.13 | -0.72 | -2.62 |
+| half-spread 2.5 bps, impact 1, ibkr_pro_fixed | -2.61 | -0.34 | -0.35 | -0.95 | -2.85 |
+| half-spread 5 bps, impact 1, ibkr_pro_fixed | -3.01 | -0.74 | -0.75 | -1.35 | -3.24 |
+| edge estimate, impact 1, ibkr_pro_fixed | -4.41 | -2.12 | -2.13 | -2.73 | -4.63 |
+| ar estimate, impact 1, ibkr_pro_fixed | -4.71 | -2.42 | -2.43 | -3.03 | -4.90 |
+| cs estimate, impact 1, ibkr_pro_fixed | -2.65 | -0.38 | -0.39 | -0.98 | -2.89 |
+| half-spread 1.5 bps, impact 0.5, ibkr_pro_fixed | -2.44 | -0.15 | -0.06 | -0.35 | -1.30 |
+| half-spread 1.5 bps, impact 1, ibkr_pro_tiered | -0.76 | -0.02 | -0.16 | -0.76 | -2.66 |
 
 ## No-trade zone
 
@@ -204,7 +204,7 @@ At $500k; borrow does not depend on book size.
 |---|---|---|---|
 | baseline | 10.9% | 0.31 | 0.15 |
 | three-day lookback | 12.8% | 0.46 | 0.24 |
-| s-score | 3.8% | 0.53 | 0.14 |
+| s-score | 3.7% | 0.52 | 0.13 |
 
 ## Judging the result
 
@@ -217,29 +217,29 @@ The bar from the phase 3 brief: a t-statistic of at least 2 for mean net return 
 | baseline | $5m | -0.11 | -0.35 | 0.44 | 0.043 | no |
 | baseline | $50m | -0.61 | -1.90 | 0.44 | 0.001 | no |
 | baseline | $500m | -2.45 | -7.70 | 0.43 | 0.000 | no |
-| baseline, no-trade zone | $50k | 0.30 | 0.93 | 0.44 | 0.321 | no |
-| baseline, no-trade zone | $500k | 0.23 | 0.71 | 0.44 | 0.250 | no |
-| baseline, no-trade zone | $5m | 0.30 | 0.95 | 0.44 | 0.329 | no |
-| baseline, no-trade zone | $50m | 0.35 | 1.10 | 0.44 | 0.382 | no |
-| baseline, no-trade zone | $500m | 0.12 | 0.36 | 0.43 | 0.158 | no |
+| baseline, no-trade zone | $50k | 0.30 | 0.93 | 0.44 | 0.320 | no |
+| baseline, no-trade zone | $500k | 0.23 | 0.71 | 0.44 | 0.249 | no |
+| baseline, no-trade zone | $5m | 0.30 | 0.95 | 0.44 | 0.328 | no |
+| baseline, no-trade zone | $50m | 0.35 | 1.10 | 0.44 | 0.381 | no |
+| baseline, no-trade zone | $500m | 0.12 | 0.36 | 0.43 | 0.157 | no |
 | three-day lookback | $50k | -5.83 | -18.28 | 0.44 | 0.000 | no |
 | three-day lookback | $500k | -0.24 | -0.77 | 0.44 | 0.017 | no |
-| three-day lookback | $5m | 0.28 | 0.86 | 0.44 | 0.299 | no |
+| three-day lookback | $5m | 0.28 | 0.86 | 0.44 | 0.298 | no |
 | three-day lookback | $50m | -0.07 | -0.21 | 0.44 | 0.055 | no |
 | three-day lookback | $500m | -1.32 | -4.15 | 0.43 | 0.000 | no |
-| three-day lookback, no-trade zone | $50k | 0.33 | 1.04 | 0.44 | 0.363 | no |
-| three-day lookback, no-trade zone | $500k | 0.47 | 1.47 | 0.44 | 0.536 | no |
-| three-day lookback, no-trade zone | $5m | 0.54 | 1.69 | 0.44 | 0.621 | no |
-| three-day lookback, no-trade zone | $50m | 0.27 | 0.83 | 0.44 | 0.284 | no |
-| three-day lookback, no-trade zone | $500m | -0.03 | -0.10 | 0.43 | 0.075 | no |
-| s-score | $50k | -2.47 | -7.74 | 0.44 | 0.000 | no |
-| s-score | $500k | -0.20 | -0.63 | 0.44 | 0.024 | no |
-| s-score | $5m | -0.21 | -0.65 | 0.44 | 0.022 | no |
-| s-score | $50m | -0.80 | -2.53 | 0.44 | 0.000 | no |
-| s-score | $500m | -2.71 | -8.50 | 0.43 | 0.000 | no |
+| three-day lookback, no-trade zone | $50k | 0.33 | 1.04 | 0.44 | 0.362 | no |
+| three-day lookback, no-trade zone | $500k | 0.47 | 1.47 | 0.44 | 0.535 | no |
+| three-day lookback, no-trade zone | $5m | 0.54 | 1.69 | 0.44 | 0.620 | no |
+| three-day lookback, no-trade zone | $50m | 0.27 | 0.83 | 0.44 | 0.283 | no |
+| three-day lookback, no-trade zone | $500m | -0.03 | -0.10 | 0.43 | 0.074 | no |
+| s-score | $50k | -2.46 | -7.71 | 0.44 | 0.000 | no |
+| s-score | $500k | -0.19 | -0.59 | 0.44 | 0.026 | no |
+| s-score | $5m | -0.20 | -0.62 | 0.44 | 0.024 | no |
+| s-score | $50m | -0.79 | -2.49 | 0.44 | 0.000 | no |
+| s-score | $500m | -2.69 | -8.45 | 0.43 | 0.000 | no |
 
 0 of 25 configuration and book-size pairs clear the bar.
 
 ## Configurations tried
 
-This run evaluated 145 configuration, book size and cost-model combinations. `experiments.jsonl` holds 145 entries, 145 distinct. Cost-model settings and book sizes are not counted as trials (see above); every one is logged. The s-score rule appears as `s-score`.
+This run evaluated 145 configuration, book size and cost-model combinations. `experiments.jsonl` holds 290 entries, 145 distinct. Cost-model settings and book sizes are not counted as trials (see above); every one is logged. The s-score rule appears as `s-score`.

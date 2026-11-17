@@ -69,6 +69,10 @@ class Backend(Protocol):
         """
         ...
 
+    def load(self, path: Path) -> Model:
+        """A model saved by `Model.save`, using every tree in the file (phase 6: the daily job's forecast)."""
+        ...
+
 
 # Every backend, by the name `[model] library` chooses it by, each built from its own settings table.
 BACKENDS: dict[str, Callable[[object], Backend]] = {"lightgbm": LightGbmBackend}
