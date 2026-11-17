@@ -54,6 +54,24 @@ From the backlog item "Benchmark against Avellaneda and Lee", for this phase. Th
 
 The s-score trades about a seventh as much as the headline decile book and has more than three times its break-even cost, which is the property the brief added it for. At 5 bps it still loses.
 
+## Comparison with Blitz, Huij, Lansdorp and Verbeek (2013)
+
+Added on 2026-11-17, after phase 4. The full paper was not available to us. The headline claims below are from the published abstract, in the Erasmus University repository record. The method is from a secondary summary of the August 2011 working paper (CXO Advisory, 26 August 2011). Points marked "per the summary" have not been checked against the paper.
+
+| | Blitz et al. | This project |
+|---|---|---|
+| Sample | US stocks above $1 and above the NYSE median market value, 1926 to 2008 (per the summary) | The 300 most-traded current S&P 500 members, 2017-01 to 2026-11 |
+| Residuals | Fama-French three-factor regression over a rolling 36 months, divided by the residual's 36-month standard deviation (per the summary) | Market and sector ETF factors (Model A); division by 60-day volatility is a sweep option |
+| Horizon | Monthly formation and holding (per the summary, which describes no shorter horizon) | One to five days' formation, one to five days' holding |
+| Portfolio | Top and bottom deciles (per the summary) | Top and bottom deciles, equal weight |
+| Headline | Risk-adjusted returns about twice those of conventional reversal; significant net of costs even in large caps after 1990 (abstract) | Below |
+
+- **Residual does better than raw, by far less than double.** At the open fill, the median gross Sharpe of the residual decile configurations is 0.63, against 0.51 for raw. It depends on the lookback. Over one day, residual is worse at three holding periods of four (0.35 against 0.69 at *k* = 1). Over three and five days it is ahead at every holding period (0.84 against 0.65 at *n* = 3, *k* = 5; 0.72 against 0.50 at *n* = 5, *k* = 5). The best configuration of each is close: residual 0.85, raw 0.78.
+- **Standardising hurt.** Their signal divides the residual by its own volatility (per the summary). Here volatility scaling lowered gross Sharpe in every configuration at the open fill but one, where the two tie, and lowered residual *n* = 3 at every holding period (0.84 to 0.65 at *k* = 5).
+- **No net edge for either signal.** The best net Sharpe at 5 bps is 0.21, with a t-statistic of 0.66 before any allowance for selection, so the abstract's net result for large caps after 1990 does not carry over to 2017 to 2026.
+
+Two differences make the gap smaller here. The paper attributes conventional reversal's weaker result to time-varying exposures to the Fama-French factors, which its residuals remove. A universe of the 300 most-traded large caps has little spread in size and value for a raw reversal sort to load on, and Model A removes market and sector exposure, not size and value, so our residual removes a different, smaller part. The horizon also differs: days here, a month there.
+
 ## Review questions
 
 **What is the gross Sharpe, and what is the break-even cost?** 0.35 and 0.74 bps one-way. A realistic retail cost of 5 bps is almost seven times the break-even.
