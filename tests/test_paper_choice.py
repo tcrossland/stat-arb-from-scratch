@@ -230,6 +230,8 @@ def test_report_rebuilds_byte_for_byte(chosen, tmp_path) -> None:
     assert "choice.md" in files and "decile_profile.png" in files
     for name in files:
         assert (a / name).read_bytes() == (b / name).read_bytes()
+    text = (a / "choice.md").read_text()
+    assert "Fills at the open of *t*+1;" in text and "e+06" not in text and "500000" not in text
 
 
 def test_a_negative_slope_is_measured_by_period(chosen) -> None:
