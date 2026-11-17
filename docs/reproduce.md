@@ -76,7 +76,17 @@ Alpaca revises old data, so a snapshot taken later is not byte for byte the one 
    ```
 
    It reads the tables phase 2 reads, with `config/backtest.toml` for the signals and holding rules and `config/costs.toml` for the configurations, book sizes and cost model, needs no network and stores no table. It runs each configuration, with and without the no-trade zone, at every book size under the headline cost model and its sensitivities, appends one entry per run to `reports/phase-03/experiments.jsonl` with the run state beside it, and writes `reports/phase-03/costs.md` and its charts. It reads the earlier phases' logs for the trial count and phase 2's break-even, so run step 3 first. A rerun writes the same report and charts; `--no-log` and the config overlay work as in step 3. The [phase 3 review](phases/phase-03/review.md) quotes the report's numbers.
-5. *(phase 4)* Run the optimiser and Model B.
+5. Compute Model B's residuals, then run the phase 4 portfolio paths:
+
+   ```bash
+   uv run python -m statarb.factors.build --model pca
+   ```
+
+   ```bash
+   uv run python -m statarb.portfolio.run
+   ```
+
+   The first reads the phase 0 tables with `config/factors.toml`, writes `data/derived/processed/residuals_pca.parquet` beside Model A's table, which it leaves unchanged, and writes `reports/phase-04/model_b.md` and its chart. The second reads the tables phase 3 reads and `residuals_pca`, with `config/costs.toml` for the signals and cost model and `config/portfolio.toml` for the optimiser, risk models and paths, needs no network and stores no table. It runs every path at both book sizes in worker processes (`--workers`, six by default), appends one entry per path, book size and re-costed spread to `reports/phase-04/experiments.jsonl` with the run state beside it, and writes `reports/phase-04/portfolio.md` and its charts. It reads the earlier phases' logs for the trial count and phase 3's no-trade zone, so run step 4 first. `--choose-risk-aversion` prints the table of the rule that set the headline λ and runs nothing else. Running it again writes the same report and charts, with the solver and its version pinned in `uv.lock`; solve times, which vary from run to run, are printed with its progress and kept out of the report and log; `--no-log` and the config overlay work as in step 3. The [phase 4 review](phases/phase-04/review.md) quotes the reports' numbers.
 6. *(phase 5)* Train the walk-forward models.
 7. *(phase 6)* Run the daily job; its guide is `docs/daily-job.md`.
 

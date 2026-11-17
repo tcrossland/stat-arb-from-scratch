@@ -11,12 +11,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ## Items
 
-### Multi-period optimiser
-
-- **Trigger:** phase 4 review.
-- **Why:** the phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book. Gârleanu and Pedersen (2013) show the multi-period answer: trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each signal decays. A fast-decaying reversal signal is the case where this matters most.
-- **Action:** if the phase 4 review shows costs still dominate after the turnover controls, implement the partial-adjustment rule as a variant behind the same portfolio interface and compare at matched turnover. Otherwise delete this item.
-
 ### Documentation site
 
 - **Trigger:** when the repository goes public, and not before phase 3.
@@ -31,12 +25,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### An independent short-term reversal series
 
-- **Trigger:** phase 4 review.
+- **Trigger:** phase 5 review.
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
 
 ### Measured effective spreads
 
-- **Trigger:** phase 4 review, or sooner if a conclusion turns on the spread assumption.
+- **Trigger:** the start of phase 6, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption.
 - **Why:** decision record 0005 charges an assumed spread because the daily-price estimators measure the strategy's own reversal. The assumption is the same for every stock and day, so it misprices the smaller names and stressed years.
 - **Action:** find a public source of measured effective spreads per stock (for example the execution-quality reports US market centres publish under SEC Rule 605), read its terms, and write a decision record before using it. Compare it with the assumption and the bracket by size group and year.
