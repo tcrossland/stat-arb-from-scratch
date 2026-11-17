@@ -59,7 +59,8 @@ Grouped by the phase they inform. Magnitudes quoted here come from abstracts; ch
 
 ### Phase 4: portfolio construction
 
-- Gârleanu, N. and Pedersen, L. H. (2013). Dynamic trading with predictable returns and transaction costs. *Journal of Finance* 68(6). Multi-period trading towards an aim portfolio, weighted by signal decay. Basis for the multi-period item in the backlog.
+- Avellaneda and Lee (2010), above. Its PCA factors and eigenportfolios are Model B.
+- Gârleanu, N. and Pedersen, L. H. (2013). Dynamic trading with predictable returns and transaction costs. *Journal of Finance* 68(6). Multi-period trading towards an aim portfolio, weighted by signal decay. Basis for the multi-period trading item in the [phase 5 brief](phases/phase-05/brief.md).
 
 ### Phase 5: ML signal and validation
 

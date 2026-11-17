@@ -18,11 +18,12 @@ from helpers import (
 from statarb.config import load_config, repo_root
 from statarb.data import build as b
 from statarb.data.wikipedia import WikipediaConstituents
-from statarb.factors.build import build_residuals, stocks_to_model
+from statarb.factors.build import build_pca_residuals, build_residuals, stocks_to_model
 from statarb.io import read_parquet, write_parquet
 
 DOC = (repo_root() / "docs" / "data-model.md").read_text()
 ARROW_NAMES = {"large_string": "string"}
+NUMBERED = re.compile(r"_\d+$")          # beta_1, beta_2, ... documented once as beta_j
 
 
 def _documented() -> dict[str, list[tuple[str, str]]]:
@@ -63,10 +64,22 @@ def written(tmp_path_factory) -> dict[str, list[tuple[str, str]]]:
     )
     assert not residuals.empty
     write_parquet(residuals, processed / "residuals.parquet", ["date", "ticker"])
-    return {
-        p.stem: [(f.name, ARROW_NAMES.get(str(f.type), str(f.type))) for f in pq.read_schema(p)]
-        for p in (tmp / "processed").glob("*.parquet")
-    }
+    # Phase 4's Model B, with as few factors as the fixture's handful of stocks allows.
+    factors = {**factors, "pca": {"factors": 2, "window_days": 40, "min_observations": 30}}
+    pca = build_pca_residuals(returns, stocks, factors, "SPY")
+    assert not pca.empty
+    write_parquet(pca, processed / "residuals_pca.parquet", ["date", "ticker"])
+    return {p.stem: _columns(p) for p in (tmp / "processed").glob("*.parquet")}
+
+
+def _columns(path) -> list[tuple[str, str]]:
+    """Each column's name and type, with numbered columns (one per factor) collapsed to `name_j`."""
+    out = []
+    for f in pq.read_schema(path):
+        col = (NUMBERED.sub("_j", f.name), ARROW_NAMES.get(str(f.type), str(f.type)))
+        if not out or out[-1] != col:
+            out.append(col)
+    return out
 
 
 def test_documented_tables_match_the_written_ones(written) -> None:

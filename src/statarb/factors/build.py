@@ -1,10 +1,12 @@
-"""Phase 1 build: Model A's residual returns from the phase 0 tables.
+"""Residual returns from the phase 0 tables: Model A (phase 1) or Model B (phase 4).
 
-    uv run python -m statarb.factors.build
+    uv run python -m statarb.factors.build [--model etf|pca]
 
 Reads the tables in `[paths] processed` of config/data.toml, with
-config/factors.toml, writes residuals.parquet beside them, and writes the
-diagnostics report and its charts to reports/phase-01/.
+config/factors.toml. Model A, the default, writes residuals.parquet beside them
+and the diagnostics report and its charts to reports/phase-01/. Model B writes
+residuals_pca.parquet and compares itself with Model A, whose table it reads,
+in reports/phase-04/model_b.md.
 """
 
 from __future__ import annotations
@@ -17,9 +19,11 @@ import pandas as pd
 
 from statarb.config import load_config, repo_root, resolve_path
 from statarb.data.schema import DATE, TICKER
+from statarb.factors.compare import compare_models
 from statarb.factors.events import volume_ratio
 from statarb.factors.model import EtfFactorModel, EtfModelConfig
-from statarb.factors.report import diagnostics, write_report
+from statarb.factors.pca import PcaFactorModel, PcaModelConfig
+from statarb.factors.report import diagnostics, save_figure, write_report
 from statarb.io import read_parquet, write_parquet
 
 EVENT_KEYS = {"lookback_days", "volume_ratio"}
@@ -59,17 +63,41 @@ def build_residuals(
     return out.sort_values([DATE, TICKER], kind="mergesort").reset_index(drop=True)
 
 
+def build_pca_residuals(returns: pd.DataFrame, stocks: list[str], factors_cfg: dict[str, Any], market: str) -> pd.DataFrame:
+    """Model B's residuals, one row per (date, stock) with a residual, over the same stocks and calendar as Model A."""
+    model = PcaFactorModel(PcaModelConfig.from_config(factors_cfg["pca"]))
+    out = model.residuals(returns, pd.DataFrame(), stocks, market_calendar(returns, market))
+    return out.sort_values([DATE, TICKER], kind="mergesort").reset_index(drop=True)
+
+
 def main(argv: list[str] | None = None) -> int:
-    argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args(argv)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--model", choices=["etf", "pca"], default="etf", help="etf: Model A (phase 1); pca: Model B (phase 4)")
+    args = parser.parse_args(argv)
     root = repo_root()
     data_cfg = load_config("data", root)
     factors_cfg = load_config("factors", root)
     processed = resolve_path(data_cfg["paths"]["processed"], root)
+    reports = resolve_path(data_cfg["paths"]["reports"], root)
 
     returns = read_parquet(processed / "returns.parquet")
     sectors = read_parquet(processed / "sectors.parquet")
     prices = read_parquet(processed / "prices.parquet")
     stocks = stocks_to_model(read_parquet(processed / "candidates.parquet"), returns)
+
+    if args.model == "pca":
+        pca = build_pca_residuals(returns, stocks, factors_cfg, data_cfg["factors"]["market"])
+        write_parquet(pca, processed / "residuals_pca.parquet", [DATE, TICKER])
+        print(f"residuals_pca: {len(pca)} rows", file=sys.stderr)
+        report = compare_models(
+            read_parquet(processed / "residuals.parquet"), pca, read_parquet(processed / "universe.parquet"), prices, factors_cfg["report"]
+        )
+        out_dir = reports / "phase-04"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for name, fig in report.figures.items():
+            save_figure(fig, out_dir / name)
+        (out_dir / "model_b.md").write_text(report.text)
+        return 0
 
     residuals = build_residuals(returns, sectors, prices, stocks, factors_cfg, data_cfg["factors"]["market"])
     write_parquet(residuals, processed / "residuals.parquet", [DATE, TICKER])
@@ -82,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         prices=prices,
         cfg=factors_cfg["report"],
     )
-    write_report(report, resolve_path(data_cfg["paths"]["reports"], root) / "phase-01")
+    write_report(report, reports / "phase-01")
     return 0
 
 

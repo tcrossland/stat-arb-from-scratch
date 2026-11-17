@@ -2,7 +2,7 @@
 
 The mistakes a pipeline like this invites, and what stops each one. Each row is one lesson: the phase it entered, the episode that taught it, and the test or check that enforces it now.
 
-The episodes are told in the phase reviews and decision records: what happened, how it was found, what it would have cost. This page only indexes them. Each phase review adds a row for every lesson the phase built in. Rules adopted at setup have no episode.
+The episodes are told in the phase reviews and decision records: what happened, how it was found, what it would have cost. This page only indexes them, with a row for every lesson a phase built in. Rules adopted at setup have no episode.
 
 | Lesson | Entered in | Episode | Enforced by |
 |---|---|---|---|
@@ -35,3 +35,9 @@ The episodes are told in the phase reviews and decision records: what happened, 
 | Commission is reported per dollar traded at each book size: a per-order minimum, not the spread, binds a retail book | phase 3 | [review](phases/phase-03/review.md#what-surprised-us) | [`tests/test_costs.py`](../tests/test_costs.py) (impact against commission by book size; the report's `binding` column) |
 | Every cost input on a fill comes from the day before it | phase 3 | | [`tests/test_costs.py`](../tests/test_costs.py) |
 | A result is shown beside the capital it deploys: a filter can look safe by holding nothing | phase 3 | | [`tests/test_costs.py`](../tests/test_costs.py) (the report's capital columns) |
+| An improvement is read by year before it is believed: the optimiser's best result is one year | phase 4 | [review](phases/phase-04/review.md#what-surprised-us) | [`tests/test_optimiser.py`](../tests/test_optimiser.py) (the report's net return by year) |
+| Neutrality is judged by the P&L of what it removes as well as the exposure: it removed risk, not losses | phase 4 | [review](phases/phase-04/review.md#what-surprised-us) | [`tests/test_optimiser.py`](../tests/test_optimiser.py) (the report's fitted P&L and volatility beside each path's exposures) |
+| A failed solve holds the previous book; a constraint is never relaxed | phase 4 | | [`tests/test_optimiser.py`](../tests/test_optimiser.py) |
+| A tuning parameter's headline value is set by a rule on ex-ante properties, before any return is seen | phase 4 | | [`src/statarb/portfolio/config.py`](../src/statarb/portfolio/config.py) (the headline λ must be one of the rule's candidates), `statarb.portfolio.run --choose-risk-aversion` |
+| Model B's residuals up to a day do not change with data after it | phase 4 | | [`tests/test_pca.py`](../tests/test_pca.py) |
+| Every portfolio construction passes the same contract tests | phase 4 | | [`tests/contract/test_portfolio.py`](../tests/contract/test_portfolio.py) |

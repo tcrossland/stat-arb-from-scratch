@@ -3,7 +3,10 @@
 A trial is a position path: the part of a configuration that sets positions
 (`PATH_KEYS`), since costs, book size and labels change the P&L or the name but
 not the positions. A no-trade path's positions also depend on the book size,
-but it is one rule tried once, so book sizes are not separate trials. The count
+but it is one rule tried once, so book sizes are not separate trials; the same
+holds for an optimiser setting (phase 4), whose `optimiser` key holds every
+setting that moves its positions, and for the residuals a signal is built from
+(`residuals`, null for Model A, so earlier entries keep their ids). The count
 reads the experiment logs of the repository (`reports/phase-NN/experiments.jsonl`)
 up to a given phase, so a configuration tried in any phase counts against the
 best result of every later one, a later phase's trials leave an earlier
@@ -24,7 +27,9 @@ from statarb.backtest.experiments import config_id, read
 
 # The configuration keys that set positions. A missing or null key is left out, so
 # a phase 2 entry and a phase 3 entry for the same path share an id.
-PATH_KEYS = ("signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade")
+PATH_KEYS = (
+    "signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade", "residuals", "optimiser",
+)
 
 
 def path_id(config: dict[str, Any]) -> str:

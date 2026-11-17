@@ -42,7 +42,8 @@ The architecture and data model documents are empty until the first module lands
 - Decisions that change scope, data source or methodology go in `docs/decisions/NNNN-title.md` (short ADR: context, decision, consequences), with a line in the index.
 - Keep the reference docs in the table above current in the same change as the code.
 - Each number lives in one place: the phase review, or the generated report the review quotes. The README, the overview and every other page link to it rather than copy it, so a rerun that moves a number changes one file.
-- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review. Tag the review's commit `phase-NN`.
+- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review.
+- A phase's pull request is merged with a merge commit, never squashed or rebased, so its commits keep the hashes the experiment logs record. Once it is merged, tag the pull request's last commit `phase-NN`, annotated `phase-NN: <phase title>`, so the tag is on `main` and includes any change made in review. Never tag before the merge.
 - Anything another phase depends on lives in `src/statarb/` with tests, not in a notebook.
 
 ## Stack

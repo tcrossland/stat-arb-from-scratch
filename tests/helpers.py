@@ -10,6 +10,7 @@ import pandas as pd
 
 from statarb.data.schema import BAR_COLUMNS, normalise_bars
 from statarb.data.sources import PriceBasis
+from statarb.factors.pca import PcaFactorModel, PcaModelConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -251,3 +252,11 @@ def synthetic_market(seed: int = 0, n: int = 30, reversal: float = 0.3) -> tuple
         {"valid_from": "datetime64[ns]", "valid_to": "datetime64[ns]"}
     )
     return returns, prices, residuals, universe, sectors
+
+
+# Model B on the synthetic market: a window and factor count small enough for its 30 stocks.
+PCA = PcaModelConfig(factors=3, window_days=60, min_observations=45)
+
+
+def model_b(returns: pd.DataFrame, stocks: list[str]) -> pd.DataFrame:
+    return PcaFactorModel(PCA).residuals(returns, pd.DataFrame(), stocks, MARKET_CAL)

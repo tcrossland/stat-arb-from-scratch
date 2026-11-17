@@ -187,14 +187,14 @@ def test_no_trade_zone_opens_resizes_and_exits_as_stated() -> None:
     zone = NoTradeZone(np.tile(move, (2, 1)), _cost(10_000.0, N=6), decision_price=np.full((2, 6), 50.0), delay=1)
     drifted = np.array([0.0, 0.0, 0.2, 0.2, 0.1, -0.1])
     target = np.array([0.1, 0.1, 0.3, 0.0, -0.1, -0.2])
-    out = zone(1, drifted, target)
+    out, _ = zone(1, drifted, drifted, target)
     # Opening: 40 bps clears the 30.4 bps round trip; 20 bps does not.
     assert out[0] == 0.1 and np.isnan(out[1])
     # A resize up by $1,000 on a 10 bps move against 15.2 bps: skipped. An exit and a change of side: traded.
     assert np.isnan(out[2]) and out[3] == 0.0 and out[4] == -0.1
     # A resize of a short by -$1,000 with no expected move: skipped.
     assert np.isnan(out[5])
-    assert zone(0, drifted, target) is target                       # nothing decided yet before the delay
+    assert zone(0, drifted, drifted, target)[0] is target                       # nothing decided yet before the delay
 
 
 def test_no_trade_zone_cuts_on_a_negative_move_but_not_a_zero_one() -> None:
@@ -202,7 +202,7 @@ def test_no_trade_zone_cuts_on_a_negative_move_but_not_a_zero_one() -> None:
     target = np.array([0.1, 0.3, 0.2, 0.0])          # open, grow, cut by $1,000 (15.2 bps one way), exit
     for move, cuts in ((-0.0040, True), (0.0, False)):
         zone = NoTradeZone(np.full((2, 4), move), _cost(10_000.0, N=4), decision_price=np.full((2, 4), 50.0), delay=1)
-        out = zone(1, drifted, target)
+        out, _ = zone(1, drifted, drifted, target)
         assert np.isnan(out[0]) and np.isnan(out[1])
         assert (out[2] == 0.2) if cuts else np.isnan(out[2])
         assert out[3] == 0.0
@@ -211,7 +211,7 @@ def test_no_trade_zone_cuts_on_a_negative_move_but_not_a_zero_one() -> None:
 def test_engine_without_a_policy_is_phase_2s() -> None:
     grid = Grid("close", pd.bdate_range("2024-01-01", periods=3), ("A", "B"), np.array([[np.nan] * 2, [0.01, -0.01], [0.02, 0.0]]), np.ones((3, 2), dtype=bool))
     book = np.array([[0.5, -0.5], [0.4, -0.4], [0.5, -0.5]])
-    a, b = run(book, grid, 1, 0.005), run(book, grid, 1, 0.005, lambda s, drifted, target: target)
+    a, b = run(book, grid, 1, 0.005), run(book, grid, 1, 0.005, lambda s, held, drifted, target: (target, None))
     np.testing.assert_array_equal(a.holdings, b.holdings)
     np.testing.assert_array_equal(a.pnl, b.pnl)
 
