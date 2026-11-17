@@ -48,6 +48,7 @@ def developed(tmp_path_factory):
 # --- end to end ------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_nothing_reaches_past_the_development_end(developed) -> None:
     _, _, res = developed
     end = MARKET_CAL[DEV_END]
@@ -58,6 +59,7 @@ def test_nothing_reaches_past_the_development_end(developed) -> None:
         assert o.daily.index.max() <= end
 
 
+@pytest.mark.slow
 def test_every_path_runs_over_the_same_dates(developed) -> None:
     s, _, res = developed
     first = {o.daily.index.min() for o in res.outcomes}
@@ -69,6 +71,7 @@ def test_every_path_runs_over_the_same_dates(developed) -> None:
     assert {(o.forecast, o.rule, o.book) for o in res.outcomes} == expected
 
 
+@pytest.mark.slow
 def test_models_are_saved_with_their_hashes(developed) -> None:
     _, models, res = developed
     blocks = [b for config, metrics in res.logged.walk_forward.values() for b in metrics["blocks"]]
@@ -78,6 +81,7 @@ def test_models_are_saved_with_their_hashes(developed) -> None:
         assert len(b["grid"]) == 4 and b["chosen"] in b["grid"]
 
 
+@pytest.mark.slow
 def test_log_has_a_walk_forward_entry_per_horizon_then_every_path(developed) -> None:
     s, _, res = developed
     entries = log_entries(res.outcomes, res.logged, s.mc, s.cfg, {"git_commit": None}, pd.Timestamp("2026-01-01", tz="UTC").to_pydatetime())
@@ -92,6 +96,7 @@ def test_log_has_a_walk_forward_entry_per_horizon_then_every_path(developed) -> 
     assert "runs" not in entries[0]["config"]["models"] and "partial_adjustment" not in entries[0]["config"]["models"]   # neither changes a model
 
 
+@pytest.mark.slow
 def test_model_paths_are_new_trials_and_variant_paths_are_not(developed) -> None:
     s, _, res = developed
     trials = res.verdict.groupby("book")["trials"].first()
@@ -101,6 +106,7 @@ def test_model_paths_are_new_trials_and_variant_paths_are_not(developed) -> None
     assert len(earlier) == rules * len(s.mc.runs.variants)
 
 
+@pytest.mark.slow
 def test_report_rebuilds_byte_for_byte(developed, tmp_path) -> None:
     _, _, res = developed
     a, b = tmp_path / "a", tmp_path / "b"
@@ -112,6 +118,7 @@ def test_report_rebuilds_byte_for_byte(developed, tmp_path) -> None:
     assert "## Against the bar" in text and "Dispersion over the whole stock axis" in text
 
 
+@pytest.mark.slow
 def test_the_run_reproduces(developed, tmp_path) -> None:
     s, _, res = developed
     again = run_development(s, _long(), tmp_path, {})
@@ -122,6 +129,7 @@ def test_the_run_reproduces(developed, tmp_path) -> None:
         assert o.metrics == p.metrics
 
 
+@pytest.mark.slow
 def test_partial_adjustment_matches_the_optimisers_turnover_over_the_whole_grid(developed) -> None:
     s, _, res = developed
     optimiser = {(o.forecast, o.book): o.metrics["turnover"] for o in res.outcomes if o.rule == OPTIMISER and o.kappa == s.mc.runs.cost_multipliers[0]}
@@ -136,6 +144,7 @@ def test_partial_adjustment_matches_the_optimisers_turnover_over_the_whole_grid(
         assert abs(m["turnover"] - target) == min(abs(x - target) for x in tried.values())
 
 
+@pytest.mark.slow
 def test_dispersion_defect_is_measured_on_a_late_starter(developed) -> None:
     _, _, res = developed
     # Every synthetic stock's residuals start on day 20: before it, only the whole-axis definition has a value.

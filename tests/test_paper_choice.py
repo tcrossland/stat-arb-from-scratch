@@ -145,6 +145,7 @@ def test_holdout_days_are_none_past_the_end() -> None:
 # --- the run against phase 5 -------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_every_model_matches_phase_5(chosen, phase5) -> None:
     _, log = phase5
     blocks = sum(len(e["metrics"]["blocks"]) for e in log if e["config"]["kind"] in ("walk-forward", "holdout walk-forward"))
@@ -152,6 +153,7 @@ def test_every_model_matches_phase_5(chosen, phase5) -> None:
     assert chosen.checked == blocks + dev_blocks
 
 
+@pytest.mark.slow
 def test_trailing_paths_reproduce_phase_5_and_keep_their_ids(chosen, phase5) -> None:
     _, log = phase5
     p5 = {path_id(e["config"]) for e in log if e["config"]["kind"] == "path" and e["config"]["rule"] != PARTIAL}
@@ -160,12 +162,14 @@ def test_trailing_paths_reproduce_phase_5_and_keep_their_ids(chosen, phase5) -> 
     assert {path_id(rec) for rec in trailing} == p5
 
 
+@pytest.mark.slow
 def test_no_partial_adjustment_and_one_decile_sort_per_forecast(chosen) -> None:
     assert not any(o.rule == PARTIAL for o in chosen.outcomes)
     deciles = [o for o in chosen.outcomes if o.rule == DECILE]
     assert all(parse_label(o.forecast)[1] == TRAILING for o in deciles)
 
 
+@pytest.mark.slow
 def test_diagnostic_paths_run_through_the_holdout(chosen, phase5) -> None:
     s, _ = phase5
     assert chosen.boundary < len(chosen.full.lab.tables.dates)
@@ -173,6 +177,7 @@ def test_diagnostic_paths_run_through_the_holdout(chosen, phase5) -> None:
     assert all(o.daily.index.max() == pd.Timestamp(s.mc.period.development_end) for o in chosen.outcomes)
 
 
+@pytest.mark.slow
 def test_refuses_a_model_unlike_phase_5s(phase5) -> None:
     s, log = phase5
     bad = copy.deepcopy(log)
@@ -182,6 +187,7 @@ def test_refuses_a_model_unlike_phase_5s(phase5) -> None:
         run_choice(s, market_long(), SLOPE_RULES, bad, {})
 
 
+@pytest.mark.slow
 def test_refuses_a_trailing_path_unlike_phase_5s(phase5) -> None:
     s, log = phase5
     bad = copy.deepcopy(log)
@@ -194,6 +200,7 @@ def test_refuses_a_trailing_path_unlike_phase_5s(phase5) -> None:
 # --- the log and its trials ------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_only_new_development_paths_are_trials(chosen, phase5) -> None:
     _, log = phase5
     entries = _written(choice_entries(chosen, STATE, LATEST))
@@ -209,6 +216,7 @@ def test_only_new_development_paths_are_trials(chosen, phase5) -> None:
     assert {k: after[k] for k in before} == before        # the trailing paths repeat phase 5's statistics
 
 
+@pytest.mark.slow
 def test_identical_paths_name_their_trailing_version(chosen) -> None:
     names = {f"{o.name}, {o.book:g}" for o in chosen.outcomes}
     for k, v in chosen.same.items():
@@ -216,11 +224,13 @@ def test_identical_paths_name_their_trailing_version(chosen) -> None:
         assert parse_label(v.split(", ")[0])[1] == TRAILING
 
 
+@pytest.mark.slow
 def test_entries_are_choice_paths_then_diagnostic_paths(chosen) -> None:
     kinds = [rec["kind"] for _, rec in chosen.records]
     assert kinds == [CHOICE] * len(chosen.outcomes) + [DIAGNOSTIC] * len(chosen.diagnostic)
 
 
+@pytest.mark.slow
 def test_report_rebuilds_byte_for_byte(chosen, tmp_path) -> None:
     log = _written(choice_entries(chosen, STATE, LATEST))
     a, b = tmp_path / "a", tmp_path / "b"
@@ -234,6 +244,7 @@ def test_report_rebuilds_byte_for_byte(chosen, tmp_path) -> None:
     assert "Fills at the open of *t*+1;" in text and "e+06" not in text and "500000" not in text
 
 
+@pytest.mark.slow
 def test_a_negative_slope_is_measured_by_period(chosen) -> None:
     assert set(chosen.by_sign["period"]) == {"development", "holdout"}
     assert set(chosen.negative_share["forecast"]) == set(chosen.full_fc.names)
@@ -270,12 +281,14 @@ PATHS = [
 ]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(("forecast", "rule", "slope_rule", "book"), PATHS)
 def test_the_frozen_record_names_a_logged_choice_path(phase5, phase6, models, forecast, rule, slope_rule, book) -> None:
     _, entry = _frozen(phase5, phase6, models, forecast, rule, slope_rule, book)
     assert entry["config"]["kind"] == CHOICE and entry["config"]["slope_rule"] == slope_rule
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(("forecast", "rule", "slope_rule", "book"), PATHS)
 def test_the_daily_jobs_code_reproduces_every_logged_metric(phase5, phase6, models, forecast, rule, slope_rule, book) -> None:
     """The job's builders, with a model forecast from the saved files, give the choice run's path exactly."""
@@ -283,6 +296,7 @@ def test_the_daily_jobs_code_reproduces_every_logged_metric(phase5, phase6, mode
     assert reproduce.check(market_long(), strategy, entry) == []
 
 
+@pytest.mark.slow
 def test_a_code_change_the_frozen_record_cannot_see_fails_the_check(phase5, phase6, models, monkeypatch) -> None:
     strategy, entry = _frozen(phase5, phase6, models, "baseline", "no-trade zone", TRAILING, 500_000.0)
     real = day.expected_move
@@ -291,6 +305,7 @@ def test_a_code_change_the_frozen_record_cannot_see_fails_the_check(phase5, phas
     assert problems and all(" logged, " in p for p in problems)
 
 
+@pytest.mark.slow
 def test_a_strategy_the_choice_run_did_not_log_is_refused(phase5, phase6, models) -> None:
     s, log = phase5
     f = Frozen("baseline", "decile sort", "floored", 500_000.0, "")     # the decile sort ignores the slope: logged once
@@ -300,6 +315,7 @@ def test_a_strategy_the_choice_run_did_not_log_is_refused(phase5, phase6, models
         reproduce.logged_entry(phase6, frozen.strategy_config(s, replace(f, slope_rule=TRAILING), log, "another source"))
 
 
+@pytest.mark.slow
 def test_a_changed_model_file_stops_the_frozen_strategy_loading(phase5, models, tmp_path) -> None:
     s, log = phase5
     files = frozen.model_files(log, 1)
