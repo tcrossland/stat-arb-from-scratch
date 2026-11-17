@@ -227,7 +227,12 @@ def exposures(plab: PortfolioLab, result: EngineResult) -> dict[str, float]:
 
 
 def solver_stats(notes: tuple[DayNote, ...]) -> dict[str, float]:
-    """Solver outcomes: idle days (nothing to optimise), failed days (book held), solve times, trades and breaches."""
+    """Solver outcomes: idle days (nothing to optimise), failed days (book held), trades and breaches.
+
+    Solve times are wall-clock and differ between runs, so they stay out of the
+    metrics and the report, which must rebuild byte for byte; `solve_seconds`
+    gives them to the runner's progress lines instead.
+    """
     if not notes:
         return {}
     d = pd.DataFrame([vars(x) for x in notes])
@@ -237,7 +242,6 @@ def solver_stats(notes: tuple[DayNote, ...]) -> dict[str, float]:
         "solver_days": len(d),
         "idle_days": int(idle.sum()),
         "failed_days": int((~ok & ~idle).sum()),
-        "solver_seconds_mean": float(d.loc[ok, "seconds"].mean()),
         "trades_per_day": float(d.loc[ok, "trades"].mean()),
         "dropped_per_day": float(d.loc[ok, "dropped"].mean()),
         "dollar_breach_max": float(d.loc[ok, "dollar_breach"].max()),
@@ -288,13 +292,24 @@ def _init_worker(root: str) -> None:
     _PLAB = load_portfolio_lab(Path(root))
 
 
-def _run_job(job: tuple[PathSpec, float]) -> tuple[list[Outcome], float]:
+def solve_seconds(notes: tuple[DayNote, ...]) -> float | None:
+    """The mean wall-clock time to decide an optimal day, or None for a path with no solver."""
+    times = [n.seconds for n in notes if n.status == "optimal"]
+    return sum(times) / len(times) if times else None
+
+
+def _progress(i: int, n: int, job: tuple[PathSpec, float], seconds: float, per_solve: float | None) -> str:
+    solve = f", {per_solve:.3f}s a solve" if per_solve is not None else ""
+    return f"[{i + 1}/{n}] {job[0].name} ${job[1]:,.0f}: {seconds:.0f}s{solve}"
+
+
+def _run_job(job: tuple[PathSpec, float]) -> tuple[list[Outcome], float, float | None]:
     spec, book = job
     assert _PLAB is not None
     began = time.perf_counter()
     result = _PLAB.run_path(spec, book)
     # The engine result stays in the worker except at the headline cost, where the report needs holdings.
-    return outcomes_for(_PLAB, spec, book, result), time.perf_counter() - began
+    return outcomes_for(_PLAB, spec, book, result), time.perf_counter() - began, solve_seconds(result.notes)
 
 
 def jobs(pc: PortfolioConfig) -> list[tuple[PathSpec, float]]:
@@ -310,14 +325,14 @@ def run_all(plab: PortfolioLab, root: Path | None, workers: int) -> list[Outcome
         global _PLAB
         _PLAB = plab
         for i, job in enumerate(todo):
-            out, seconds = _run_job(job)
+            out, seconds, per_solve = _run_job(job)
             results.append(out)
-            print(f"[{i + 1}/{len(todo)}] {job[0].name} ${job[1]:,.0f}: {seconds:.0f}s", file=sys.stderr)
+            print(_progress(i, len(todo), job, seconds, per_solve), file=sys.stderr)
     else:
         with ProcessPoolExecutor(workers, mp_context=get_context("spawn"), initializer=_init_worker, initargs=(str(root),)) as ex:
-            for i, (out, seconds) in enumerate(ex.map(_run_job, todo)):
+            for i, (out, seconds, per_solve) in enumerate(ex.map(_run_job, todo)):
                 results.append(out)
-                print(f"[{i + 1}/{len(todo)}] {todo[i][0].name} ${todo[i][1]:,.0f}: {seconds:.0f}s", file=sys.stderr)
+                print(_progress(i, len(todo), todo[i], seconds, per_solve), file=sys.stderr)
     return [o for r in results for o in r]
 
 

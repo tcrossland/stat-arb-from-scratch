@@ -325,15 +325,16 @@ def write_report(plab, outcomes, verdict: pd.DataFrame, phase_3_log: list[dict],
         if o.spec.is_decile:
             continue
         m = o.metrics
-        solver_rows.append([money(o.book), o.name, m["solver_days"], m["idle_days"], m["failed_days"], fmt(m["solver_seconds_mean"], 3)])
+        solver_rows.append([money(o.book), o.name, m["solver_days"], m["idle_days"], m["failed_days"]])
     lines += [
         "## Solver",
         "",
         "Decision days from the first signal date. Idle days have no eligible names (before the expected move",
         "exists) and the book is empty. Failed days are those on which the solver did not return an optimal",
-        "solution, so the previous book was held. Seconds are the mean time to decide an optimal day.",
+        "solution, so the previous book was held. Solve times are wall-clock and vary between runs, so they are",
+        "in `docs/requirements.md`, not here.",
         "",
-        table(pd.DataFrame(solver_rows, columns=["book", "configuration", "days", "idle", "failed", "seconds"])),
+        table(pd.DataFrame(solver_rows, columns=["book", "configuration", "days", "idle", "failed"])),
         "",
     ]
 
