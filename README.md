@@ -11,6 +11,7 @@ The findings of each phase, whichever way they go.
 - **Phase 2, reversal signal and backtest.** Residual reversal earns a small gross return that a retail-sized trading cost more than removes, at every holding period, fill and lookback tried. Holding longer and looking back further help; the best of all the configurations tried is suggestive gross and not significant net. [Review](docs/phases/phase-02/review.md), [backtest report](reports/phase-02/backtest.md).
 - **Phase 3, cost realism.** Under spread, impact, commission and borrow, no configuration keeps a net edge at any book size tried. Commission's per-order minimum binds a retail book, and impact a large one. A filter that trades only when the expected move pays the cost turns the decile books' net Sharpe positive, by trading little, and none clears the bar for a net edge. The daily-price spread estimators read the strategy's own reversal as spread, so the spread is a stated assumption. [Review](docs/phases/phase-03/review.md), [cost report](reports/phase-03/costs.md).
 - **Phase 4, portfolio construction.** An optimiser that weighs the expected move against risk and trading cost holds a book with market and sector exposures near zero, and raises gross Sharpe over the decile sort, but trades more and loses more net. It does better the less it trades, and its best result comes from one year. A statistical factor model changes no verdict, as residual or as risk model, and the simpler no-trade zone does better net at the price of an unbalanced book. No configuration clears the bar. [Review](docs/phases/phase-04/review.md), [portfolio report](reports/phase-04/portfolio.md).
+- **Phase 5, ML signal.** A gradient-boosted model forecasts residual reversal out of sample about as well as the baseline signal, but earns less gross than the simple variants through every portfolio rule: the forecast with the best rank correlation is not the one that pays for its trades. Trading part of the way to the optimiser's book each day keeps less than the optimiser at the same turnover. No configuration clears the bar, and in the held-out last year, read once, no forecast's correlation with later returns is distinguishable from zero. [Review](docs/phases/phase-05/review.md), [development report](reports/phase-05/ml.md), [holdout report](reports/phase-05/holdout.md).
 
 ## Architecture
 
@@ -55,7 +56,7 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 | 2 | Reversal signal and backtest engine | done |
 | 3 | Cost model | done |
 | 4 | Portfolio optimiser and a statistical factor model | done |
-| 5 | ML signal | not started |
+| 5 | ML signal | done |
 | 6 | Daily paper-trading simulation | not started |
 
 ## Running it

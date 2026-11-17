@@ -6,6 +6,10 @@ Drafted at setup, and revised at the start of the phase with what earlier phases
 
 Run the chosen strategy forward in time on new data each day, with no real orders, and check that the live pipeline behaves like the backtest.
 
+## From the phase 5 backlog walk
+
+- **Signals that count members before their first residual.** The raw reversal signal scores a member from its total returns before its first residual, and the s-score fits such members and centres across them, but only when the stock has a residual later, which a live run on that day would not know. Phase 5's row-removal test found it; the [phase 5 review](../phase-05/review.md#the-look-ahead-perturbation-cannot-see) says how far it reaches. Before the daily job is built, in a commit of its own: count only stocks known on the day in both signals, rebuild phases 2 and 3 with a `Results:` footer giving both sets of numbers, and remove the two strict expected failures in `tests/contract/test_signals.py`. A daily job appends one day at a time, so a signal that depends on later rows would differ from its backtest there first.
+
 ## Design
 
 - A daily job after the US close that:

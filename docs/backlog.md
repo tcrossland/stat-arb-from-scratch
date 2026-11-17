@@ -19,27 +19,15 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### A second price source for cross-checking
 
-- **Trigger:** phase 5 review, or sooner if a quality report, the residuals or a backtest show unexplained large returns.
+- **Trigger:** phase 6 review, or sooner if a quality report, the residuals, a backtest or the phase 6 drift report show unexplained large returns.
 - **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
 - **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.
 
 ### An independent short-term reversal series
 
-- **Trigger:** phase 5 review.
+- **Trigger:** phase 6 review.
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
-
-### Multi-period optimiser
-
-- **Trigger:** phase 5 review.
-- **Why:** Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each decays. [Decision record 0006](decisions/0006-partial-adjustment-in-phase-5.md) built the part that needs one forecast per path in phase 5: partial adjustment towards the cost-free optimiser's book, at a trade rate matched to the one-period optimiser's turnover. What remains is the blend: an aim built from forecasts at several horizons, which would mix forecasts within a path.
-- **Action:** at the phase 5 review, with the forecasts' decay by horizon and the partial-adjustment result measured, carry the blend to a later chapter, or delete it if the decay leaves nothing to weight or partial adjustment with one forecast kept nothing over the one-period optimiser.
-
-### Signals that count members before their first residual
-
-- **Trigger:** phase 5 review.
-- **Why:** the stock axis of the signal tables is every stock with a residual anywhere in the loaded tables. The raw reversal signal scores a member from its total returns before its first residual, and the s-score fits such members and centres across them, but only when the stock has a residual later; a live run on that day would not see it. Phase 5's row-removal test found this. On the pinned snapshot it touches 2,362 member-days from 2017-01-03, of 25 stocks, on 1,349 days. It reaches phase 2's and phase 3's raw control and s-score paths, not the residual signal or the model. `tests/contract/test_signals.py` marks both signals as strict expected failures until it is fixed.
-- **Action:** count only stocks known on the day in both signals, rerun phases 2 and 3 in a commit of its own with a `Results:` footer and both sets of numbers, and remove the two expected failures.
 
 ### Measured effective spreads
 

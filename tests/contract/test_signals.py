@@ -106,8 +106,8 @@ def test_signal_reads_only_what_it_declares(name: str) -> None:
     np.testing.assert_array_equal(before, after)
 
 
-# Signals known to fail the row-removal test, each with the defect, until the backlog item
-# "Signals that count members before their first residual" fixes them. Strict: a signal that
+# Signals known to fail the row-removal test, each with the defect, until the fix that opens
+# phase 6 (docs/phases/phase-06/brief.md, "From the phase 5 backlog walk"). Strict: a signal that
 # starts passing fails the suite, so the entry is removed with the fix.
 ROW_REMOVAL_DEFECTS = {
     "raw": "scores a member from its total returns before its first residual, only if it has a residual later",
