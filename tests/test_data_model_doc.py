@@ -23,7 +23,7 @@ from statarb.io import read_parquet, write_parquet
 
 DOC = (repo_root() / "docs" / "data-model.md").read_text()
 ARROW_NAMES = {"large_string": "string"}
-NUMBERED = re.compile(r"_\d+$")          # beta_1, beta_2, ... documented once as beta_k
+NUMBERED = re.compile(r"_\d+$")          # beta_1, beta_2, ... documented once as beta_j
 
 
 def _documented() -> dict[str, list[tuple[str, str]]]:
@@ -73,10 +73,10 @@ def written(tmp_path_factory) -> dict[str, list[tuple[str, str]]]:
 
 
 def _columns(path) -> list[tuple[str, str]]:
-    """Each column's name and type, with numbered columns (one per factor) collapsed to `name_k`."""
+    """Each column's name and type, with numbered columns (one per factor) collapsed to `name_j`."""
     out = []
     for f in pq.read_schema(path):
-        col = (NUMBERED.sub("_k", f.name), ARROW_NAMES.get(str(f.type), str(f.type)))
+        col = (NUMBERED.sub("_j", f.name), ARROW_NAMES.get(str(f.type), str(f.type)))
         if not out or out[-1] != col:
             out.append(col)
     return out

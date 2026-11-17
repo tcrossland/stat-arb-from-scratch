@@ -5,7 +5,7 @@ What is known when. This page is the shared reference for the rule in `CLAUDE.md
 ## The rules
 
 - Index all data by the timestamp at which it became available, not the period it describes.
-- A signal computed from the close on day *t* can trade no earlier than the close of *t* (with a stated slippage assumption) or the open of *t+1*. Each backtest picks one and records it.
+- A signal computed from the close on day *t* can trade no earlier than the close of *t* (with a stated slippage assumption) or the open of *t* + 1. Each backtest picks one and records it.
 - Rolling estimates (betas, volatilities, z-scores) use only data up to and including *t*.
 - Model training uses walk-forward splits with a purge gap and embargo, never random k-fold.
 - Universe membership at *t* uses only information available at *t*. Where the free data makes this impossible (survivorship), the phase review says so.
@@ -51,7 +51,7 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 2 | Target book decided at *t* | signals on *t* and, for *k* slices, the *k* − 1 trading days before; universe membership on *t*; for the s-score, its position the day before | after the close of *t* |
 | 2 | s-score hedge ratios | the in-sample betas of the day the position opened | after the close of that day |
 | 2 | Open-to-open return to *t* | the opens of *t* and the previous bar, and actions going ex on *t* | the open of *t* |
-| 2 | Fill of a book decided at *t* | the close of *t* with 5 bps of slippage, the open of *t + 1* (the headline) or the close of *t + 1* | that fill time |
+| 2 | Fill of a book decided at *t* | the close of *t* with 5 bps of slippage, the open of *t* + 1 (the headline) or the close of *t* + 1 | that fill time |
 | 3 | Spread estimate charged at fill time *s* | open, high, low and close, made split-consistent with splits up to each day, over the 252 trading days ending the day before *s* | the fill at *s* |
 | 3 | Volatility and dollar volume for impact at *s* | daily total returns over the 60, and close times volume over the 20, trading days ending the day before *s* | the fill at *s* |
 | 3 | Half-tick floor at *s* | the close before *s* | the fill at *s* |
@@ -61,8 +61,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 3 | No-trade decision for a fill at *s* | the expected move decided at *t*, the drifted holdings at *s*, and costs estimated at the close before *s* | that fill time |
 | 4 | Model B's eigenportfolios, betas and eigenvalues used on *t* | the returns of the stocks with a complete window over the 252 trading days ending *t* − 1 for the eigenportfolios; each stock's returns over the same window, at least 189 of them, for its betas | after the close of *t* − 1 |
 | 4 | Model B's fitted return and residual on *t* | those betas and weights, and the stocks' returns on *t* | after the close of *t* |
-| 4 | Model A risk on *t* | SPY's and the sector factors' returns over the 252 trading days ending *t*; Model A's betas on *t*, from its window ending *t* − 1; residual variance over the 60 trading days ending *t* | after the close of *t* |
-| 4 | Model B risk on *t* | the eigenvalues and betas of Model B's row on *t*; residual variance over the 60 trading days ending *t* | after the close of *t* |
+| 4 | Model A risk on *t* | SPY's and the sector factors' returns over the 252 trading days ending *t*, at least 189 of them; Model A's betas on *t*, from its window ending *t* − 1; residual variance over the 60 trading days ending *t*, at least 40 of them, else the day's median across stocks | after the close of *t* |
+| 4 | Model B risk on *t* | the eigenvalues and betas of Model B's row on *t*; residual variance over the 60 trading days ending *t*, at least 40 of them, else the day's median across stocks | after the close of *t* |
 | 4 | Expected move over *h* = 5 days on *t* | phase 3's calibration with *k* = 5: signal-outcome pairs whose outcome is known by the close of *t* | after the close of *t* |
 | 4 | Optimiser's book decided at *t* | the expected move and risk on *t*, universe membership on *t*, the previous fill's holdings drifted to the close of *t*, and the cost inputs a fill at *t* + 1 is charged with, all from the close of *t* or before | after the close of *t*, filled at the open of *t* + 1 |
 | 4 | Held book on a failed day | the holdings after the previous fill | as the day's decision |
@@ -76,20 +76,20 @@ Notes for phase 0:
 Notes for phase 1:
 
 - The window and its minimum are `[model]` of `config/factors.toml`, and the event flag's lookback `[events]`. `tests/test_factors.py` perturbs returns and volumes after a cut-off and requires every residual up to it to be unchanged, and checks the rolling regression alone the same way.
-- A residual on *t* is known only after the close of *t*, the same time as the return it comes from. A signal formed from it can trade at the close of *t* only with a stated slippage, and otherwise from the open of *t + 1* (the rules above).
+- A residual on *t* is known only after the close of *t*, the same time as the return it comes from. A signal formed from it can trade at the close of *t* only with a stated slippage, and otherwise from the open of *t* + 1 (the rules above).
 - The residual table covers every candidate. Universe membership is applied at signal time, on the day a position is formed, never in the table, so a stock's residuals before it joins the universe use only its own history.
 - A dated sector change applies from its effective date. A company-level reclassification missing from `config/sector_changes.toml` leaves today's sector on earlier dates, which uses knowledge of today. Phase 1 added the moves it could date; the [phase 1 review](phases/phase-01/review.md#company-level-gics-reclassifications) lists those it could not and how many universe stock-days they affect.
 
 Notes for phase 2:
 
-- The headline fill is the open of *t + 1*: the earliest a book decided from the close of *t* can trade without using a price the signal already used. The close of *t* is reported with a stated 5 bps of slippage one-way on top of every cost level, and the close of *t + 1* as the conservative case (`[fills]` of `config/backtest.toml`).
+- The headline fill is the open of *t* + 1: the earliest a book decided from the close of *t* can trade without using a price the signal already used. The close of *t* is reported with a stated 5 bps of slippage one-way on top of every cost level, and the close of *t* + 1 as the conservative case (`[fills]` of `config/backtest.toml`).
 - A signal on *t* needs every one of its *n* days present, so it never sums across a missing bar; a one-day signal on the day after a gap uses the return that spans it. The engine books a held name with no return at zero and counts it.
 - The first signal date is `[period] start` of `config/backtest.toml`; every book is flat before it, whatever the signals could have shown earlier.
 - `tests/contract/test_signals.py` perturbs every table a registered signal reads after a cut-off, and reshuffles universe membership and sectors after it, and requires every score up to it to be unchanged. `tests/test_backtest.py` does the same for the targets and the daily P&L of the headline and the s-score at every fill timing.
 
 Notes for phase 3:
 
-- Every input to the cost of a fill at grid time *s* is from the trading day before *s*, so the same estimate could have decided the trade. For a book decided at the close of *t* and filled at the open of *t + 1*, that is the close of *t*. Only the commission uses the fill price, to count shares: it charges the trade, it does not choose it.
+- Every input to the cost of a fill at grid time *s* is from the trading day before *s*, so the same estimate could have decided the trade. For a book decided at the close of *t* and filled at the open of *t* + 1, that is the close of *t*. Only the commission uses the fill price, to count shares: it charges the trade, it does not choose it.
 - The no-trade zone prices a trade at the close before the fill, since the fill price is not known when the order is sent.
 - A signal on day *d* has an outcome over *d + 1* to *d + k*, known at the close of *d + k*. The slope used on *t* comes from signals up to *t* − *k* only (`statarb.signals.calibration`).
 - `tests/test_costs.py` perturbs prices, volumes, returns and residuals after a cut-off and requires the spread estimates, volatilities, expected moves, the no-trade book's holdings and its daily costs and P&L up to the cut-off to be unchanged, and checks the calibration and each rolling estimator the same way.

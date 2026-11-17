@@ -13,9 +13,12 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | *t* | the trading day a decision is made on | all |
 | *n* | lookback: the days of residuals summed into the signal | 2 |
 | *k* | holding period: the days each decile portfolio is held | 2 |
+| *b* | the AR(1) slope of the s-score's fit | 2 |
+| *s* | the time of a fill on the engine's grid of opens and closes | 3 |
 | *c* | impact coefficient of the square-root model | 3 |
 | σ | a stock's daily volatility | 3 |
 | *m* | number of PCA components in Model B | 4 |
+| *v* | an eigenvector of the stocks' correlation matrix, one per eigenportfolio | 4 |
 | λ | risk aversion: the weight on risk in the optimiser's objective | 4 |
 | κ | cost multiplier: the weight on trading cost in the optimiser's objective | 4 |
 | *τ* | turnover budget: the cap on a day's turnover, as a share of capital | 4 |
@@ -116,7 +119,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Lookback (*n*).** The number of days of residuals summed into the signal.
 
-**Decile portfolio.** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted, half the gross on each side. Each leg holds the floor of 10% of the members with a signal.
+**Decile portfolio (decile sort).** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted, half the gross on each side. Each leg holds the floor of 10% of the members with a signal.
 
 **Holding period (*k*) and slices.** Each day's decile portfolio is held for *k* days. The book is the average of the last *k* daily portfolios, so 1/*k* of it is replaced each day.
 
@@ -125,6 +128,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **s-score.** How far a stock's cumulated residual is from its equilibrium, in units of its equilibrium standard deviation, from an Ornstein-Uhlenbeck process fitted over a trailing window (Avellaneda and Lee, 2010). A threshold rule opens a position when it is far from zero and closes it near zero, so a position is held until the residual reverts. A phase 2 variant.
 
 **Portfolio rule.** What turns signals and universe membership into the book to hold: the decile sort with *k* slices, or the s-score's thresholds. It decides how often the book trades; the signal does not. A second seam beside the signal (`PortfolioRule`).
+
+**Policy.** What the engine applies at each fill time *s* to the targets due then: it sees the holdings of the last fill, the same moved with prices to *s*, and the targets, and returns the targets to trade to with a note for the day. The no-trade zone (phase 3) and the optimiser and decile sort (phase 4) are policies. Another seam (`Policy`).
 
 **Threshold rule.** The s-score's portfolio rule: a position opens when the s-score crosses an opening threshold and is held unchanged until it crosses a closing one, the stock leaves the universe or its fit stops qualifying. Each position is hedged with its sector ETF and SPY at the betas of the day it opened.
 
@@ -138,7 +143,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Dollar neutral.** Long and short positions of equal dollar value, so the book's net exposure is zero.
 
-**Turnover.** Dollars traded (buys plus sells) per dollar of gross exposure, per day.
+**Turnover.** Dollars traded (buys plus sells) per day: per dollar of gross exposure in phase 2, and per dollar of capital from phase 3.
 
 ## Backtest mechanics
 
@@ -170,11 +175,13 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Break-even cost.** The flat one-way cost per dollar traded at which the net Sharpe ratio falls to zero.
 
-**Trial.** One distinct position path run through the backtest: the part of a configuration that sets positions, since costs, book size and names change the P&L but not the positions. A no-trade path is one trial whatever the book size. Counted across the repository's experiment logs up to the phase in question; the best result is judged against how many there are.
+**Trial.** One distinct position path run through the backtest: the part of a configuration that sets positions, since costs, book size and names change the P&L but not the positions. A no-trade path, or an optimiser setting, is one trial whatever the book size. Counted across the repository's experiment logs up to the phase in question; the best result is judged against how many there are.
 
 **Net edge.** From phase 3: a mean net return with a t-statistic of at least 2 and a deflated Sharpe probability of at least 0.95. Anything short of both is "not distinguishable from zero", whatever its sign.
 
 **Deflated Sharpe ratio.** Bailey and López de Prado (2014): the probability that a strategy's true Sharpe ratio is above the best one expected by chance from that many trials with no edge, allowing for the non-normality of returns.
+
+**Benchmark Sharpe.** That best Sharpe ratio expected by chance, annualised: the bar the deflated Sharpe ratio measures a result against. It treats trials as independent, so it is somewhat too high when they are close variants.
 
 ## Costs
 
@@ -183,6 +190,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Bid-ask spread, half-spread.** The gap between the best price to sell and the best price to buy. A trade that crosses from the midpoint pays half of it.
 
 **Spread estimators.** Formulas that infer the spread from daily prices when quotes are not available: EDGE (Ardia, Guidotti and Kroencke, from open, high, low and close), Abdi and Ranaldo's (close, high and low) and Corwin and Schultz's (high and low). Each reads negative serial covariance of prices as bid-ask bounce, so daily reversal raises it (decision record 0005).
+
+**Assumed spread, spread bracket.** The daily-price estimators cannot price this strategy's spread, so the headline half-spread is a stated assumption anchored on published effective spreads of S&P 500 stocks, and the bracket repeats each result at other half-spreads to show which conclusions depend on it (decision record 0005; `[spread]` of `config/costs.toml`).
 
 **Half-tick floor.** No stock trades inside its one-cent tick, so a half-spread is never less than half a cent over the previous close.
 
@@ -196,7 +205,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Book size, capacity.** Book size is the money the strategy runs, in US dollars. Capacity is the book size beyond which costs, mainly impact, outgrow the edge.
 
-**Capital, capital deployed.** From phase 3, weights are fractions of the book's capital and returns are per dollar of capital, with idle capital earning nothing. Capital deployed is the gross exposure as a share of the capital: below 1 where a decile book's slices offset each other or the no-trade zone leaves names untraded.
+**Capital, capital deployed.** From phase 3, weights are fractions of the book's capital and returns are per dollar of capital, with idle capital earning nothing. Capital deployed is the gross exposure as a share of the capital: below 1 where a decile book's slices offset each other, the no-trade zone leaves names untraded, or the optimiser holds less than its gross cap.
 
 **Net dollar imbalance.** The mean of |longs − shorts| / gross: how far a book is from dollar neutral.
 
@@ -216,7 +225,9 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Horizon (*h*).** The days over which the optimiser weighs the expected move and the risk: the baseline's holding period, 5. The daily covariance is multiplied by it.
 
-**Risk model.** The daily covariance of stock returns as factor loadings times a factor covariance times their transpose, plus a diagonal of specific variances. Model A risk takes the market and sector factors and Model A's betas; Model B risk the eigenportfolios, whose covariance is the diagonal of their eigenvalues, and Model B's betas. Specific variance is each stock's residual variance over the trailing 60 days.
+**Risk model.** The daily covariance of stock returns as factor loadings times a factor covariance times their transpose, plus a diagonal of specific variances. Model A risk takes the market and sector factors and Model A's betas; Model B risk the eigenportfolios, whose covariance is the diagonal of their eigenvalues, and Model B's betas. Specific variance is each stock's residual variance over the trailing 60 days, from at least 40 of them; a stock with fewer takes the day's median across stocks.
+
+**Position limits.** Each position is at most 2% of capital and at most 1% of the stock's 20-day average dollar volume (`[optimiser]` of `config/portfolio.toml`).
 
 **Factor exposure.** The book's weights times its loadings on a factor, per dollar of capital. The optimiser keeps each within 1% of capital; the report measures it against Model A's factors for every path.
 

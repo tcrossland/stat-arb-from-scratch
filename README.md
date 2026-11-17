@@ -4,7 +4,7 @@ A daily statistical arbitrage pipeline for US equities, from raw market data to 
 
 ## Results
 
-Each phase review adds its findings here, whichever way they go.
+The findings of each phase, whichever way they go.
 
 - **Phase 0, data and universe.** A daily build of S&P 500 candidates and factor ETFs from free data, reproducible byte for byte from pinned snapshots, with the source's quirks fixed under the numbered rules of decision record 0004. The universe uses today's constituents, so it carries survivorship bias. [Review](docs/phases/phase-00/review.md), [quality report](reports/phase-00/data_quality.md).
 - **Phase 1, factor model and residuals.** Regressing each stock on the market and its sector ETF removes almost all common movement. Residuals reverse slightly from one day to the next, no more than raw returns do but more steadily, and in every year but 2022. [Review](docs/phases/phase-01/review.md), [diagnostics](reports/phase-01/diagnostics.md).
@@ -16,13 +16,13 @@ Each phase review adds its findings here, whichever way they go.
 
 ```mermaid
 flowchart LR
-    S["raw snapshots<br/>Alpaca, Wikipedia"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio rule<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
+    S["raw snapshots<br/>Alpaca, Wikipedia"] --> D["data build<br/>universe, returns"] --> F["factor model<br/>Model A: ETFs<br/>Model B: PCA"] --> G["signal"] --> P["portfolio<br/>decile sort, no-trade zone,<br/>optimiser"] --> B["backtest and<br/>paper trade"]
     R["risk model"] --> P
     C["cost model"] --> P
     C --> B
 ```
 
-Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price and constituent sources, the factor model, the signal, the cost model, the portfolio rule and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
+Each stage is a function of the tables before it, cut at the decision date, which is what lets a test check it for look-ahead. Each seam (the price and constituent sources, the factor model, the signal, the cost model, the portfolio rule, the engine's policy and the risk model) is a typed interface whose implementations all pass the same contract tests, chosen by name in config and recorded with every result.
 
 ## Invariants
 
@@ -60,36 +60,15 @@ Each phase adds one stage. It starts from a brief in [`docs/phases/`](docs/phase
 
 ## Running it
 
-Needs Python 3.14 and [uv](https://docs.astral.sh/uv/). No GPU is needed.
+Needs Python 3.14 and [uv](https://docs.astral.sh/uv/). No GPU is needed. The tests run on small synthetic fixtures committed under `tests/` and need no download, no keys and no network:
 
-### Run the tests
-
-The tests run on small synthetic fixtures committed under `tests/`. They need no download, no keys and no network.
-
-```
-uv sync
+```bash
+uv sync --locked
 uv run ruff check
 uv run pytest
 ```
 
-### Build the data
-
-The phase 0 build turns pinned raw snapshots (in `data/raw/`, or the shared store named by `STATARB_RAW`) into the tables of [the data model](docs/data-model.md) and a quality report. The first build in a fresh clone downloads the snapshot; downloading needs the keys of a free, paper-only [Alpaca](https://alpaca.markets/) account in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`, and only Alpaca's market data host is called (decision record 0003). Nothing else needs them.
-
-```
-uv run python -m statarb.data.build --download
-uv run python -m statarb.data.build
-```
-
-### Build the residuals
-
-The phase 1 build reads the phase 0 tables, needs no network, and writes the residual table and the diagnostics report:
-
-```
-uv run python -m statarb.factors.build
-```
-
-[Reproducing the results](docs/reproduce.md) covers pinning the snapshot and what each step reads and writes.
+[Reproducing the results](docs/reproduce.md) rebuilds every published result: downloading and pinning a data snapshot, which needs a free, paper-only Alpaca account, then each phase's runner in order, with what each reads and writes.
 
 ## Disclaimer
 

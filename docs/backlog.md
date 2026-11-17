@@ -13,7 +13,7 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### Documentation site
 
-- **Trigger:** when the repository goes public, and not before phase 3.
+- **Trigger:** when the repository goes public.
 - **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation. A Pages site from a private personal repository would be public.
 - **Action:** write a decision record choosing the tool, its licence read first. The tool should render committed reports without executing code in CI, since `data/` is git-ignored. Until then, keep `reports/` as GitHub-friendly markdown with relative links.
 
