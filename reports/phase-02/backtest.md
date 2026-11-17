@@ -76,43 +76,43 @@ Fill open_t1. The raw rows are the control; the s-score row is the Avellaneda an
 | residual n=5, vol-scaled, k=2 | 0.59 | 4.86 | 0.60 | 3.06 | -0.35 |
 | residual n=5, vol-scaled, k=3 | 0.65 | 5.02 | 0.49 | 3.88 | -0.18 |
 | residual n=5, vol-scaled, k=5 | 0.61 | 4.36 | 0.38 | 4.28 | -0.10 |
-| raw n=1, k=1 | 0.69 | 9.60 | 1.71 | 2.16 | -0.88 |
-| raw n=1, k=2 | 0.44 | 5.08 | 1.03 | 1.86 | -0.70 |
-| raw n=1, k=3 | 0.65 | 6.94 | 0.77 | 3.43 | -0.29 |
-| raw n=1, k=5 | 0.78 | 7.83 | 0.55 | 5.42 | 0.06 |
-| raw n=1, vol-scaled, k=1 | 0.44 | 4.82 | 1.76 | 1.03 | -1.60 |
-| raw n=1, vol-scaled, k=2 | 0.30 | 2.79 | 1.03 | 0.98 | -1.13 |
-| raw n=1, vol-scaled, k=3 | 0.43 | 3.54 | 0.76 | 1.71 | -0.77 |
-| raw n=1, vol-scaled, k=5 | 0.58 | 4.46 | 0.54 | 3.08 | -0.34 |
-| raw n=3, k=1 | 0.74 | 10.70 | 1.04 | 3.98 | -0.18 |
-| raw n=3, k=2 | 0.58 | 7.89 | 0.74 | 4.09 | -0.13 |
-| raw n=3, k=3 | 0.68 | 8.73 | 0.62 | 5.46 | 0.06 |
-| raw n=3, k=5 | 0.65 | 7.74 | 0.42 | 7.11 | 0.19 |
-| raw n=3, vol-scaled, k=1 | 0.45 | 5.14 | 1.07 | 1.81 | -0.75 |
-| raw n=3, vol-scaled, k=2 | 0.34 | 3.66 | 0.76 | 1.79 | -0.57 |
-| raw n=3, vol-scaled, k=3 | 0.42 | 4.28 | 0.62 | 2.58 | -0.38 |
-| raw n=3, vol-scaled, k=5 | 0.50 | 4.64 | 0.41 | 4.21 | -0.09 |
-| raw n=5, k=1 | 0.62 | 9.25 | 0.81 | 4.39 | -0.08 |
-| raw n=5, k=2 | 0.65 | 9.21 | 0.58 | 6.13 | 0.12 |
-| raw n=5, k=3 | 0.59 | 8.10 | 0.48 | 6.52 | 0.13 |
-| raw n=5, k=5 | 0.50 | 6.27 | 0.38 | 6.32 | 0.10 |
-| raw n=5, vol-scaled, k=1 | 0.43 | 5.09 | 0.84 | 2.28 | -0.48 |
-| raw n=5, vol-scaled, k=2 | 0.50 | 5.66 | 0.60 | 3.61 | -0.18 |
-| raw n=5, vol-scaled, k=3 | 0.52 | 5.58 | 0.49 | 4.34 | -0.08 |
-| raw n=5, vol-scaled, k=5 | 0.50 | 4.89 | 0.38 | 4.85 | -0.02 |
-| s-score | 0.49 | 1.81 | 0.25 | 2.47 | -0.43 |
+| raw n=1, k=1 | 0.69 | 9.67 | 1.72 | 2.18 | -0.88 |
+| raw n=1, k=2 | 0.43 | 5.02 | 1.03 | 1.84 | -0.71 |
+| raw n=1, k=3 | 0.65 | 6.95 | 0.77 | 3.43 | -0.29 |
+| raw n=1, k=5 | 0.77 | 7.73 | 0.55 | 5.37 | 0.05 |
+| raw n=1, vol-scaled, k=1 | 0.43 | 4.73 | 1.77 | 1.01 | -1.61 |
+| raw n=1, vol-scaled, k=2 | 0.29 | 2.72 | 1.03 | 0.96 | -1.13 |
+| raw n=1, vol-scaled, k=3 | 0.43 | 3.53 | 0.76 | 1.70 | -0.77 |
+| raw n=1, vol-scaled, k=5 | 0.57 | 4.32 | 0.54 | 2.98 | -0.36 |
+| raw n=3, k=1 | 0.75 | 10.83 | 1.04 | 4.03 | -0.18 |
+| raw n=3, k=2 | 0.59 | 7.99 | 0.74 | 4.14 | -0.12 |
+| raw n=3, k=3 | 0.69 | 8.81 | 0.62 | 5.51 | 0.06 |
+| raw n=3, k=5 | 0.65 | 7.70 | 0.42 | 7.08 | 0.18 |
+| raw n=3, vol-scaled, k=1 | 0.47 | 5.42 | 1.08 | 1.90 | -0.73 |
+| raw n=3, vol-scaled, k=2 | 0.35 | 3.74 | 0.76 | 1.83 | -0.57 |
+| raw n=3, vol-scaled, k=3 | 0.43 | 4.31 | 0.62 | 2.60 | -0.37 |
+| raw n=3, vol-scaled, k=5 | 0.51 | 4.71 | 0.41 | 4.28 | -0.08 |
+| raw n=5, k=1 | 0.62 | 9.26 | 0.82 | 4.38 | -0.09 |
+| raw n=5, k=2 | 0.64 | 9.12 | 0.58 | 6.06 | 0.11 |
+| raw n=5, k=3 | 0.59 | 8.11 | 0.48 | 6.52 | 0.13 |
+| raw n=5, k=5 | 0.51 | 6.38 | 0.38 | 6.43 | 0.11 |
+| raw n=5, vol-scaled, k=1 | 0.43 | 5.17 | 0.84 | 2.32 | -0.48 |
+| raw n=5, vol-scaled, k=2 | 0.51 | 5.76 | 0.60 | 3.67 | -0.18 |
+| raw n=5, vol-scaled, k=3 | 0.53 | 5.71 | 0.49 | 4.44 | -0.06 |
+| raw n=5, vol-scaled, k=5 | 0.53 | 5.18 | 0.38 | 5.14 | 0.01 |
+| s-score | 0.49 | 1.84 | 0.25 | 2.52 | -0.42 |
 
 ## s-score rule
 
-Open stock positions per day: median 109, range 0 to 284.
+Open stock positions per day: median 108, range 0 to 283.
 ETF and SPY hedges are 28.7% of gross on the median day. Avellaneda and Lee fill at the close of
 the signal day with 5 bps, which is the `close_t` row at 0 bps (5 bps of slippage).
 
 | fill | gross Sharpe | break-even bps | net Sharpe 0 | net Sharpe 2 | net Sharpe 5 | net Sharpe 10 | net Sharpe 20 |
 |---|---|---|---|---|---|---|---|
-| close_t | 0.51 | 2.65 | -0.40 | -0.73 | -1.24 | -2.09 | -3.77 |
-| open_t1 | 0.49 | 2.47 | 0.42 | 0.08 | -0.43 | -1.28 | -2.97 |
-| close_t1 | 0.48 | 2.36 | 0.41 | 0.06 | -0.46 | -1.33 | -3.06 |
+| close_t | 0.53 | 2.75 | -0.38 | -0.72 | -1.23 | -2.07 | -3.75 |
+| open_t1 | 0.49 | 2.52 | 0.43 | 0.09 | -0.42 | -1.27 | -2.97 |
+| close_t1 | 0.49 | 2.43 | 0.42 | 0.08 | -0.45 | -1.32 | -3.05 |
 
 ## By year
 
@@ -181,8 +181,8 @@ and the fitted market and sector part. The book is dollar neutral but not beta o
 | configurations | median gross Sharpe, close_t | median gross Sharpe, open_t1 | median gross Sharpe, close_t1 |
 |---|---|---|---|
 | residual decile | 0.53 | 0.63 | 0.58 |
-| raw decile | 0.45 | 0.51 | 0.51 |
-| s-score | 0.51 | 0.49 | 0.48 |
+| raw decile | 0.45 | 0.53 | 0.51 |
+| s-score | 0.53 | 0.49 | 0.49 |
 
 ## Placebo
 
@@ -197,7 +197,7 @@ The repository's experiment logs hold 147 distinct position paths, this sweep's 
 
 - Best gross Sharpe: residual n=3, k=3, fill open_t1: 0.85. The best of 147
   trials would be expected to reach 0.43 by chance if none had an edge (Bailey and
-  López de Prado); deflated Sharpe probability 0.915.
+  López de Prado); deflated Sharpe probability 0.914.
 - Best net Sharpe at 5 bps: residual n=3, k=5, fill open_t1: 0.21, with a t-statistic of
   0.66 over 9.8 years before any allowance for selection.
 
