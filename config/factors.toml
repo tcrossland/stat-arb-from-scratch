@@ -14,6 +14,14 @@ sector_factor = "excess"
 # The intercept is estimated, so drift does not bias the betas, but it is not
 # subtracted: residual = ret - beta_market * market - beta_sector * sector.
 
+[pca]
+# Model B (phase 4): principal components of stock returns, after Avellaneda and Lee
+# (2010) section 2.1. Eigenvectors of the correlation matrix of standardised returns
+# over the window ending t-1, from the stocks with a return on every day of it.
+factors = 15                  # fixed; their Table 8 favours 15 fixed factors over a variance target
+window_days = 252             # the first residual is on 2017-01-04 on the pinned snapshot
+min_observations = 189        # returns in the window for a stock's regression on the eigenportfolios
+
 [sector_etfs]
 # Current GICS sectors and their SPDR ETFs. A sector missing here (the former
 # Telecommunication Services) has no ETF, and its days fall back to the market

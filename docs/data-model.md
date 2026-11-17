@@ -100,9 +100,24 @@ Model A's residual returns (phase 1): each candidate's daily return less what SP
 | `volume_ratio` | double | volume on `date` over its median of the previous `lookback_days` trading days (`[events]` of `config/factors.toml`), both on one share basis; null without a full lookback |
 | `event` | bool | `volume_ratio` at least `[events] volume_ratio`: a volume spike, the crude event flag |
 
+## residuals_pca
+
+Model B's residual returns (phase 4): each candidate's daily return less what the top `k` eigenportfolios explain, where `k` is `[pca] factors` of `config/factors.toml`. The eigenportfolios come from the correlation matrix of the stocks with a complete window ending the trading day before `date`, and each stock with at least `[pca] min_observations` returns in that window is regressed on them. Key: `date`, `ticker`. A row exists where the stock has a return on `date` and a regression; the factor ETFs have none, and universe membership is not applied. The columns `beta_k` and `eigenvalue_k` stand for one column each for `k` from 1 to `[pca] factors`, in that order.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `date` | timestamp[ns] | the day the residual is earned to |
+| `ticker` | string | candidate |
+| `ret` | double | the day's total return, as in `returns` |
+| `fitted` | double | the stock's betas times the eigenportfolios' returns on `date`; a stock with no return on `date` counts as zero in those returns |
+| `residual` | double | `ret - fitted`; the intercept is estimated, not subtracted, as in Model A |
+| `n_obs` | int64 | returns in the window that the stock's regression used |
+| `beta_k` | double | beta to eigenportfolio `k` over the window ending the trading day before `date` |
+| `eigenvalue_k` | double | eigenvalue `k` of that window's correlation matrix: the variance of eigenportfolio `k`'s returns over the window, the same for every stock on `date` |
+
 ## Joins
 
-- `prices`, `actions`, `returns` and `residuals` join on `date` and `ticker`. Never rely on index alignment.
+- `prices`, `actions`, `returns`, `residuals` and `residuals_pca` join on `date` and `ticker`. Never rely on index alignment.
 - `universe` restricts any of them to members: an inner join on `date` and `ticker`. For residuals this happens at signal time, on the day a position would be formed, never in the table.
 - `sectors` joins on `ticker` with the date condition above, not on equality.
 

@@ -98,6 +98,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **PCA factors.** Statistical factors taken from the principal components of the stocks' returns, rather than from ETFs (Model B).
 
+**Eigenportfolio.** In Model B, a portfolio with weights *v*/σ, where *v* is one of the top eigenvectors of the stocks' correlation matrix over the window and σ each stock's volatility over it (Avellaneda and Lee, 2010). Its returns are the factor's returns; its variance over the window is the eigenvalue. Model B uses the top *m* = 15 (`[pca]` of `config/factors.toml`).
+
+**Complete window.** A stock with a return on every day of the window. Only these shape Model B's eigenportfolios; a stock with at least 189 returns gets betas and a residual without shaping them.
+
 ## Signals and portfolios
 
 **Signal.** A number per stock per day that ranks expected moves. Every signal implements the `Signal` interface: it declares the tables it reads, scores each stock from those tables cut at *t*, and is chosen by name in config (decision record 0002).

@@ -27,6 +27,11 @@ flowchart LR
     CC["config/costs.toml"] --> CR
     BR -->|trials| CR
     CR --> CRR["reports/phase-03/<br/>costs.md, charts and<br/>experiments.jsonl"]
+    P --> FB["statarb.factors.build<br/>--model pca"]
+    RS --> FB
+    CF --> FB
+    FB --> RB["data/derived/processed/<br/>residuals_pca.parquet"]
+    FB --> FBR["reports/phase-04/<br/>model_b.md and chart"]
 ```
 
 Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 and 3 store no table: every backtest, and every cost input (spread estimates, volatilities, volumes), is recomputed from the phase 0 and 1 tables, and only reports and experiment logs are written.
@@ -61,9 +66,11 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.factors` | 1 | Factor models and residual returns. |
 | `statarb.factors.rolling` | 1 | Rolling least squares on a dates by stocks panel, each window ending the day before. |
 | `statarb.factors.model` | 1 | The `FactorModel` protocol and Model A, the ETF regression. |
+| `statarb.factors.pca` | 4 | Model B: residuals on the top principal components of standardised returns over the window ending *t−1* (Avellaneda and Lee, section 2.1), with each stock's betas and the eigenvalues. |
+| `statarb.factors.compare` | 4 | Model B's diagnostics beside Model A's on the rows both have: residual size and overlap, pairwise correlation, reversal by lag, year and size. |
 | `statarb.factors.events` | 1 | The crude event flag: volume over its trailing median, on one share basis. |
 | `statarb.factors.report` | 1 | The diagnostics report and its charts: statistics only, computed apart from writing them. |
-| `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report. |
+| `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report; from phase 4, with `--model pca`, Model B's residuals and their comparison with Model A's. |
 | `statarb.factors.sensitivity` | 1 | Runner: Model A at 60, 126 and 252 days compared on common rows; feeds nothing later. |
 | `statarb.signals` | 2 | Signals behind the `Signal` interface. |
 | `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, and the s-score's factor inputs. |
@@ -93,7 +100,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 |---|---|---|
 | `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
-| `FactorModel` | `EtfFactorModel` (Model A); Model B joins in phase 4 | fixed in phase 1 |
+| `FactorModel` | `EtfFactorModel` (Model A), `PcaFactorModel` (Model B) | `--model` of `statarb.factors.build`; each writes its own table |
 | `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`) | name, in `[[signals]]`, `[headline]` and `[sscore]` of `config/backtest.toml`, through `statarb.signals.registry` |
 | `PortfolioRule` | `DecileRule`, `ThresholdRule` | the variant: decile signals take the decile rule, the s-score its thresholds |
 | `CostModel` | `FlatCost`, `TradingCost` | phase 2: the cost levels in `[costs]` of `config/backtest.toml`; phase 3: `[spread]`, `[impact]` and `[commission]` of `config/costs.toml` |
@@ -106,7 +113,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | Runner | Phase | Reads | Writes |
 |---|---|---|---|
 | `statarb.data.build` | 0 | the raw store, `config/data.toml`, `config/universe.toml`, `config/sector_changes.toml`, `config/listing_starts.toml`, `config/alpaca.toml`; with `--download` also Wikipedia and Alpaca | the phase 0 tables in `data/derived/processed/`, `reports/phase-00/data_quality.md`; with `--download` a new snapshot in the raw store; with `--add-hashes` the hashes in a manifest that lacks them, and nothing else |
-| `statarb.factors.build` | 1 | `returns`, `sectors`, `prices`, `candidates` and `universe` in `data/derived/processed/`, `config/data.toml`, `config/factors.toml` | `data/derived/processed/residuals.parquet`, `reports/phase-01/diagnostics.md` and its charts |
+| `statarb.factors.build` | 1 | `returns`, `sectors`, `prices`, `candidates` and `universe` in `data/derived/processed/`, `config/data.toml`, `config/factors.toml`; with `--model pca` also `residuals` | `data/derived/processed/residuals.parquet`, `reports/phase-01/diagnostics.md` and its charts; with `--model pca` instead `data/derived/processed/residuals_pca.parquet` and `reports/phase-04/model_b.md` with its chart |
 | `statarb.factors.sensitivity` | 1 | the same tables and config as `statarb.factors.build` | `reports/phase-01/window_sensitivity.md` |
 | `statarb.backtest.run` | 2 | `returns`, `prices`, `residuals`, `universe` and `sectors` in `data/derived/processed/`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, and the experiment logs up to phase 2 for the trial count | `reports/phase-02/backtest.md` and its charts; appends to `reports/phase-02/experiments.jsonl` unless `--no-log` |
 | `statarb.backtest.cost_run` | 3 | the same tables as `statarb.backtest.run`, `config/data.toml`, `config/factors.toml`, `config/backtest.toml`, `config/costs.toml`, and the experiment logs before phase 3 for the trial count and phase 2's break-even | `reports/phase-03/costs.md` and its charts; appends to `reports/phase-03/experiments.jsonl` unless `--no-log` |
