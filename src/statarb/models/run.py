@@ -272,7 +272,8 @@ class Outcome:
         return f"{self.forecast}, {self.label}"
 
 
-def _outcome(plab: PortfolioLab, forecast: str, rule: str, kappa: float | None, book: float, result: EngineResult) -> Outcome:
+def path_outcome(plab: PortfolioLab, forecast: str, rule: str, kappa: float | None, book: float, result: EngineResult) -> Outcome:
+    """A path's daily returns per dollar of capital and its metrics, as every phase 5 and 6 path is logged."""
     d, m = evaluate(plab.lab, result, plab.head_setting(), book, plab.kind)
     m.update(exposures(plab, result))
     m.update(solver_stats(result.notes))
@@ -292,12 +293,12 @@ def rule_paths(plab: PortfolioLab, fc: Forecasts, forecast: str, rules: tuple[st
     out = []
     if DECILE in rules:
         result = run_path(lab, book_targets, fill)
-        out += [_outcome(plab, forecast, DECILE, None, book, result) for book in plab.pc.run.book_sizes]
+        out += [path_outcome(plab, forecast, DECILE, None, book, result) for book in plab.pc.run.book_sizes]
     if ZONE in rules:
         move = fc.move[forecast]
         padded = np.hstack([move, np.zeros((move.shape[0], len(lab.tables.hedges)))])
         for book in plab.pc.run.book_sizes:
-            out.append(_outcome(plab, forecast, ZONE, None, book, run_path(lab, book_targets, fill, no_trade(lab, book, padded))))
+            out.append(path_outcome(plab, forecast, ZONE, None, book, run_path(lab, book_targets, fill, no_trade(lab, book, padded))))
     return out
 
 
@@ -337,7 +338,7 @@ def _run_optimiser(job: tuple[str, float, float]) -> tuple[Outcome, float]:
     assert _PLAB is not None
     began = time.perf_counter()
     result = _PLAB.run_path(optimiser_spec(_PLAB.pc, forecast, kappa), book)
-    return _outcome(_PLAB, forecast, OPTIMISER, kappa, book, result), time.perf_counter() - began
+    return path_outcome(_PLAB, forecast, OPTIMISER, kappa, book, result), time.perf_counter() - began
 
 
 def partial_path(plab: PortfolioLab, forecast: str, book: float, grid: tuple[float, ...], target: float | None, rate: float | None) -> Outcome:
@@ -368,7 +369,7 @@ def partial_path(plab: PortfolioLab, forecast: str, book: float, grid: tuple[flo
         choice = choose_rate(turnover_at, target, grid)
     else:
         choice = RateChoice(rate, float("nan") if target is None else target, turnover_at(rate), {})
-    out = _outcome(plab, forecast, PARTIAL, None, book, path_at(choice.rate))
+    out = path_outcome(plab, forecast, PARTIAL, None, book, path_at(choice.rate))
     out.metrics.update(rate_metrics(choice))
     return out
 

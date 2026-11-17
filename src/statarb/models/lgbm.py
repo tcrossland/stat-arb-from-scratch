@@ -99,3 +99,7 @@ class LightGbmBackend:
         )
         best = max(1, booster.best_iteration)
         return LightGbmModel(booster, best), best
+
+    def load(self, path: Path) -> LightGbmModel:
+        booster = lgb.Booster(model_file=str(path))
+        return LightGbmModel(booster, booster.num_trees())
