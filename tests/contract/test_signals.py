@@ -18,6 +18,7 @@ import pandas as pd
 import pytest
 
 from helpers import MARKET_CAL, MARKET_ETFS, synthetic_market
+from models_helpers import market_config
 from statarb.signals.registry import SIGNALS, make_signal
 from statarb.signals.tables import TABLES, build_tables
 from statarb.testing.lookahead import perturb_after, truncate_after
@@ -36,6 +37,7 @@ PARAMS = {
     "residual": {"lookback_days": 3, "vol_scaled": True, "vol_window_days": 60, "vol_min_observations": 45},
     "raw": {"lookback_days": 3, "vol_scaled": True, "vol_window_days": 60, "vol_min_observations": 45},
     "sscore": {"window_days": 30, "max_reversion_days": 30, "centre_means": True, "sector_etfs": MARKET_ETFS},
+    "model": {"config": market_config(), "horizon": 3},
 }
 
 

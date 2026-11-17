@@ -71,6 +71,7 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 5 | Training rows of the test block starting on *s* | feature rows and targets of dates *d* ≤ *s* − *H*; for tuning, validation on the last 252 of those dates and inner training purged before them | after the close of *s* |
 | 5 | Model of the test block starting on *s*, and its grid point | those training rows only: each grid point fitted on the inner training rows and scored on the validation rows, the chosen point refitted on all of them | after the close of *s* |
 | 5 | Model forecast on *t* in that block | the block's model and the features on *t* | after the close of *t* |
+| 5 | Calibrated forecast on *t* | the forecast on *t*, and phase 3's slope from forecast-outcome pairs whose 5-day residual outcome is known by the close of *t* | after the close of *t* |
 
 Notes for phase 0:
 
@@ -108,7 +109,7 @@ Notes for phase 5:
 
 - The stock axis of the signal tables is every stock with a residual anywhere in the loaded tables. A value across stocks over that axis would depend on whether a stock has a residual later: a member before its first residual would count on *t* in a backtest and not in a live run on *t*. Dispersion counts only the members with a residual on or before *t*, and the sector codes come from `[features] sectors` of `config/models.toml`, not from the sectors present in the table.
 - Perturbing values after a cut-off cannot see a value that depends on whether a later row exists, since it leaves the rows alone. `tests/test_features.py` therefore also builds the features from tables cut at a date (`statarb.testing.lookahead.truncate_after`), with a member whose residuals start after the cut, and requires every row up to the cut to equal the one built from the whole tables. It keeps a dispersion over the whole stock axis as a known defect and checks that the perturbation test passes it and the row-removal test fails it.
-- `tests/contract/test_signals.py` runs the same row-removal test over every registered signal. The residual signal passes. The raw signal and the s-score fail it, since they read total returns of members before their first residual: they are marked as expected failures until the backlog item "Signals that count members before their first residual" is done.
+- `tests/contract/test_signals.py` runs the same row-removal test over every registered signal. The residual signal and the model forecast pass. The raw signal and the s-score fail it, since they read total returns of members before their first residual: they are marked as expected failures until the backlog item "Signals that count members before their first residual" is done.
 - The walk-forward (`statarb.models.splitter`) trains the model for a test block of decision dates *s* to *e* − 1 at the close of *s*, on rows whose *H*-day target is known by then. Along date positions, for one block:
 
   ```text

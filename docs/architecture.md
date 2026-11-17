@@ -116,6 +116,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models.lgbm` | 5 | LightGBM behind the model interface: fixed parameters, deterministic training and models saved in its native text format. |
 | `statarb.models.training` | 5 | Per block: the grid tried inside the training window with early stopping and scored by validation IC, the chosen point refitted on the whole window, and the walk-forward forecast. |
 | `statarb.models.ic` | 5 | The daily rank information coefficient and its mean, standard deviation and t-statistic. |
+| `statarb.models.forecast` | 5 | The walk-forward forecast as a `Signal` (`model`), with the run behind it, and the phase 3 calibration of any forecast to an expected move. |
 
 ## Seams
 
@@ -125,7 +126,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 | `FactorModel` | `EtfFactorModel` (Model A), `PcaFactorModel` (Model B) | `--model` of `statarb.factors.build`; each writes its own table |
 | `RiskModel` | `EtfRisk` (Model A), `PcaRisk` (Model B) | `[risk] model` of `config/portfolio.toml` for the headline; each path names its own |
-| `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`) | name, in `[[signals]]`, `[headline]` and `[sscore]` of `config/backtest.toml`, through `statarb.signals.registry` |
+| `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`), `ForecastSignal` (`model`, phase 5) | name, in `[[signals]]`, `[headline]` and `[sscore]` of `config/backtest.toml`, through `statarb.signals.registry`; the model forecast by the phase 5 runner, from `config/models.toml` |
 | `PortfolioRule` | `DecileRule`, `ThresholdRule` | the variant: decile signals take the decile rule, the s-score its thresholds |
 | `CostModel` | `FlatCost`, `TradingCost` | phase 2: the cost levels in `[costs]` of `config/backtest.toml`; phase 3: `[spread]`, `[impact]` and `[commission]` of `config/costs.toml` |
 | `Policy` (engine) | none, the default; `NoTradeZone`; `Optimiser` and `DecileSort` | phase 3: each decile configuration runs with and without the zone; phase 4: each path is a decile sort or an optimiser setting |

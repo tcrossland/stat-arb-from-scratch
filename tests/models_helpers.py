@@ -28,3 +28,17 @@ def synthetic_rows(seed: int = 0, days: int = 200, stocks: int = 40) -> tuple[Fe
     y = (ranks - 1) / (stocks - 1) - 0.5
     frame = pd.DataFrame({"date": dates[day], "ticker": [f"S{c:02d}" for c in col], **{n: x[:, i] for i, n in enumerate(NAMES)}})
     return FeatureSet(frame, NAMES, day, col), y, dates
+
+
+def market_config(first_test: int = 150, block_days: int = 40):
+    """config/models.toml cut down for helpers.synthetic_market: its calendar, 30 stocks and short history."""
+    from helpers import MARKET_CAL
+
+    period = dataclasses.replace(CFG.period, first_test=MARKET_CAL[first_test].date())
+    return dataclasses.replace(
+        CFG,
+        period=period,
+        walk_forward=dataclasses.replace(CFG.walk_forward, block_days=block_days),
+        tuning=TUNING,
+        lightgbm=LIGHTGBM,
+    )

@@ -14,10 +14,20 @@ from statarb.signals.base import Signal
 from statarb.signals.reversal import ReversalSignal
 from statarb.signals.sscore import SScoreSignal
 
+
+def _model_forecast(**params: Any) -> Signal:
+    # Imported when first built: statarb.models reads its config through statarb.backtest.config,
+    # which imports this registry.
+    from statarb.models.forecast import ForecastSignal
+
+    return ForecastSignal(**params)
+
+
 SIGNALS: dict[str, Callable[..., Signal]] = {
     "residual": lambda **p: ReversalSignal("residual", "residual", **p),
     "raw": lambda **p: ReversalSignal("raw", "raw", **p),
     "sscore": lambda **p: SScoreSignal(**p),
+    "model": _model_forecast,     # the phase 5 walk-forward forecast, from config/models.toml
 }
 
 # Signals ranked into decile books; the s-score has its own threshold rule.
