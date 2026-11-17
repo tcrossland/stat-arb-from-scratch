@@ -76,6 +76,16 @@ def build_tables(
     )
 
 
+def known_on(residual: np.ndarray) -> np.ndarray:
+    """(dates x stocks) True from a stock's first residual on: what a live run on t knows of the stock.
+
+    The stock axis is every stock with a residual anywhere in the loaded tables,
+    so a stock whose residuals start later is on it from the first day. A score
+    or a cross-section on t counts only the stocks known on t.
+    """
+    return np.maximum.accumulate(np.isfinite(residual), axis=0)
+
+
 def sector_inputs(tables: Tables, sector_etfs: dict[str, str]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Stock returns, market returns, the excess sector factor and each stock's hedge-column index.
 

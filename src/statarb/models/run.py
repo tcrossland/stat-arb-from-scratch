@@ -73,7 +73,6 @@ from statarb.models.features import (
     FeatureSet,
     build_features,
     dispersion,
-    known_on,
     ranked_target,
 )
 from statarb.models.forecast import ForecastRun, ForecastSignal
@@ -96,6 +95,7 @@ from statarb.signals.tables import (
     Tables,
     build_tables,
     cut_after,
+    known_on,
     load_long,
     sector_inputs,
 )

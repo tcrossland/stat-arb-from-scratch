@@ -106,13 +106,6 @@ def test_signal_reads_only_what_it_declares(name: str) -> None:
     np.testing.assert_array_equal(before, after)
 
 
-# Signals known to fail the row-removal test, each with the defect, until the fix that opens
-# phase 6 (docs/phases/phase-06/brief.md, "From the phase 5 backlog walk"). Strict: a signal that
-# starts passing fails the suite, so the entry is removed with the fix.
-ROW_REMOVAL_DEFECTS = {
-    "raw": "scores a member from its total returns before its first residual, only if it has a residual later",
-    "sscore": "fits members from total returns before their first residual, and centres across them",
-}
 LATE = "S00"                       # a member throughout whose residuals start after the cut-offs below
 
 
@@ -126,13 +119,7 @@ def _score_frame(long: dict, name: str) -> pd.DataFrame:
     return pd.DataFrame(make_signal(name, **_params(name)).scores(tables).score, index=tables.dates, columns=tables.stocks)
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param(n, marks=pytest.mark.xfail(reason=ROW_REMOVAL_DEFECTS[n], strict=True)) if n in ROW_REMOVAL_DEFECTS else n
-        for n in sorted(SIGNALS)
-    ],
-)
+@pytest.mark.parametrize("name", sorted(SIGNALS))
 @pytest.mark.parametrize("cut", [100, 210])
 def test_signal_unchanged_when_later_rows_are_removed(name: str, cut: int) -> None:
     long = _with_late_residuals(dict(zip(TABLES, synthetic_market(seed=11), strict=True)))
@@ -140,7 +127,3 @@ def test_signal_unchanged_when_later_rows_are_removed(name: str, cut: int) -> No
     whole = _score_frame(long, name).loc[:cutoff]
     live = _score_frame(truncate_after(long, cutoff), name).reindex(columns=whole.columns)   # unknown stocks: no score
     pd.testing.assert_frame_equal(whole, live, check_exact=True, check_freq=False)
-
-
-def test_row_removal_defects_name_registered_signals() -> None:
-    assert set(ROW_REMOVAL_DEFECTS) <= set(SIGNALS)

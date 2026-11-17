@@ -82,10 +82,10 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.factors.build` | 1 | Runner: Model A's residuals with the event flag, from the phase 0 tables, and the diagnostics report; from phase 4, with `--model pca`, Model B's residuals and their comparison with Model A's. |
 | `statarb.factors.sensitivity` | 1 | Runner: Model A at 60, 126 and 252 days compared on common rows; feeds nothing later. |
 | `statarb.signals` | 2 | Signals behind the `Signal` interface. |
-| `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, the s-score's factor inputs, and (from phase 5) the long tables cut at a date as a run on that day would load them. |
+| `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, the s-score's factor inputs, the stocks known on each day, and (from phase 5) the long tables cut at a date as a run on that day would load them. |
 | `statarb.signals.base` | 2 | The `Signal` protocol, and the scores and hedge ratios a signal returns. |
-| `statarb.signals.reversal` | 2 | Cross-sectional reversal on residuals or on total returns, optionally scaled by volatility. |
-| `statarb.signals.sscore` | 2 | Avellaneda and Lee's s-score from a 60-day in-sample regression and an AR(1) fit. |
+| `statarb.signals.reversal` | 2 | Cross-sectional reversal on residuals or on total returns, optionally scaled by volatility, for the stocks known on the day. |
+| `statarb.signals.sscore` | 2 | Avellaneda and Lee's s-score from a 60-day in-sample regression and an AR(1) fit, over the stocks known on the day. |
 | `statarb.signals.registry` | 2 | Every signal by the name config chooses it by; the look-ahead contract runs over it. |
 | `statarb.signals.calibration` | 3 | A signal in return units: the expected move over the next *k* days, from a trailing pooled regression on pairs whose outcome is known. |
 | `statarb.backtest` | 2 | The backtest engine, portfolio rules, metrics and the experiment log. |

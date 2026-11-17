@@ -13,6 +13,8 @@ Estimation follows the paper's appendix, with our factor set:
 
 Stocks trade only when the mean-reversion time, -1 / ln b trading days, is under
 `max_reversion_days`, and only with a sector ETF on every day of the window.
+Only stocks known on t, from their first residual on (`known_on`), are fitted
+and centred on: a live run on t knows no other.
 
 Everything on day t uses returns up to the close of t. The thresholds that open
 and close positions belong to a portfolio rule, not to the signal.
@@ -25,7 +27,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from statarb.signals.base import Hedge, Scores
-from statarb.signals.tables import Tables, sector_inputs
+from statarb.signals.tables import Tables, known_on, sector_inputs
 
 
 @dataclass(frozen=True)
@@ -46,8 +48,12 @@ def fit_sscores(
     max_reversion_days: float,
     centre_means: bool,
     max_condition: float = 1e10,
+    known: np.ndarray | None = None,
 ) -> SScoreFit:
-    """y and sector are (dates x stocks); market is (dates,). sector is the excess sector factor."""
+    """y and sector are (dates x stocks); market is (dates,). sector is the excess sector factor.
+
+    `known` (dates x stocks) marks the stocks that may be fitted on each day; None means all.
+    """
     T, N = y.shape
     shape = (T, N)
     s_out = np.full(shape, np.nan)
@@ -61,7 +67,10 @@ def fit_sscores(
         Y, S, M = y[rows], sector[rows], market[rows]
         if not np.isfinite(M).all():
             continue
-        cols = np.flatnonzero(np.isfinite(Y).all(axis=0) & np.isfinite(S).all(axis=0))
+        cols = np.isfinite(Y).all(axis=0) & np.isfinite(S).all(axis=0)
+        if known is not None:
+            cols &= known[t]
+        cols = np.flatnonzero(cols)
         if len(cols) == 0:
             continue
         Y, S = Y[:, cols], S[:, cols]
@@ -113,10 +122,14 @@ class SScoreSignal:
 
     @property
     def reads(self) -> tuple[str, ...]:
-        # Universe membership sets the stocks whose equilibrium means are centred on.
-        return ("returns", "sectors", "universe")
+        # Universe membership sets the stocks whose equilibrium means are centred on;
+        # residuals say from which day a stock is known.
+        return ("residuals", "returns", "sectors", "universe")
 
     def scores(self, tables: Tables) -> Scores:
         y, market, sector, etf_index = sector_inputs(tables, self.sector_etfs)
-        fit = fit_sscores(y, market, sector, tables.members, self.window_days, self.max_reversion_days, self.centre_means)
+        fit = fit_sscores(
+            y, market, sector, tables.members, self.window_days, self.max_reversion_days, self.centre_means,
+            known=known_on(tables.residual.to_numpy()),
+        )
         return Scores(np.where(fit.tradeable, fit.s, np.nan), Hedge(fit.beta_market, fit.beta_sector, etf_index))
