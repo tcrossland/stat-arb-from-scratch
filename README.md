@@ -72,13 +72,23 @@ uv run pytest
 
 [Reproducing the results](docs/reproduce.md) rebuilds every published result: downloading and pinning a data snapshot, which needs a free, paper-only Alpaca account, then each phase's runner in order, with what each reads and writes.
 
+## Reuse it
+
+Most of the code is built around this pipeline's tables, but a few parts work on their own:
+
+- [Look-ahead checks](src/statarb/testing/lookahead.py): perturb a table's values after a cut-off, or drop its rows after it, and assert that nothing dated on or before the cut-off changed. They work on any long pandas table with a date column.
+- [Deflated Sharpe ratio](src/statarb/backtest/metrics.py): the probability that a strategy's Sharpe ratio beats the best expected from as many trials of noise, after Bailey and López de Prado (2014), from a daily return series and the Sharpe ratios of every trial.
+- [Trading cost model](src/statarb/backtest/costs.py): `TradingCost` charges half-spread, square-root market impact and a per-order commission with a minimum and a maximum on a panel of trades by day and name, held as numpy arrays. Building its inputs from prices (`build_cost_inputs`) assumes this project's tables.
+
+The [contract tests](tests/contract/) are tied to the pipeline rather than reusable: they are where a new signal, price source, portfolio rule or model library starts, since every registered implementation runs through the same checks.
+
+Help is welcome on one open question in particular: is there a published short-term reversal series, built by others and with terms that allow automated use, to compare with this project's decile book year by year? It would be the one check on the engine and the data together that does not rest on this project's own code ([backlog](docs/backlog.md#an-independent-short-term-reversal-series)). Issues and questions are welcome.
+
 ## Disclaimer
 
 This is a personal research project, not investment advice. Nothing here is a recommendation to buy or sell any security or to follow any strategy. Backtest and simulated results are hypothetical, rest on simplifying assumptions (including survivorship bias in the universe) and do not predict future returns.
 
 Market data is downloaded from third-party sources at run time and is not redistributed in this repository: no prices, volumes or other data values are committed, and reports hold only statistics derived from them.
-
-Issues and questions are welcome.
 
 ## Licence
 
