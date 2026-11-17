@@ -19,9 +19,10 @@ from statarb.models.holdout import (
     check_ready,
     check_reproduced,
     development_rates,
+    development_trials,
     run_holdout,
 )
-from statarb.models.run import PARTIAL, log_entries, run_development
+from statarb.models.run import PARTIAL, log_entries, run_development, trial_sets
 from statarb.signals.tables import cut_after
 
 STATE = {"git_commit": "c0ffee", "git_dirty": False, "config_overlay": None, "price_source": "synthetic", "price_snapshot": "2026-01-01"}
@@ -50,7 +51,7 @@ def logged(tmp_path_factory):
 def read(logged):
     s, models, _, log = logged
     walks = check_ready(log, s, STATE, repeat=False)
-    return run_holdout(s, market_long(), models, walks, trial_sharpes(log), development_rates(log))
+    return run_holdout(s, market_long(), models, walks, development_trials(log, {}), development_rates(log))
 
 
 # --- the read ----------------------------------------------------------------------------------------
@@ -93,8 +94,19 @@ def test_development_forecasts_do_not_change_when_the_holdout_is_loaded(logged, 
 def test_the_holdout_adds_no_trial(logged, read) -> None:
     log = logged[3]
     assert trial_sharpes(log + _holdout_log(read)) == trial_sharpes(log)
-    assert set(read.verdict["trials"]) == {len(trial_sharpes(log))}
+    sets = development_trials(log, {})
+    assert {b: set(g["trials"]) for b, g in read.verdict.groupby("book")} == {b: {len(t)} for b, t in sets.items()}
     assert {c["kind"] for c, _ in read.entries} == set(HOLDOUT_KINDS)
+
+
+def test_each_book_is_judged_against_its_development_trial_set(logged) -> None:
+    s, _, res, log = logged
+    earlier = {"earlier path": 0.01}
+    sets = development_trials(log, earlier)
+    assert sets == trial_sets(earlier, res.outcomes, res.logged, s.pc.run.book_sizes)
+    # A path's gross Sharpe differs between books, so one set for both would misjudge one of them.
+    small, large = (sets[b] for b in sorted(sets))
+    assert small.keys() == large.keys() and small != large
 
 
 def test_holdout_report_rebuilds_byte_for_byte(read, tmp_path) -> None:
@@ -110,7 +122,7 @@ def test_repeat_reproduces_the_logged_read(logged, read) -> None:
     s, models, _, log = logged
     full = log + _holdout_log(read)
     walks = check_ready(full, s, STATE, repeat=True)
-    again = run_holdout(s, market_long(), models, walks, trial_sharpes(log), development_rates(full))
+    again = run_holdout(s, market_long(), models, walks, development_trials(full, {}), development_rates(full))
     check_reproduced(full, again.entries)
     tampered = [dict(e, metrics={**e["metrics"], "sharpe": 9.0}) if e["config"]["kind"] == "holdout path" else e for e in full]
     with pytest.raises(ValueError, match="differs from the logged"):

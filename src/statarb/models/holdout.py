@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import sys
 import time
@@ -44,7 +45,8 @@ import pandas as pd
 
 from statarb.backtest import experiments
 from statarb.backtest.cost_run import variants
-from statarb.backtest.trials import HOLDOUT_KINDS, repository_trials
+from statarb.backtest.engine import TRADING_DAYS
+from statarb.backtest.trials import HOLDOUT_KINDS, path_id, repository_trials
 from statarb.config import load_config, repo_root, resolve_path
 from statarb.models.config import ModelsConfig
 from statarb.models.features import feature_names, ranked_target
@@ -53,6 +55,7 @@ from statarb.models.run import (
     OPTIMISER,
     PARTIAL,
     PHASE,
+    PRIOR,
     Forecasts,
     Outcome,
     Progress,
@@ -147,6 +150,22 @@ def development_rates(log: list[dict]) -> dict[tuple[str, float], float]:
     return {(e["config"]["forecast"], e["config"]["book_size"]): e["metrics"]["trade_rate"] for e in paths}
 
 
+def development_trials(log: list[dict], earlier: Mapping[str, float]) -> dict[float, dict[str, float]]:
+    """The trial set at each book size, as the last development run judged its paths against.
+
+    `earlier` holds the trials of the phases before 5. Each path of the last
+    development run adds its daily gross Sharpe at that book size, as
+    `statarb.models.run.trial_sets` does, so the holdout's bar at each book is
+    the development's.
+    """
+    paths = [e for e in latest_run(log, (WALK, PATH)) if e["config"]["kind"] == PATH]
+    out: dict[float, dict[str, float]] = {}
+    for e in paths:
+        book = e["config"]["book_size"]
+        out.setdefault(book, dict(earlier))[path_id(e["config"])] = e["metrics"]["gross_sharpe"] / math.sqrt(TRADING_DAYS)
+    return out
+
+
 def check_development_models(fc: Forecasts, saved: Mapping[tuple[int, int], tuple[str, str]], walks: Mapping[int, dict], dates: pd.DatetimeIndex, start: int) -> int:
     """Every development block's model must have the hash the development run logged. Returns the number checked."""
     checked = 0
@@ -221,13 +240,14 @@ def holdout_records(res_fc: Forecasts, outcomes: list[Outcome], plab: PortfolioL
 
 
 def run_holdout(
-    s: Settings, long: Mapping[str, pd.DataFrame], model_dir: Path, walks: Mapping[int, dict], trials: dict[str, float],
+    s: Settings, long: Mapping[str, pd.DataFrame], model_dir: Path, walks: Mapping[int, dict], trials: Mapping[float, dict[str, float]],
     rates: Mapping[tuple[str, float], float], root: Path | None = None, workers: int = 1, progress: Progress | None = None,
 ) -> HoldoutResults:
     """The read: retrain and check the development models, then run every path over the holdout.
 
-    `trials` holds every trial through the development run: the holdout adds
-    none. `rates` holds partial adjustment's development trade rates.
+    `trials` holds every trial through the development run at each book size
+    (`development_trials`): the holdout adds none. `rates` holds partial
+    adjustment's development trade rates.
     """
     say = progress or (lambda line: None)
     mc = s.mc
@@ -250,7 +270,7 @@ def run_holdout(
     outcomes = run_paths(plab, fc, mc, root, workers, say, rates=rates if PARTIAL in mc.runs.rules else None)
     rows = evaluation_rows(fc) & (fc.features.day >= start)
     ic = ic_analysis(tables, fc, rows)
-    verdict = verdicts(outcomes, {b: trials for b in s.pc.run.book_sizes})
+    verdict = verdicts(outcomes, {b: trials[b] for b in s.pc.run.book_sizes})
     entries = holdout_records(fc, outcomes, plab, s, saved, checked)
     return HoldoutResults(plab, mc, fc, outcomes, ic, block_ic(tables, fc, mc.target.headline_horizon), verdict, checked, entries)
 
@@ -291,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
     def say(line: str) -> None:
         print(f"[{time.perf_counter() - began:6.0f}s] {line}", file=sys.stderr, flush=True)
 
-    trials = repository_trials(reports, through=PHASE)
+    trials = development_trials(log, repository_trials(reports, through=PRIOR))
     long = load_long(resolve_path(paths["processed"], root))
     res = run_holdout(s, long, resolve_path(paths["models"], root), walks, trials, development_rates(log), root, args.workers, say)
     if args.repeat:
