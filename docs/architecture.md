@@ -112,6 +112,10 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models.config` | 5 | `config/models.toml` as frozen dataclasses that reject unknown or missing keys, with the development end before the holdout. |
 | `statarb.models.features` | 5 | The fifteen features and the ranked target, recomputed from the signal tables; a feature across stocks counts only the stocks known on the day. |
 | `statarb.models.splitter` | 5 | Walk-forward blocks with a purge and an embargo, the inner validation split for tuning, and the rows whose target is known by the development end. |
+| `statarb.models.backend` | 5 | The model interface: a `Backend` fits with or without early stopping, and its `Model` predicts, gives TreeSHAP contributions and gain, and saves itself returning the file's SHA-256; backends by name for `[model] library`. |
+| `statarb.models.lgbm` | 5 | LightGBM behind the model interface: fixed parameters, deterministic training and models saved in its native text format. |
+| `statarb.models.training` | 5 | Per block: the grid tried inside the training window with early stopping and scored by validation IC, the chosen point refitted on the whole window, and the walk-forward forecast. |
+| `statarb.models.ic` | 5 | The daily rank information coefficient and its mean, standard deviation and t-statistic. |
 
 ## Seams
 
@@ -125,8 +129,9 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `PortfolioRule` | `DecileRule`, `ThresholdRule` | the variant: decile signals take the decile rule, the s-score its thresholds |
 | `CostModel` | `FlatCost`, `TradingCost` | phase 2: the cost levels in `[costs]` of `config/backtest.toml`; phase 3: `[spread]`, `[impact]` and `[commission]` of `config/costs.toml` |
 | `Policy` (engine) | none, the default; `NoTradeZone`; `Optimiser` and `DecileSort` | phase 3: each decile configuration runs with and without the zone; phase 4: each path is a decile sort or an optimiser setting |
+| `Backend` (model) | `LightGbmBackend` | `[model] library` of `config/models.toml` |
 
-`tests/contract/` runs every implementation of each protocol through the same checks: `test_signals.py` runs every registered signal through the look-ahead test, with later values perturbed and with later rows removed, and checks it reads only the tables it declares, and `test_portfolio.py` runs the decile sort and the optimiser through the same checks of members, gross, neutrality and look-ahead. Model A is checked in `tests/test_factors.py` and Model B in `tests/test_pca.py`, each with its own look-ahead test; the risk models' look-ahead and the optimiser's constraints are in `tests/test_optimiser.py`. The portfolio rules and the flat cost are checked in `tests/test_backtest.py`, and `TradingCost` and the no-trade zone in `tests/test_costs.py`.
+`tests/contract/` runs every implementation of each protocol through the same checks: `test_signals.py` runs every registered signal through the look-ahead test, with later values perturbed and with later rows removed, and checks it reads only the tables it declares, and `test_portfolio.py` runs the decile sort and the optimiser through the same checks of members, gross, neutrality and look-ahead. `test_models.py` runs every model backend through fitting with and without early stopping, contributions that add up to the forecast, gain and a byte-identical rebuild. Model A is checked in `tests/test_factors.py` and Model B in `tests/test_pca.py`, each with its own look-ahead test; the risk models' look-ahead and the optimiser's constraints are in `tests/test_optimiser.py`. The portfolio rules and the flat cost are checked in `tests/test_backtest.py`, and `TradingCost` and the no-trade zone in `tests/test_costs.py`.
 
 ## Runners
 
@@ -152,7 +157,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `backtest.toml` | `statarb.backtest.config` | The first signal date, the placebo's seed and runs, the decile and volatility window, cost levels and borrow, fill timings and slippage, holding periods, the headline, the decile signals and the s-score's settings. Phase 3 reads its signals, portfolio and s-score settings unchanged. |
 | `costs.toml` | `statarb.backtest.config` | The phase 3 fill, book sizes and configurations; the assumed half-spread, its bracket and floor, and the estimators' window and size groups; the impact coefficients and windows; the commission schedules with the date and page they were read from; the borrow rates and hard-to-borrow proxy; the no-trade zone's calibration window, which phase 4's expected moves use too. |
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
-| `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, LightGBM's fixed settings and the tuning grid. |
+| `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid. |
 
 ## External libraries
 
@@ -166,7 +171,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | SciPy 1.18.1 | BSD-3-Clause; its wheels bundle OpenBLAS (BSD-3-Clause), LAPACK (BSD-3-Clause-Open-MPI) and the GCC runtime library (GPL-3.0-or-later with the GCC Runtime Library Exception 3.1) | `statarb.factors.pca`; through cvxpy, the solver's sparse matrices | the top eigenvectors of the correlation matrix (`scipy.linalg.eigh`) |
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |
-| LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
+| LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` of `config/models.toml` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
 
 cvxpy brings its own dependencies, none imported by the project: OSQP (Apache-2.0), SCS (MIT), HiGHS through `highspy` (MIT), QDLDL (Apache-2.0), cffi (MIT-0), pycparser (BSD-3-Clause), Jinja2 (BSD-3-Clause), MarkupSafe (BSD-3-Clause), joblib (BSD-3-Clause), cloudpickle (BSD-3-Clause), setuptools (MIT) and SparseDiffPy (Apache-2.0). Each licence is read from the distribution's own metadata; `tests/test_licences.py` checks every installed distribution. cvxpy, Clarabel and SciPy are pinned exactly: another solver or version can return slightly different weights. LightGBM brings narwhals (MIT), not imported by the project, and is pinned exactly so a rebuilt model is byte-identical. On macOS its wheel links the OpenMP runtime, `libomp`, which it does not bundle: the one system runtime in the stack (`README.md`).
 

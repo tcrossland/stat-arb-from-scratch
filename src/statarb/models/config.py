@@ -47,6 +47,11 @@ class Features:
 
 
 @dataclass(frozen=True)
+class ModelChoice:
+    library: str                 # a name in statarb.models.backend.BACKENDS
+
+
+@dataclass(frozen=True)
 class LightGbm:
     learning_rate: float
     feature_fraction: float
@@ -71,6 +76,7 @@ class ModelsConfig:
     walk_forward: WalkForward
     target: Target
     features: Features
+    model: ModelChoice
     lightgbm: LightGbm
     tuning: Tuning
 

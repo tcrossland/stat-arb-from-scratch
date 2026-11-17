@@ -69,6 +69,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 5 | Features on *t* | residuals, total returns, highs, lows, closes and split-consistent volumes over the trailing windows ending *t*; SPY's returns over the 20 days ending *t*; for dispersion, the members on *t* with a residual on or before *t*; the sector on *t* | after the close of *t* |
 | 5 | Ranked target of horizon *H* on *t* | the residuals of *t* + 1 to *t* + *H*, ranked across the members on *t* | after the close of *t* + *H*: a training label, never a decision input on *t* |
 | 5 | Training rows of the test block starting on *s* | feature rows and targets of dates *d* ≤ *s* − *H*; for tuning, validation on the last 252 of those dates and inner training purged before them | after the close of *s* |
+| 5 | Model of the test block starting on *s*, and its grid point | those training rows only: each grid point fitted on the inner training rows and scored on the validation rows, the chosen point refitted on all of them | after the close of *s* |
+| 5 | Model forecast on *t* in that block | the block's model and the features on *t* | after the close of *t* |
 
 Notes for phase 0:
 
@@ -119,6 +121,7 @@ Notes for phase 5:
   ```
 
   The walk-forward is purely forward, so the right-hand side is never used to train: `tests/test_splitter.py` checks both sides of `train_mask` and that no training target overlaps a test target. The inner validation split for tuning applies the same rule inside the training window. Development metrics read only rows whose target is known by the development end, so the last decision dates of the last block, whose targets fall in the holdout, are left out.
+- `tests/test_training.py` changes every target not known at the close of a block's first day, and the features of the block itself, and requires the same grid, the same chosen point and a model file with the same SHA-256; and changes everything after a block's start and requires the walk-forward forecasts before it to be unchanged.
 - The optimiser's cost term uses the same inputs the cost model charges a fill at *t* + 1 with, all from the close of *t*, so the price it optimises against is the price it is charged before the fill price itself, which only counts shares for the commission.
 - If the solver returns anything but an optimal solution, the previous fill's holdings are kept: the book drifts, and nothing is traded at *t* + 1. Constraints are never relaxed. Days with fewer than two eligible names, or before the risk model or the expected move exists, are idle, not failed.
 - `tests/test_optimiser.py` perturbs prices, volumes, returns, residuals and Model A's market and sector betas after a cut-off and requires the risk models, the expected moves, the optimiser's holdings and its decision notes up to the cut-off to be unchanged; `tests/contract/test_portfolio.py` checks the decile sort and the optimiser the same way.

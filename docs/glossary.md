@@ -257,6 +257,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Walk-forward, purge, embargo.** Validation that trains on the past and tests on the next block of time, dropping training rows whose outcomes overlap the test block (purge) and a gap after it (embargo).
 
+**SHAP contribution.** A feature's share of one forecast, from LightGBM's TreeSHAP (`pred_contrib`), exact for trees: a row's contributions and the expected value add up to the forecast. Reported out of sample, on each block's test rows.
+
+**Gain.** The total reduction in training loss from a feature's splits, summed over a model's trees.
+
 **Holdout.** The most recent data, kept out of every model choice and read once at the end.
 
 ## Paper trading

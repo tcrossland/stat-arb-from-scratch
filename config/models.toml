@@ -41,6 +41,9 @@ sectors = [
     "Utilities",
 ]
 
+[model]
+library = "lightgbm"             # the backend behind statarb.models.backend; [lightgbm] holds its settings
+
 [lightgbm]
 learning_rate = 0.05
 feature_fraction = 0.8
