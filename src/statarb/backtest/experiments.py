@@ -19,14 +19,19 @@ from typing import Any
 from statarb.config import load_config, overlay
 
 
-def git_state(root: Path) -> dict[str, Any]:
-    """The commit and whether the working tree has changes; None for both outside a git checkout."""
+def git_state(root: Path, ignore: tuple[str, ...] = ()) -> dict[str, Any]:
+    """The commit and whether the working tree has changes outside the paths in `ignore`; None for both outside a git checkout.
+
+    `ignore` is for outputs a job writes into the tree itself, such as the phase 6
+    daily notes, which would otherwise mark every later run dirty.
+    """
 
     def git(*args: str) -> str:
         return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
 
+    pathspec = ["--", ".", *(f":(exclude){p}" for p in ignore)] if ignore else []
     try:
-        return {"git_commit": git("rev-parse", "HEAD"), "git_dirty": bool(git("status", "--porcelain"))}
+        return {"git_commit": git("rev-parse", "HEAD"), "git_dirty": bool(git("status", "--porcelain", *pathspec))}
     except (OSError, subprocess.CalledProcessError):
         return {"git_commit": None, "git_dirty": None}
 

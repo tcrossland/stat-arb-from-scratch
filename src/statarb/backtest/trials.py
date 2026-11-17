@@ -16,7 +16,11 @@ phase's report unchanged, and a rerun of the same configuration is not a new
 trial. Each path's statistic is the daily (not annualised) Sharpe ratio of its
 gross returns, from its latest entry. A holdout read (`HOLDOUT_KINDS`, phase 5)
 is not a trial, since nothing is chosen from it, and its paths, which repeat
-development paths over the held-out year, never replace their statistic.
+development paths over the held-out year, never replace their statistic. Nor
+is a phase 6 diagnostic path, which runs through the holdout to draw a chart,
+or a path whose metrics say it is `identical_to` another path already counted.
+A phase 6 path's slope rule (`slope_rule`) is part of its id unless it is the
+trailing slope every earlier phase used, so earlier paths keep their ids.
 """
 
 from __future__ import annotations
@@ -33,17 +37,23 @@ from statarb.backtest.experiments import config_id, read
 # a phase 2 entry and a phase 3 entry for the same path share an id.
 PATH_KEYS = (
     "signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade", "residuals", "optimiser",
-    "model", "partial_adjustment",
+    "model", "partial_adjustment", "slope_rule",
 )
 
+# The slope rule every phase before phase 6 used, left out of a path's id.
+TRAILING = "trailing"
 
-# Log entry kinds (`config.kind`) of the phase 5 holdout read, which `trial_sharpes` skips.
+
+# Log entry kinds (`config.kind`) of the phase 5 holdout read.
 HOLDOUT_KINDS = ("holdout walk-forward", "holdout path")
+
+# Kinds `trial_sharpes` skips: the holdout read and phase 6's diagnostic paths through the holdout.
+NOT_TRIALS = (*HOLDOUT_KINDS, "diagnostic path")
 
 
 def path_id(config: dict[str, Any]) -> str:
     """The id of the position path a configuration runs: its config_id over `PATH_KEYS` alone."""
-    return config_id({k: config[k] for k in PATH_KEYS if config.get(k) is not None})
+    return config_id({k: config[k] for k in PATH_KEYS if config.get(k) is not None and not (k == "slope_rule" and config[k] == TRAILING)})
 
 
 def logs(reports: Path, through: str | None = None) -> list[Path]:
@@ -53,10 +63,11 @@ def logs(reports: Path, through: str | None = None) -> list[Path]:
 
 
 def trial_sharpes(entries: Iterable[dict[str, Any]]) -> dict[str, float]:
-    """Daily gross Sharpe ratio by path id; a later entry for the same path replaces an earlier one, and a holdout entry is skipped."""
+    """Daily gross Sharpe ratio by path id; a later entry for the same path replaces an earlier one, and a holdout entry or a path
+    identical to another is skipped."""
     out: dict[str, float] = {}
     for e in entries:
-        if e["config"].get("kind") in HOLDOUT_KINDS:
+        if e["config"].get("kind") in NOT_TRIALS or e["metrics"].get("identical_to") is not None:
             continue
         value = e["metrics"].get("gross_sharpe")
         if value is not None:
