@@ -31,6 +31,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### Measured effective spreads
 
-- **Trigger:** the start of phase 6, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption.
+- **Trigger:** the decision record that starts the forward run, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption. Moved from the start of phase 6 by its brief, since phase 6 builds the job and runs no fills.
 - **Why:** decision record 0005 charges an assumed spread because the daily-price estimators measure the strategy's own reversal. The assumption is the same for every stock and day, so it misprices the smaller names and stressed years.
 - **Action:** find a public source of measured effective spreads per stock (for example the execution-quality reports US market centres publish under SEC Rule 605), read its terms, and write a decision record before using it. Compare it with the assumption and the bracket by size group and year.
+
+### Forward run
+
+- **Trigger:** the owner's decision to start it, after phase 6 is merged.
+- **Why:** phase 6 builds and tests the paper-trading package but runs nothing forward, so nothing yet shows whether the live pipeline behaves like its backtest, the phase's goal. Its acceptance criteria, eight weeks of uninterrupted running and a drift report on turnover, signals, IC and P&L, can only be met by the run.
+- **Action:** write the decision record that freezes the strategy from the phase 6 evidence by a rule stated before any forward day is seen: forecast, rule, slope rule, book size and, for a model, the files and their SHA-256. In the same record name the first session, the run time, the ledger's private backup repository and the scheduler, and say whether the forward days are a fresh holdout and from when; if they are, add the guard that makes the development and backtest runners refuse its dates. Fill `[frozen]`, `[run]` and `[backup]` in `config/paper.toml`, write the frozen record, check its first daily download end to end, then set up the scheduler and run the weekly drift report.
