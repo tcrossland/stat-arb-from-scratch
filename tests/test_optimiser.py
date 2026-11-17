@@ -243,8 +243,17 @@ def test_portfolio_config_rejects_unknown_or_missing_keys() -> None:
         PortfolioConfig.from_dict({**raw, "run": {**raw["run"], "book_sizes": [123_456]}}, ccfg)
 
 
+def _short_market(last: int) -> tuple[pd.DataFrame, ...]:
+    """The synthetic market cut at MARKET_CAL[last]; the sectors table has no dates and is kept whole."""
+    cut = MARKET_CAL[last]
+    return tuple(df[df["date"] <= cut] if "date" in df else df for df in synthetic_market(seed=5))
+
+
 def test_trials_log_and_report(tmp_path) -> None:
-    plab = synthetic_lab()
+    # Every path runs at both book sizes, and each optimiser day is a fresh cvxpy solve, so this
+    # test runs on 70 decision days rather than the market's 260. Every path still trades, the
+    # turnover budgets and the minimum trade still bind, and every section of the report is written.
+    plab = synthetic_lab(_short_market(130))
     pc = plab.pc
     pick = [*decile_specs(pc), *optimiser_specs(pc)]
     outcomes = [o for spec in pick for b in BOOKS for o in outcomes_for(plab, spec, b, plab.run_path(spec, b))]
