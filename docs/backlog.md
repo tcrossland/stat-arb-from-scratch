@@ -35,6 +35,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** the phase 4 optimiser solves one day at a time and ignores that today's trade changes tomorrow's starting book, and in all but three of its 34 pairs of path and book size costs exceeded the gross return. Gârleanu and Pedersen (2013) trade part of the way towards an aim portfolio that blends current and expected future forecasts, weighted by how fast each decays. The phase 4 review moved it into the phase 5 brief, which deferred it: its trials would count against the deflated-Sharpe bar the model's forecast must clear, and it needs forecasts at several horizons, so a result in the same phase would mix the forecast with the trading rule.
 - **Action:** at the phase 5 review, with the forecasts' decay by horizon measured, carry it to a later chapter, with the trade rate set by a rule on positions before any return is seen and the comparison with the one-period optimiser at matched turnover, or delete it if the decay leaves nothing to weight.
 
+### Signals that count members before their first residual
+
+- **Trigger:** phase 5 review.
+- **Why:** the stock axis of the signal tables is every stock with a residual anywhere in the loaded tables. The raw reversal signal scores a member from its total returns before its first residual, and the s-score fits such members and centres across them, but only when the stock has a residual later; a live run on that day would not see it. Phase 5's row-removal test found this. On the pinned snapshot it touches 2,362 member-days from 2017-01-03, of 25 stocks, on 1,349 days. It reaches phase 2's and phase 3's raw control and s-score paths, not the residual signal or the model. `tests/contract/test_signals.py` marks both signals as strict expected failures until it is fixed.
+- **Action:** count only stocks known on the day in both signals, rerun phases 2 and 3 in a commit of its own with a `Results:` footer and both sets of numbers, and remove the two expected failures.
+
 ### Measured effective spreads
 
 - **Trigger:** the start of phase 6, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption.
