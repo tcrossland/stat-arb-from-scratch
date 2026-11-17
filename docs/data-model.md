@@ -4,6 +4,90 @@ The stored tables, their columns and keys, and how they join. `tests/test_data_m
 
 All tables are long format in `data/derived/processed/`, written with rows sorted by their key: the phase 0 tables by `statarb.data.build`, `residuals` and `residuals_pca` by `statarb.factors.build` from them. Phases 2 to 4 store no other table: the backtest pivots these into dates by tickers panels in memory (`statarb.signals.tables`), phase 3 recomputes its cost inputs (spread estimates, volatilities, dollar volumes) from them on each run, phase 4 its risk models and optimiser decisions, and each writes only its report and experiment log, below. Dates are trading dates in New York, stored as `timestamp[ns]` with no time zone. Tickers are as Wikipedia lists them (`BRK.B`, not `BRK-B`).
 
+## Tables and joins
+
+Every stored table with its columns, its key (PK) and how it joins; the sections below give each column's meaning, and [Joins](#joins) the rules. A dotted line is a join made at signal time, never in the table.
+
+```mermaid
+erDiagram
+    candidates ||--o{ prices : "ticker (ETFs: prices only)"
+    candidates ||--|{ sectors : "ticker, dated"
+    candidates ||--o{ universe : "ticker"
+    prices ||--o| actions : "date, ticker"
+    prices ||--o| returns : "date, ticker"
+    returns ||--o| residuals : "date, ticker (stocks only)"
+    returns ||--o| residuals_pca : "date, ticker (stocks only)"
+    universe |o..o| residuals : "date, ticker"
+
+    candidates {
+        string ticker PK
+        string security
+        string sector "current GICS"
+        string sub_industry
+        timestamp date_added
+        int cik
+    }
+    prices {
+        timestamp date PK
+        string ticker PK
+        double open
+        double high
+        double low
+        double close
+        int volume
+    }
+    actions {
+        timestamp date PK "ex-date"
+        string ticker PK
+        double split_ratio
+        double cash
+    }
+    returns {
+        timestamp date PK
+        string ticker PK
+        double ret
+        timestamp prev_date
+        double split_ratio
+        double cash
+    }
+    universe {
+        timestamp date PK
+        string ticker PK
+        timestamp rebalanced_on
+    }
+    sectors {
+        string ticker PK
+        timestamp valid_from PK
+        string sector
+        timestamp valid_to "null while current"
+    }
+    residuals {
+        timestamp date PK
+        string ticker PK
+        double ret
+        double fitted
+        double residual
+        double alpha
+        double beta_market
+        double beta_sector
+        string sector_etf
+        int n_obs
+        bool market_only
+        double volume_ratio
+        bool event
+    }
+    residuals_pca {
+        timestamp date PK
+        string ticker PK
+        double ret
+        double fitted
+        double residual
+        int n_obs
+        double beta_j "one per eigenportfolio"
+        double eigenvalue_j "one per eigenportfolio"
+    }
+```
+
 ## Raw snapshots
 
 `<raw store>/<source>/<download date>/` holds one download as the source returned it, with `manifest.json` written last; the raw store is `data/raw/` or the path in `STATARB_RAW`. A snapshot without its manifest is incomplete and never read. Every manifest holds `files`, the SHA-256 of each file by its path in the snapshot, and `digest`, the SHA-256 of the lines `path hash` sorted by path; config pins a snapshot by date and digest, and the build refuses one that does not match. A complete snapshot is read-only. The price manifest records the source, basis, layout, the first date asked for, `end_exclusive` (the New York date of the download: bars before it only), the tickers asked for, those with no data and those that failed. Alpaca snapshots keep `bars/<ticker>.parquet` with Alpaca's bar fields and `actions/<ticker>.json` with its corporate-action records; the build applies `config/alpaca.toml` to them (decision record 0004). Wikipedia snapshots keep `page.html` and the revision id.

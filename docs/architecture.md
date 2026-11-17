@@ -4,56 +4,43 @@ The packages, runners and config files, what each reads and writes, and the exte
 
 ## Data flow
 
+Two diagrams, both read top to bottom. The first builds the stored tables; the second runs the phases on them, each runner reading the logs before it for the trial count. Each runner also reads the config files listed in its row of [Runners](#runners).
+
 ```mermaid
-flowchart LR
+flowchart TB
     W["Wikipedia<br/>constituent page"] -->|--download| RW["raw store<br/>wikipedia/&lt;date&gt;/"]
     A["Alpaca<br/>bars and corporate actions"] -->|--download| RA["raw store<br/>alpaca/&lt;date&gt;/"]
     RW --> B["statarb.data.build"]
     RA --> B
-    C["config/*.toml"] --> B
     B --> P["data/derived/processed/<br/>phase 0 tables"]
-    B --> Q["reports/phase-00/data_quality.md"]
+    B --> Q["reports/phase-00/<br/>data_quality.md"]
     P --> F["statarb.factors.build"]
-    CF["config/factors.toml"] --> F
-    F --> RS["data/derived/processed/<br/>residuals.parquet"]
+    F --> RS["data/derived/processed/<br/>residuals.parquet (Model A)"]
     F --> FR["reports/phase-01/<br/>diagnostics.md and charts"]
-    P --> BT["statarb.backtest.run"]
-    RS --> BT
-    CB["config/backtest.toml"] --> BT
-    BT --> BR["reports/phase-02/<br/>backtest.md, charts and<br/>experiments.jsonl"]
-    P --> CR["statarb.backtest.cost_run"]
-    RS --> CR
-    CB --> CR
-    CC["config/costs.toml"] --> CR
-    BR -->|trials| CR
-    CR --> CRR["reports/phase-03/<br/>costs.md, charts and<br/>experiments.jsonl"]
-    P --> FB["statarb.factors.build<br/>--model pca"]
-    RS --> FB
-    CF --> FB
-    FB --> RB["data/derived/processed/<br/>residuals_pca.parquet"]
+    RS --> FB["statarb.factors.build<br/>--model pca"]
+    P --> FB
+    FB --> RB["data/derived/processed/<br/>residuals_pca.parquet (Model B)"]
     FB --> FBR["reports/phase-04/<br/>model_b.md and chart"]
-    P --> PR["statarb.portfolio.run"]
-    RS --> PR
-    RB --> PR
-    CB --> PR
-    CC --> PR
-    CP["config/portfolio.toml"] --> PR
+```
+
+```mermaid
+flowchart TB
+    T["data/derived/processed/<br/>phase 0 tables and residuals"]
+    T --> BT["statarb.backtest.run<br/>phase 2"]
+    BT --> BR["reports/phase-02/<br/>backtest.md, charts, experiments.jsonl"]
+    T --> CR["statarb.backtest.cost_run<br/>phase 3"]
+    BR -->|trials| CR
+    CR --> CRR["reports/phase-03/<br/>costs.md, charts, experiments.jsonl"]
+    T --> PR["statarb.portfolio.run<br/>phase 4, with residuals_pca"]
     CRR -->|trials, no-trade zone| PR
-    PR --> PRR["reports/phase-04/<br/>portfolio.md, charts and<br/>experiments.jsonl"]
-    P --> MR["statarb.models.run"]
-    RS --> MR
-    CB --> MR
-    CC --> MR
-    CP --> MR
-    CM["config/models.toml"] --> MR
+    PR --> PRR["reports/phase-04/<br/>portfolio.md, charts, experiments.jsonl"]
+    T -->|cut at the development end| MR["statarb.models.run<br/>phase 5 development"]
     PRR -->|trials| MR
     MR --> MM["data/derived/models/<br/>one model per block and horizon"]
-    MR --> MRR["reports/phase-05/<br/>ml.md, charts and<br/>experiments.jsonl"]
-    P --> MH["statarb.models.holdout<br/>read once"]
-    RS --> MH
-    CM --> MH
+    MR --> MRR["reports/phase-05/<br/>ml.md, charts, experiments.jsonl"]
+    T -->|cut at the holdout end| MH["statarb.models.holdout<br/>read once"]
     MRR -->|development run, model hashes| MH
-    MH --> MHR["reports/phase-05/<br/>holdout.md, chart and<br/>experiments.jsonl"]
+    MH --> MHR["reports/phase-05/<br/>holdout.md, chart, experiments.jsonl"]
 ```
 
 Only `--download` touches the network. A rebuild reads the pinned snapshots and the config, and writes the same bytes each time. Phases 2 to 4 store no table but Model B's residuals: every backtest, every cost input (spread estimates, volatilities, volumes), the risk models and every optimiser decision are recomputed from the phase 0, 1 and 4 tables, and only reports and experiment logs are written. Phase 5 stores no table either: its features are recomputed in each run, and its models, written to `data/derived/models/` in LightGBM's text format with each file's SHA-256 in the experiment log, are rebuilt by retraining.
