@@ -76,6 +76,8 @@ uv run pytest
 
 [Reproducing the results](docs/reproduce.md) rebuilds every published result: downloading and pinning a data snapshot, which needs a free, paper-only Alpaca account, then each phase's runner in order, with what each reads and writes.
 
+[The daily job](docs/daily-job.md) sets up the forward paper trade on a machine of your own. Once it has written a ledger, the ledger explorer shows it across days: the book by sector and side, the trades at each open, P&L net of costs, attribution, holding spells and the run's health. It is a local [marimo](https://marimo.io) app, with the same views in SQL for the [DuckDB](https://duckdb.org) command line; [exploring the ledger](docs/daily-job.md#exploring-the-ledger) has the commands. It runs only on your machine and nothing it shows is published here, because the data's terms forbid redistributing it ([decision record 0003](docs/decisions/0003-data-sources-alpaca-and-wikipedia.md)).
+
 ## Reuse it
 
 Most of the code is built around this pipeline's tables, but a few parts work on their own:
