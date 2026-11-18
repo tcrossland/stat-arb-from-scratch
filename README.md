@@ -33,7 +33,7 @@ Each stage is a function of the tables before it, cut at the decision date, whic
 Each phase holds to these:
 
 - **No look-ahead.** Every value used on a day must have been knowable that day. Every transform and every signal passes a test that perturbs later data and requires nothing earlier to change ([time discipline](docs/time-discipline.md)).
-- **Reproducible.** Every result reproduces exactly from the pinned data snapshot behind it, its config and seed, in the environment fixed by `uv.lock`. That snapshot is not redistributed: a rebuild from your own download matches closely, within a tolerance to be stated in [reproducing the results](docs/reproduce.md#checking-your-results). Raw snapshots are never modified.
+- **Reproducible.** Every result reproduces exactly from the pinned data snapshot behind it, its config and seed, in the environment fixed by `uv.lock`. That snapshot is not redistributed: a rebuild from your own download matches closely, by a margin not yet measured ([reproducing the results](docs/reproduce.md#checking-your-results)). Raw snapshots are never modified.
 - **Every trial counted.** Every configuration run is logged, and the best is judged against all of them with a deflated Sharpe ratio, never shown alone. A result clears the bar when its net return is significant and its Sharpe ratio very probably beats the best that as many tries would produce by chance ([glossary](docs/glossary.md#performance-measures)).
 - **No data committed.** No prices, volumes or per-ticker returns are committed, and reports hold statistics only; tests run on synthetic fixtures with the network blocked.
 - **Licences checked.** A test reads the licence of every installed distribution, dependencies included.
