@@ -37,3 +37,4 @@ Each phase in order: its brief, then its build commits, then its review. The tag
 - [`requirements.md`](requirements.md): the time, memory and disk each runner needs.
 - [`../config/`](../config/): the configuration, commented, one TOML file per area.
 - [`backlog.md`](backlog.md): deferred work, each item with the trigger that brings it back.
+- [`plans/`](plans/): plans for backlog items large enough to need one, starting with the [ledger explorer](plans/ledger-explorer.md).

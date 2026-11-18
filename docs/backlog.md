@@ -92,3 +92,9 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** the forward run's review, or the documentation site, whichever comes first.
 - **Why:** each review reports its own phase, and a reader has no single view of how the headline moved from phase to phase, how much each step lost to costs and how many trials the bar has absorbed.
 - **Action:** store each phase's headline path's daily returns in one table, written by the runners that already produce them, so no earlier phase is rerun. From it, one report with the shrinkage of the headline Sharpe from gross to net by phase, drawdown curves, the trial histogram against the deflated bar, and the sample and holdout timeline. Statistics and charts only, no prices.
+
+### Ledger explorer
+
+- **Trigger:** when the owner wants it during the forward run, since it is additive and moves no result; at the latest, the forward run's review.
+- **Why:** the daily note reports one ledger day and the drift report compares the run with its frozen path. Neither shows what the book has traded over a week, what it holds by sector and side, which names made or lost money over a window, or how long positions last.
+- **Action:** follow the [ledger explorer plan](plans/ledger-explorer.md): pure views over the ledger in `statarb.paper`, tested on a synthetic ledger, and a local marimo app over them. Local only, since decision record 0003 forbids redistributing the data the ledger is derived from.
