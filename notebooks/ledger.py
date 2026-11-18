@@ -87,9 +87,18 @@ def _(FuncFormatter, mo, plt):
         label = (lambda v, _: f"{'−' if v < 0 else ''}${abs(v) / unit:g}{suffix}") if suffix else (lambda v, _: compact(v))
         getattr(ax, f"{axis}axis").set_major_formatter(FuncFormatter(label))
 
-    def percent_axis(ax, axis: str, largest: float) -> None:
-        places = 0 if largest >= 0.05 else 1 if largest >= 0.005 else 2
-        getattr(ax, f"{axis}axis").set_major_formatter(FuncFormatter(lambda v, _: f"{v:.{places}%}".replace("-", "−")))
+    def percent_axis(ax, axis: str) -> None:
+        """Percent ticks on steps of 1, 2 or 5, with the decimal places the ticks themselves need, so no label is a
+        rounded tick: a step of 2.5 points labelled in whole percents reads 2%, 5%, 8%."""
+        ax.locator_params(axis=axis, steps=[1, 2, 5, 10])
+        target = getattr(ax, f"{axis}axis")
+
+        def label(value, _):
+            ticks = target.get_majorticklocs() * 100
+            places = next((p for p in range(3) if abs(ticks - ticks.round(p)).max() < 1e-9), 3)
+            return f"{value:.{places}%}".replace("-", "−")
+
+        target.set_major_formatter(FuncFormatter(label))
 
     def day_axis(ax, dates) -> None:
         """Trading days evenly spaced, so weekends leave no gap; at most eight date labels."""
@@ -247,7 +256,7 @@ def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, sectors, sh
     _ax.barh(_rows, _sectors["short"], height=0.5, color=SERIES[1], label="Short")
     _ax.set_yticks(_rows, list(_sectors.index))
     zero(_ax, "x")
-    percent_axis(_ax, "x", float(_sectors[["long", "gross"]].abs().max().max()) if len(_sectors) else 0.0)
+    percent_axis(_ax, "x")
     title(_ax, "By sector, % of capital")
     legend(_ax)
     _fig.tight_layout()
@@ -303,10 +312,13 @@ def _(INK, SERIES, WIDE, bar_width, canvas, compact, day_axis, frame, heading, i
     day_axis(_top, _dates)
     title(_top, "Net P&L after costs and borrow, dollars")
     legend(_top)
-    for _name, _values, _colour in (("Gross", _exp["gross"], SERIES[0]), ("Net", _exp["net"], SERIES[1]), ("Turnover", _pnl["turnover"], SERIES[2])):
-        _bottom.plot(_x, _values, color=_colour, linewidth=2, solid_capstyle="round", label=_name)
+    # Turnover is what each open traded and exposure what it left, so turnover is bars, as daily net is above, and the
+    # two exposures are lines: opening a book from flat trades exactly its gross, and one line would cover the other.
+    _bottom.bar(_x, _pnl["turnover"], width=bar_width(len(_x), WIDE), color=INK["quiet"], label="Turnover", zorder=2)
+    for _name, _values, _colour in (("Gross", _exp["gross"], SERIES[0]), ("Net", _exp["net"], SERIES[1])):
+        _bottom.plot(_x, _values, color=_colour, linewidth=2, solid_capstyle="round", label=_name, zorder=3)
     zero(_bottom)
-    percent_axis(_bottom, "y", float(max(_exp["gross"].max(), _pnl["turnover"].max())) if _x else 0.0)
+    percent_axis(_bottom, "y")
     day_axis(_bottom, _dates)
     title(_bottom, "Exposure after each open and turnover, % of capital")
     legend(_bottom)
@@ -380,7 +392,7 @@ def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note
         _ax.step(_x, _h["holding"], where="post", color=SERIES[0], linewidth=2)
         _ax.fill_between(_x, _h["holding"], step="post", color=SERIES[0], alpha=0.10, linewidth=0)
         zero(_ax)
-        percent_axis(_ax, "y", float(_h["holding"].abs().max()))
+        percent_axis(_ax, "y")
         day_axis(_ax, list(_h["date"]))
         title(_ax, f"{ticker.value}: holding after each open, % of capital")
         _fig.tight_layout()
