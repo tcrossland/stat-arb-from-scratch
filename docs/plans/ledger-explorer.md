@@ -1,6 +1,6 @@
 # Ledger explorer
 
-Status: proposed, 2026-11-18. Not started. Backlog item: [Ledger explorer](../backlog.md#ledger-explorer).
+Status: done, 2026-11-18. How to run it: [exploring the ledger](../daily-job.md#exploring-the-ledger). It started as a backlog item, removed when it was built.
 
 ## Purpose
 
@@ -22,16 +22,15 @@ Weights are per unit of capital; dollars are weight times `book_size`. Day-level
 
 ## Two layers
 
-### 1. Ad hoc queries now, with nothing in the repository
+### 1. SQL views for the command line
 
-The DuckDB command line (`brew install duckdb`, licence not yet read from its own LICENSE file) queries the ledger's parquet files directly, and `duckdb -ui` gives a local browser SQL notebook. Each file carries its own `date` column, so hive partitioning is turned off:
+The DuckDB command line (`brew install duckdb`, MIT, read from its LICENSE file) queries the ledger's parquet files directly. `notebooks/ledger.sql` defines the views below in SQL, over an in-memory database that writes nothing:
 
-```sql
-create view ledger as
-  select * from read_parquet('data/paper/ledger/*.parquet', hive_partitioning = false);
+```bash
+STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
 ```
 
-This covers the first weeks, while the ledger is small and the questions are still forming. The queries that recur become the views below.
+Each file carries its own `date` column, so the views read with hive partitioning off. This began as ad hoc queries with nothing in the repository; the queries that recurred became the views, and the SQL was added beside the Python once both existed. The two are held together by `tests/test_ledger_sql.py`, which runs every SQL view against the Python view of the same name on the synthetic ledger.
 
 ### 2. Views in `src/statarb/paper/`, and an app over them
 
@@ -48,30 +47,31 @@ This covers the first weeks, while the ledger is small and the questions are sti
 
 Sector weights use the dated rule in `docs/data-model.md`: a ticker's sector on day *d* is the row with `valid_from <= d` and `valid_to` null or later than *d*. Hedge ETFs have no sector row and are shown as their own group.
 
-**`notebooks/ledger.py`**: a [marimo](https://marimo.io) app over the views, run with `marimo run notebooks/ledger.py`. A day picker, a window picker and a ticker picker drive the views; charts use matplotlib as elsewhere. marimo is chosen over Jupyter and Streamlit because the file is plain Python with no stored outputs, which meets the rule in `notebooks/README.md` without a stripping step, and because one file serves as an app and as a notebook for digging. Streamlit would do as well as an app, with more dependencies for the licence test to cover.
+**`notebooks/ledger.py`**: a [marimo](https://marimo.io) app over the views, run with `marimo run notebooks/ledger.py`. A day picker, a window picker and a ticker picker drive the views, each in the tab it affects; charts use matplotlib as elsewhere, in a palette checked for colour-blind readers in light and dark. Its theme is `notebooks/ledger.css`. marimo is chosen over Jupyter and Streamlit because the file is plain Python with no stored outputs, which meets the rule in `notebooks/README.md` without a stripping step, and because one file serves as an app and as a notebook for digging. Streamlit would do as well as an app, with more dependencies for the licence test to cover.
 
 The app takes the root of the checkout whose ledger it reads as an argument, defaulting to the current checkout, so it can read the job's clone from the development checkout. No path is committed.
 
 ## Dependencies
 
-- **marimo**, in a non-default `uv` dependency group (`explore`), so the daily job's environment does not change. Its licence and those of its dependencies are read from their own package metadata in the change that adds it, and `tests/test_licences.py` covers them once installed.
-- **DuckDB** as a command-line tool from Homebrew, outside `pyproject.toml`. Not needed by the views or the app.
+- **marimo** (Apache-2.0), in a non-default `uv` dependency group (`explore`), so the daily job's environment does not change. CI installs the group, so `tests/test_licences.py` covers marimo and its dependencies. One of them, docutils, names GPL in its metadata for a file its wheel does not contain; it is an entry in that test's `EXCEPTIONS`, and `docs/architecture.md` lists the rest.
+- **DuckDB** (MIT) as a command-line tool from Homebrew for `notebooks/ledger.sql`, and its Python package in the `explore` group, imported only by the test that checks the SQL against the Python views. Not needed by the Python views or the app.
 
 ## Testing
 
-- A synthetic ledger builder in `tests/`: a few chained days over a handful of made-up tickers, written with `statarb.paper.ledger.write_day`, that passes `statarb.paper.ledger.check`. The existing helpers in `tests/test_paper_ledger.py` are the starting point.
+- A synthetic ledger builder, `tests/synthetic_ledger.py`: a few chained days over a handful of made-up tickers, written with `statarb.paper.ledger.write_day`, that passes `statarb.paper.ledger.check`. The existing helpers in `tests/test_paper_ledger.py` are the starting point.
 - A unit test per view on that ledger, with hand-checked totals: the book's gross and net, trades equal to `holding` minus `drifted`, attribution summing to the day's `pnl`, sector assignment across a sector change.
 - A test that loading reads no file outside the ledger and sectors paths it is given, and writes none.
-- The app is not tested beyond importing it. Any screenshot used in the README or the docs is taken on the synthetic ledger and says so.
+- The app runs end to end on the synthetic ledger in a slow test, from a copy outside the repository, since marimo writes a session cache with the cells' outputs beside the notebook; the test fails on any cell error. Any screenshot used in the README or the docs is taken on the synthetic ledger and says so.
 
 ## Steps
 
 One commit each, on a branch from `main`:
 
 1. `feat(paper)`: `statarb.paper.views` with the synthetic ledger builder and tests.
-2. `build`: the `explore` dependency group with marimo, its licence stated in the body; `.gitignore` for any cache the app writes.
-3. `feat(paper)`: `notebooks/ledger.py`.
-4. `docs`: `docs/architecture.md` (the module, the notebook and the library), `docs/daily-job.md` (how to open the explorer on the job's ledger) and `docs/README.md`. Remove the backlog item and mark this plan done.
+2. `build`: the `explore` dependency group with marimo and DuckDB, their licences stated in the body; `.gitignore` for the cache the app writes.
+3. `feat(paper)`: `notebooks/ledger.py` and its theme.
+4. `feat(paper)`: `notebooks/ledger.sql`, the views for the DuckDB command line.
+5. `docs`: `docs/daily-job.md` (how to open the explorer on the job's ledger), `docs/glossary.md` and `docs/README.md`. Remove the backlog item and mark this plan done. `docs/architecture.md` changes with the code in the steps above.
 
 ## Open questions
 
