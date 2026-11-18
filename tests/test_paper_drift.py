@@ -267,7 +267,11 @@ def _no_reads(monkeypatch) -> None:
     monkeypatch.setattr(drift, "load_config", refuse)
 
 
-def test_the_report_refuses_with_nothing_frozen(monkeypatch) -> None:
+def test_the_report_refuses_with_nothing_frozen(tmp_path, monkeypatch) -> None:
+    from test_paper_frozen import _unfrozen
+
+    root = _unfrozen(tmp_path)
+    monkeypatch.setattr(drift, "repo_root", lambda: root)
     _no_reads(monkeypatch)
     with pytest.raises(FrozenConfigError, match="waits for the decision record"):
         drift.main([])

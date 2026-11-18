@@ -15,7 +15,6 @@ import pytest
 from helpers import MARKET_CAL
 from runner_helpers import market_long, market_settings
 from statarb.backtest import experiments
-from statarb.config import repo_root
 from statarb.paper import backup as backup_
 from statarb.paper import daily, frozen, ledger
 from statarb.paper.config import TRAILING
@@ -287,11 +286,13 @@ def test_an_optimiser_note_shows_a_held_book(tmp_path, monkeypatch) -> None:
 # The real job's preamble ------------------------------------------------------------------------
 
 
-def test_build_job_refuses_an_unset_frozen_strategy_before_any_download(monkeypatch) -> None:
+def test_build_job_refuses_an_unset_frozen_strategy_before_any_download(tmp_path, monkeypatch) -> None:
+    from test_paper_frozen import _unfrozen
+
     monkeypatch.setattr(daily, "download_snapshot", lambda *a: pytest.fail("downloaded with no frozen strategy"))
     monkeypatch.setattr(daily, "build_tables", lambda *a: pytest.fail("built tables with no frozen strategy"))
     with pytest.raises(frozen.FrozenConfigError, match="waits for the decision record"):
-        daily.build_job(repo_root(), dt.datetime(2027, 1, 5, 6, tzinfo=NY), download=True)
+        daily.build_job(_unfrozen(tmp_path), dt.datetime(2027, 1, 5, 6, tzinfo=NY), download=True)
 
 
 def test_the_real_reproduction_rebuilds_the_reference_tables_every_time(tmp_path, monkeypatch) -> None:

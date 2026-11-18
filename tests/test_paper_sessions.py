@@ -121,8 +121,8 @@ def test_xnys_sessions_come_from_the_calendars_rules() -> None:
     assert len(got) == 51
 
 
-def test_the_run_section_waits_for_the_forward_runs_decision() -> None:
+def test_the_run_section_is_set_by_the_forward_runs_decision() -> None:
     cfg = load_paper_config()
-    assert cfg.run.first_session == "" and cfg.run.first is None
-    assert not cfg.frozen.is_set
+    assert cfg.run.first == pd.Timestamp("2026-11-16")   # decision record 0007
+    assert cfg.frozen.is_set
     assert cfg.run.calendar == "XNYS" and cfg.run.run_time == SIX
