@@ -2,6 +2,8 @@
 
 A daily statistical arbitrage pipeline for US equities, from raw market data to a forward-running paper trade, built to answer one question: does cross-sectional residual mean reversion survive realistic trading costs and an honest count of everything tried? Simulation only.
 
+The short answer so far is no: the signal earns a small return before trading costs, but once realistic costs are paid and every configuration tried is counted, none keeps a return that can be told apart from luck. The forward paper trade now tests whether the pipeline, run one day at a time on data downloaded each day, behaves like its backtest, not whether it earns.
+
 ## Results
 
 The findings of each phase, whichever way they go.
