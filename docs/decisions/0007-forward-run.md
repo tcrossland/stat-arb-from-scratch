@@ -1,7 +1,7 @@
 # 0007: The forward run: its strategy, first session and schedule
 
 **Date:** 2026-11-17
-**Status:** proposed
+**Status:** accepted
 
 ## Context
 
