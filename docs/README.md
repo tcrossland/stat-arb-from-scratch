@@ -28,7 +28,7 @@ Each phase in order: its brief, then its build commits, then its review. The tag
 ## Run it
 
 - [`reproduce.md`](reproduce.md): rebuild every published result from your own snapshot.
-- `daily-job.md` *(with the forward run's decision record)*: set up and run the forward paper trade.
+- [`daily-job.md`](daily-job.md): set up and run the forward paper trade.
 
 ## Look something up
 

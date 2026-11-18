@@ -116,7 +116,7 @@ From step 3, every runner behaves the same way in four respects:
 
    It reads the tables phase 5 reads, cut at the development end, and through the holdout only for the slope chart's diagnostic paths, with `config/paper.toml` for the slope rules. It retrains every phase 5 model into a temporary directory and stops unless each has its logged SHA-256, then runs every forecast through the decile sort, the no-trade zone and the optimiser under each slope rule at both book sizes (the optimiser paths in worker processes, `--workers`), and stops unless every trailing path gives the metrics phase 5 logged. It logs one entry per path, slope rule and book size and writes `reports/phase-06/choice.md` and its charts. It reads the earlier logs for the trial count. Like the holdout runner, it stops on a snapshot other than the one behind the published results, at the first model or trailing path that differs from phase 5's.
 
-   The forward run starts only with the decision record that freezes its strategy, and its daily job downloads every day; its guide, `docs/daily-job.md`, comes with that record.
+   The forward run's strategy and first session are frozen by [decision record 0007](decisions/0007-forward-run.md), and [running the daily job](daily-job.md) sets it up. Its days are a fresh holdout: on a snapshot taken after the first session, the phase 2 to 4 runners cut every table at the day before it, so they never read a forward day.
 
 ## Checking your results
 
