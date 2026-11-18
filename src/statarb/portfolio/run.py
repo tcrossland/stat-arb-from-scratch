@@ -55,11 +55,12 @@ from statarb.config import load_config, repo_root, resolve_path
 from statarb.factors.model import wide
 from statarb.factors.pca import PcaModelConfig
 from statarb.io import read_parquet
+from statarb.paper.config import backtest_last
 from statarb.portfolio.config import PortfolioConfig, load_portfolio_config
 from statarb.portfolio.optimiser import IDLE, DayNote, DecileSort, Optimiser, Settings
 from statarb.portfolio.paths import PathSpec, bracketed, decile_specs, optimiser_specs
 from statarb.portfolio.risk import RiskModel, etf_risk, pca_risk
-from statarb.signals.tables import load_tables, sector_inputs
+from statarb.signals.tables import cut_after, load_tables, sector_inputs
 
 PHASE = "phase-04"
 MATERIAL_BREACH = 1e-3            # 0.1% of capital
@@ -183,10 +184,13 @@ def load_portfolio_lab(root: Path) -> PortfolioLab:
     cfg = load_backtest_config(root)
     ccfg = load_cost_config(cfg, root)
     pc = load_portfolio_config(ccfg, root)
-    tables = load_tables(processed, data_cfg["factors"]["market"], sector_etfs)
+    last = backtest_last(root)
+    tables = load_tables(processed, data_cfg["factors"]["market"], sector_etfs, last)
     lab = build_lab(tables, cfg, ccfg, sector_etfs)
-    residuals_a = read_parquet(processed / "residuals.parquet")
-    residuals_b = read_parquet(processed / "residuals_pca.parquet")
+    residuals = {name: read_parquet(processed / f"{name}.parquet") for name in ("residuals", "residuals_pca")}
+    if last is not None:
+        residuals = cut_after(residuals, last)
+    residuals_a, residuals_b = residuals["residuals"], residuals["residuals_pca"]
     k = PcaModelConfig.from_config(factors_cfg["pca"]).factors
     return build_portfolio_lab(lab, pc, residuals_a, residuals_b, sector_etfs, k)
 

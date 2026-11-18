@@ -39,6 +39,7 @@ from statarb.backtest.sweep import (
     targets,
 )
 from statarb.config import load_config, repo_root, resolve_path
+from statarb.paper.config import backtest_last
 from statarb.signals.base import Scores
 from statarb.signals.tables import Tables, load_tables
 
@@ -124,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     data_cfg = load_config("data", root)
     sector_etfs = load_config("factors", root)["sector_etfs"]
     cfg = load_backtest_config(root)
-    tables = load_tables(resolve_path(data_cfg["paths"]["processed"], root), data_cfg["factors"]["market"], sector_etfs)
+    tables = load_tables(resolve_path(data_cfg["paths"]["processed"], root), data_cfg["factors"]["market"], sector_etfs, backtest_last(root))
     grids = build_grids(tables)
     outcomes = run_sweep(tables, cfg, grids, sector_etfs)
     reports = resolve_path(data_cfg["paths"]["reports"], root)

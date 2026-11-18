@@ -131,5 +131,9 @@ def load_long(processed: Path) -> dict[str, pd.DataFrame]:
     return {name: read_parquet(processed / f"{name}.parquet") for name in TABLES}
 
 
-def load_tables(processed: Path, market: str, sector_etfs: dict[str, str]) -> Tables:
-    return build_tables(*load_long(processed).values(), market, sector_etfs)
+def load_tables(processed: Path, market: str, sector_etfs: dict[str, str], last: pd.Timestamp | None = None) -> Tables:
+    """The stored tables, cut at `last` when it is given, as a run on that day would load them (`cut_after`)."""
+    long = load_long(processed)
+    if last is not None:
+        long = cut_after(long, last)
+    return build_tables(*long.values(), market, sector_etfs)
