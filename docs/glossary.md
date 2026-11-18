@@ -295,6 +295,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Session, due session.** A day the exchange is open, from its calendar. A session is due once New York's date has passed it and its clock has reached the run time, 06:00, so a run processes the same sessions however early, late or often the scheduler fires it.
 
+**Late session.** A forward-run session not processed by the first run after it falls due, from a snapshot taken on that New York day after the run time: one caught up after a missed day, or processed from an early snapshot. It still counts toward the run, and the run's review reports results with and without the late sessions (decision record 0007, amendment of 2026-11-18).
+
 **Catch-up.** A run after missed days processes every due session after the last ledger day, in order, each on tables cut at it.
 
 **Ledger, ledger day.** The record of the forward run: one immutable file per session, holding the engine step at that day's open and the decision made at its close. The next day fills the decision recorded, never a recomputed one.

@@ -58,3 +58,11 @@ The phase 5 holdout has been read. Results from the forward run are the only out
 - The first two sessions are reported both ways, so a reader can discount them.
 - `docs/requirements.md` gains the daily job's and the drift report's time, memory and disk from the first run that downloads.
 - The backlog item "Forward run" is deleted: this record and [running the daily job](../daily-job.md) carry out its action. The two deferred items keep their titles, with new triggers.
+
+## Amendment, 2026-11-18: the run's end and late sessions
+
+Item 8 asks for at least eight weeks of uninterrupted running, about 40 sessions, without fixing the last session or saying what a missed day does to the count. Both are settled here, after the first two sessions and before any drift report, so the end is not chosen after seeing results.
+
+1. **The last session is 2027-01-13,** the 40th session of the XNYS calendar from 2026-11-16, processed by the run of 2027-01-14. Eight weeks from the first session end on 2027-01-11, the 38th, so this meets both parts of item 8. The run's results and the amended phase 6 review cover 2026-11-16 to 2027-01-13, and also 2026-11-18 to 2027-01-13 (item 3).
+2. **Uninterrupted** means every session from the first to the last reaches the ledger, in order, with none missing. The ledger's checks already refuse a gap. A host that is off or asleep does not break the run: the next run processes every due session in order.
+3. **A late session** is one not processed by the first run after it falls due, from a snapshot taken on that New York day after the run time. Such a session is processed from a snapshot taken at another time, often together with others, so it does not test the daily data path the way the rest do. The run's review lists each one, and reports the run's results with and without them. The first two sessions are the first such cases: 2026-11-16 was processed two days late, and 2026-11-17 from a snapshot taken before the run time.
