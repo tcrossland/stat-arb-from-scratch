@@ -18,6 +18,7 @@ ALLOWED_SPDX = frozenset(
     {
         "0bsd", "apache-2.0", "bsd-2-clause", "bsd-3-clause", "cc0-1.0", "isc", "mit", "mit-0", "mit-cmu",
         "mpl-2.0", "psf-2.0", "python-2.0", "unlicense", "zlib",
+        "licenseref-public-domain",   # a public domain dedication, for EXCEPTIONS entries; SPDX has no identifier for it
     }
 )
 # Trove classifiers ("License :: ... :: <name>") and free-text License fields, matched case-insensitively.
@@ -32,7 +33,13 @@ DENIED = re.compile(r"\b(a?gpl|lgpl|gnu|copyleft|non-?commercial|cc[- ]by-nc)", 
 
 # Distributions whose metadata states no licence, with what their bundled licence file says.
 # A copyleft or non-commercial entry here also needs a decision record, named in the comment.
-EXCEPTIONS: dict[str, str] = {}
+EXCEPTIONS: dict[str, str] = {
+    # marimo (explore group). Its classifiers name Public Domain, BSD and GPL. COPYING.rst dedicates most files to
+    # the public domain, releases the listed exceptions under BSD-2-Clause, and puts only tools/editors/emacs/rst.el
+    # under GPL-3.0-or-later; that file is not in the wheel (absent from its RECORD), which ships the GPL text only.
+    # Read for docutils 0.23; read again when uv.lock moves it.
+    "docutils": "LicenseRef-Public-Domain AND BSD-2-Clause",
+}
 
 
 def spdx_allowed(expression: str) -> bool:

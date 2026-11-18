@@ -27,6 +27,15 @@ dev = [
     "pytest",
     "ruff==0.17.5",
 ]
+explore = [
+    "duckdb>=2.0.0",
+    "marimo>=0.25.2",
+]
+
+[tool.marimo.display]
+# The ledger explorer (notebooks/ledger.py) runs in dark. Its charts read this setting to pick their palette
+# (`mo.app_meta().theme`), so "system" is not used: marimo reports it as light whatever the browser shows.
+theme = "dark"
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14.0"]

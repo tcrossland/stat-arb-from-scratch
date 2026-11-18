@@ -257,6 +257,37 @@ git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/phas
 
 Then run the job by hand and check that the reproduction check passes (section 1).
 
+### Exploring the ledger
+
+The ledger explorer reads the job's ledger from a development checkout, so the job's clone needs nothing installed and no change. In the development checkout, install the `explore` group once, then open the app on the job's clone, here beside it:
+
+```bash
+uv sync --locked --group explore
+```
+
+```bash
+uv run --group explore marimo run notebooks/ledger.py -- --root ../stat-arb-forward
+```
+
+It serves on 127.0.0.1 and opens a browser tab: the book after any day's open, the trades and P&L over a window, attribution by ticker, sector or side, holding spells, one ticker's history, the expected moves behind the next open, and each day's health. It only reads. It runs in marimo's dark theme, set by `[tool.marimo.display] theme` in `pyproject.toml`; change it to `"light"` there and restart the app, and the charts follow. Keep what it shows on the machine: no screenshots or exported tables in the repository or anywhere public ([decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md)). `marimo edit` on the same file also checks marimo.io for a newer version once a day; set `MARIMO_SKIP_UPDATE_CHECK=1` to stop it. `marimo run` does not check.
+
+**From the command line.** The same views are in SQL for the [DuckDB](https://duckdb.org) command-line client (`brew install duckdb`). From the development checkout:
+
+```bash
+STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
+```
+
+It lists its views on start (`FROM guide;` shows them again) and writes nothing: the database is in memory. If it waits five seconds on start and reports a timeout reading the terminal's background colour, the terminal does not answer DuckDB's query for it: add `-dark-mode` or `-light-mode` to the command. Some queries to start from:
+
+```sql
+FROM book_on();                                    -- the book after the latest open
+FROM trades WHERE date >= current_date - 7;        -- the last week's trades
+SELECT sector, sum(net_usd) AS net FROM earned GROUP BY ALL ORDER BY abs(net) DESC;
+FROM history('SPY');                               -- one name, day by day
+```
+
+`tests/test_ledger_sql.py` holds each SQL view to the Python view of the same name, so the two cannot drift apart.
+
 ### When a run refuses
 
 Its line in the run log says why:

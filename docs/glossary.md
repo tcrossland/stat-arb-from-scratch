@@ -299,6 +299,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Ledger, ledger day.** The record of the forward run: one immutable file per session, holding the engine step at that day's open and the decision made at its close. The next day fills the decision recorded, never a recomputed one.
 
+**Holding spell.** A run of ledger days on which a name is held on one side. It starts at the open that fills it and ends at the open that closes or flips it; adding to or reducing it on the same side keeps the spell. The ledger explorer lists them with what each earned.
+
+**Ledger explorer.** A local app over the ledger (`notebooks/ledger.py`, on `statarb.paper.views`): the book, trades, P&L, attribution, holding spells and run health. It reads forward days, so nothing it shows enters a result, and it is never hosted, since the ledger derives from data that may not be redistributed.
+
 **Drift report.** The weekly check that the forward run behaves like its backtest: each live measure over the run's days against the same measure over every window of as many days in the frozen path over development, with the source's revisions and the run's failures.
 
 ## Process
