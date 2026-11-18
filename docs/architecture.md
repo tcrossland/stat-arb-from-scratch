@@ -47,7 +47,7 @@ flowchart TB
     CH --> CHR["reports/phase-06/<br/>choice.md, charts, experiments.jsonl"]
 ```
 
-The forward run, once its decision record freezes the strategy, reads no development table. Each morning the daily job builds its own tables from the day's snapshot, and the reproduction check builds reference tables from the pinned one:
+The forward run, whose strategy decision record 0007 freezes, reads no development table. Each morning the daily job builds its own tables from the day's snapshot, and the reproduction check builds reference tables from the pinned one:
 
 ```mermaid
 flowchart TB
@@ -146,7 +146,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.models.run` | 5 | Development runner: the tables cut at the development end, the walk-forward at each horizon and its saved models, every forecast through every rule at each book size with optimiser paths in worker processes and then partial adjustment's, each matched to an optimiser path's turnover, IC, importance, event response, the dispersion measurement, the judgement against the bar and the experiment log. |
 | `statarb.models.holdout` | 5 | Holdout runner: refuses a dirty tree, a configuration, overlay or snapshot unlike the last development run's, and a second read; retrains every development model and checks its hash, then runs every path over the holdout, partial adjustment at its development trade rate, and logs entries that are not trials. |
 | `statarb.models.report` | 5 | The phase 5 development and holdout reports and their charts: statistics only. |
-| `statarb.paper` | 6 | Paper trading: the evidence for the forward run's choice, and the daily job, ledger, checks and drift report that run it once a decision record freezes it. Places no order. |
+| `statarb.paper` | 6 | Paper trading: the evidence for the forward run's choice, and the daily job, ledger, checks and drift report that run the strategy decision record 0007 freezes. Places no order. |
 | `statarb.paper.config` | 6 | `config/paper.toml` as frozen dataclasses that reject unknown or missing keys, and the names of the slope rules, rules and forecasts. |
 | `statarb.paper.choice` | 6 | Runner: the evidence before the choice on development data (slope over time, realised move by decile, IC by fill timing, every forecast and rule under each slope rule), with the phase 5 models retrained and checked against their hashes and the trailing paths against phase 5's metrics. |
 | `statarb.paper.report` | 6 | The choice report and the drift report, with their charts: statistics only. |
@@ -191,7 +191,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.paper.choice` | 6 | the same tables as `statarb.backtest.run`, cut at the development end, and for the slope chart's diagnostic paths at the holdout's last day; the config files `statarb.models.run` reads and `config/paper.toml`; `reports/phase-05/experiments.jsonl` for the model hashes and the trailing paths' metrics; the experiment logs up to phase 5 for the trial count | `reports/phase-06/choice.md` and its charts; appends to `reports/phase-06/experiments.jsonl` unless `--no-log`. Retrains the models into a temporary directory, never over `data/derived/models/`. `--workers` as for `statarb.models.run` |
 | `statarb.paper.frozen` | 6 | every config file in the record, `config/paper.toml`, and `reports/phase-05/experiments.jsonl` for a model forecast's files | nothing; with `--write`, `reports/phase-06/frozen-config.json`, once |
 | `statarb.paper.reproduce` | 6 | the pinned snapshot in the raw store, the frozen record, the models it names, and `reports/phase-06/experiments.jsonl` | `data/paper/reference/<snapshot>/` |
-| `statarb.paper.daily` | 6 | what `statarb.paper.reproduce` reads, `data/paper/ledger/` and `runs.jsonl`; today's snapshot from the raw store, or Alpaca unless `--no-download` | a new snapshot in the raw store, `data/paper/processed/<snapshot>/`, the due ledger days, `reports/phase-06/daily/`, `data/paper/runs.jsonl`, the backup clone and its remote. `--now` runs as of another time |
+| `statarb.paper.daily` | 6 | what `statarb.paper.reproduce` reads, `data/paper/ledger/` and `runs.jsonl`; today's snapshot from the raw store, or Alpaca unless `--no-download`, with the keys in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; the backup's address in `STATARB_BACKUP_REMOTE` | a new snapshot in the raw store, `data/paper/processed/<snapshot>/`, the due ledger days, `reports/phase-06/daily/`, `data/paper/runs.jsonl`, the backup clone and its remote. `--now` runs as of another time |
 | `statarb.paper.drift` | 6 | `data/paper/` (the ledger, the daily and reference tables, the run log), the daily snapshots in the raw store, the frozen record and `reports/phase-06/experiments.jsonl` | `reports/phase-06/drift/<last ledger day>.md` and its chart |
 
 ## Config files

@@ -36,7 +36,7 @@ The phase 5 holdout has been read. Results from the forward run are the only out
    - **Daily job:** launchd starts `statarb.paper.daily` every day at 13:15 Central European time. That is 07:15 New York for most of the year, and 08:15 in the weeks when the two change their clocks on different dates, so it is after the run time all year, with room for a host that is sometimes in London.
    - **Drift report:** `statarb.paper.drift` runs on Sundays at 14:15, when the daily job has nothing to process.
    - **Where it runs:** from a clone of the repository used for nothing else, on main at the merge of this record. The clone is updated only by a deliberate pull followed by a run that passes the reproduction check.
-   - **Keys:** the Alpaca keys are read from the host's keychain by the scheduler's wrapper, never from the repository or config.
+   - **Keys:** the Alpaca keys are read from the host's keychain by the run script the scheduler calls, never from the repository or config.
 
    [Running the daily job](../daily-job.md) gives the setup.
 6. **The backup.** After each run, the ledger is copied to a private git repository. Its address is a setting of the host that runs the job, read from `STATARB_BACKUP_REMOTE` like the raw store's `STATARB_RAW`, so it is not committed. The repository and the key that can push to it are created by hand. The ledger holds fill prices, so it is never published.
