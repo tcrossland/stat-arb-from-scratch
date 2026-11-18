@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 
 import pytest
@@ -13,21 +14,33 @@ from statarb.paper import frozen
 from statarb.paper.config import load_paper_config
 
 UNSET = 'forecast = ""\nrule = ""\nslope_rule = ""\nbook_size = 0\nconfig_hash = ""'
+FROZEN_KEYS = re.compile(r'forecast = ".*"\nrule = ".*"\nslope_rule = ".*"\nbook_size = \d+\nconfig_hash = ".*"')
 
 
-def _freeze(tmp_path, forecast: str, rule: str):
+def _copy(tmp_path, frozen_keys: str):
+    """A copy of the repository's config and phase 5 log, with `frozen_keys` in place of its `[frozen]` values."""
     shutil.copytree(repo_root() / "config", tmp_path / "config")
     log = tmp_path / "reports" / frozen.PHASE_5_LOG
     log.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(repo_root() / "reports" / frozen.PHASE_5_LOG, log)
     paper = tmp_path / "config" / "paper.toml"
-    text = paper.read_text()
-    assert text.count(UNSET) == 1
-    chosen = f'forecast = "{forecast}"\nrule = "{rule}"\nslope_rule = "floored"\nbook_size = 5000000\nconfig_hash = "{{}}"'
-    paper.write_text(text.replace(UNSET, chosen.format("")))
-    digest = frozen.write(tmp_path)
-    paper.write_text(text.replace(UNSET, chosen.format(digest)))
+    text, n = FROZEN_KEYS.subn(lambda _: frozen_keys, paper.read_text())
+    assert n == 1
+    paper.write_text(text)
     return tmp_path
+
+
+def _unfrozen(tmp_path):
+    return _copy(tmp_path, UNSET)
+
+
+def _freeze(tmp_path, forecast: str, rule: str):
+    chosen = f'forecast = "{forecast}"\nrule = "{rule}"\nslope_rule = "floored"\nbook_size = 5000000\nconfig_hash = "{{}}"'
+    root = _copy(tmp_path, chosen.format(""))
+    digest = frozen.write(root)
+    paper = root / "config" / "paper.toml"
+    paper.write_text(paper.read_text().replace('config_hash = ""', f'config_hash = "{digest}"'))
+    return root
 
 
 @pytest.fixture
@@ -42,12 +55,20 @@ def _edit(root, name: str, old: str, new: str) -> None:
     path.write_text(text.replace(old, new))
 
 
-def test_the_repository_has_nothing_frozen_yet() -> None:
-    assert frozen.check(repo_root()) == [
+def test_the_repository_matches_its_frozen_record() -> None:
+    """Decision record 0007 froze the strategy: any change to what the record pins is a new decision."""
+    assert frozen.check(repo_root()) == []
+    f = load_paper_config(repo_root()).frozen
+    assert (f.forecast, f.rule, f.slope_rule, f.book_size) == ("three-day lookback", "optimiser κ = 1", "floored", 5_000_000)
+
+
+def test_nothing_frozen_is_refused(tmp_path) -> None:
+    root = _unfrozen(tmp_path)
+    assert frozen.check(root) == [
         "[frozen] in config/paper.toml is not set: the forward run waits for the decision record that freezes its strategy"
     ]
     with pytest.raises(frozen.FrozenConfigError, match="not set"):
-        frozen.write(repo_root())
+        frozen.write(root)
 
 
 def test_a_fresh_freeze_matches(root) -> None:

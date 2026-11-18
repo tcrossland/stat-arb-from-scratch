@@ -31,15 +31,9 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### Measured effective spreads
 
-- **Trigger:** the decision record that starts the forward run, whose simulated fills use the spread, or sooner if a conclusion turns on the spread assumption. Moved from the start of phase 6 by its brief, since phase 6 builds the job and runs no fills.
+- **Trigger:** the forward run's review, or sooner if a conclusion turns on the spread assumption. Moved from the forward run's decision record by [decision record 0007](decisions/0007-forward-run.md): the run tests whether the live pipeline matches its backtest, which needs the spread assumption the backtest used.
 - **Why:** decision record 0005 charges an assumed spread because the daily-price estimators measure the strategy's own reversal. The assumption is the same for every stock and day, so it misprices the smaller names and stressed years.
 - **Action:** find a public source of measured effective spreads per stock (for example the execution-quality reports US market centres publish under SEC Rule 605), read its terms, and write a decision record before using it. Compare it with the assumption and the bracket by size group and year.
-
-### Forward run
-
-- **Trigger:** the owner's decision to start it, after phase 6 is merged.
-- **Why:** phase 6 builds and tests the paper-trading package but runs nothing forward, so nothing yet shows whether the live pipeline behaves like its backtest, the phase's goal. Its acceptance criteria, eight weeks of uninterrupted running and a drift report on turnover, signals, IC and P&L, can only be met by the run.
-- **Action:** write the decision record that freezes the strategy from the phase 6 evidence by a rule stated before any forward day is seen: forecast, rule, slope rule, book size and, for a model, the files and their SHA-256. In the same record name the first session, the run time, the ledger's private backup repository and the scheduler, and say whether the forward days are a fresh holdout and from when; if they are, add the guard that makes the development and backtest runners refuse its dates. Fill `[frozen]`, `[run]` and `[backup]` in `config/paper.toml`, write the frozen record, check its first daily download end to end, then set up the scheduler, write `docs/daily-job.md` (the scheduler, the backup repository and its key, the daily and weekly commands, and what to do when a run is refused) and run the weekly drift report.
 
 ### Tolerance for a rebuild from another snapshot
 
@@ -77,7 +71,7 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### Closes from the listing exchange's closing auctions
 
-- **Trigger:** the forward run's decision record, since the frozen path's fills and marks use the close, or sooner if a drift report shows a close that is not the listing exchange's closing auction price.
+- **Trigger:** the forward run's review, or sooner if a drift report shows a close that is not the listing exchange's closing auction price. Moved from the forward run's decision record by [decision record 0007](decisions/0007-forward-run.md): the run tests whether the live pipeline matches its backtest, which needs the closes the backtest used.
 - **Why:** the build takes the consolidated daily bar's close, which can differ from the official close set by the listing exchange's closing auction. How often it differs in this data has not been measured. The same question applies to the open: a market-on-open order fills at the opening auction, and the bar's open need not be that price.
 - **Action:** measure first, without changing the build: fetch each ticker's auctions from Alpaca into a raw snapshot of its own, find the listing exchange per ticker from a sourced list with its transfers since 2016, and count by year how often the auction close and open differ from the bar's. Rerun the headline paths with auction prices under an overlay and report the change. Adopting it is a build change after the fact, reported against the current numbers, with an amendment to decision record 0004.
 

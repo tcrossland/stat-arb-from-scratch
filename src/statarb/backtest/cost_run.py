@@ -61,6 +61,7 @@ from statarb.backtest.sweep import (
 )
 from statarb.backtest.trials import path_id, repository_trials
 from statarb.config import load_config, repo_root, resolve_path
+from statarb.paper.config import backtest_last
 from statarb.signals.base import Scores
 from statarb.signals.calibration import calibration_slope, expected_move, forward_sum
 from statarb.signals.registry import make_signal
@@ -365,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
     sector_etfs = load_config("factors", root)["sector_etfs"]
     cfg = load_backtest_config(root)
     ccfg = load_cost_config(cfg, root)
-    tables = load_tables(resolve_path(data_cfg["paths"]["processed"], root), data_cfg["factors"]["market"], sector_etfs)
+    tables = load_tables(resolve_path(data_cfg["paths"]["processed"], root), data_cfg["factors"]["market"], sector_etfs, backtest_last(root))
     lab = build_lab(tables, cfg, ccfg, sector_etfs)
     outcomes = run_all(lab)
     reports = resolve_path(data_cfg["paths"]["reports"], root)

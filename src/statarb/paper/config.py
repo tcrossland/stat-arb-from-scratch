@@ -70,10 +70,15 @@ class Run:
     def first(self) -> pd.Timestamp | None:
         return pd.Timestamp(self.first_session) if self.first_session != "" else None
 
+    @property
+    def last_before(self) -> pd.Timestamp | None:
+        """The last date a backtest may read: the day before the first session, or None until it is set.
 
-@dataclass(frozen=True)
-class Backup:
-    remote: str                    # git remote of the private ledger backup; empty means not configured
+        The forward run's days are a fresh holdout (decision record 0007), read only
+        by the daily job and the drift report.
+        """
+        first = self.first
+        return None if first is None else first - pd.Timedelta(days=1)
 
 
 @dataclass(frozen=True)
@@ -81,7 +86,6 @@ class PaperConfig:
     choice: Choice
     frozen: Frozen
     run: Run
-    backup: Backup
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PaperConfig:
@@ -111,3 +115,8 @@ class PaperConfig:
 
 def load_paper_config(root: Path | None = None) -> PaperConfig:
     return PaperConfig.from_dict(load_config("paper", root))
+
+
+def backtest_last(root: Path | None = None) -> pd.Timestamp | None:
+    """The last date the backtest runners of phases 2 to 4 read: see `Run.last_before`."""
+    return load_paper_config(root).run.last_before

@@ -404,6 +404,7 @@ def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
     reports = resolve_path(cfg["paths"]["reports"], root)
     today = exchange_today(now)
     strategy = frozen.load_strategy(root)
+    remote = backup_.remote()
     return Job(
         now=now,
         first=pc.run.first,
@@ -417,7 +418,7 @@ def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
         git=experiments.git_state(root, ignore=tuple(str((reports / p).relative_to(root)) for p in (NOTES, DRIFT))),
         reproduce=lambda: reproduction(root, strategy),
         snapshot=lambda: daily_snapshot(root, today, download),
-        backup=lambda: backup_.sync(paper / LEDGER, paper / BACKUP, pc.backup.remote),
+        backup=lambda: backup_.sync(paper / LEDGER, paper / BACKUP, remote),
     )
 
 

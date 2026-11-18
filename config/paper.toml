@@ -19,23 +19,18 @@ slope_rules = ["trailing", "floored", "expanding"]
 #   rule        "decile sort", "no-trade zone" or "optimiser κ = <cost multiplier>"
 #   slope_rule  one of [choice] slope_rules
 #   book_size   dollars of capital
-forecast = ""
-rule = ""
-slope_rule = ""
-book_size = 0
-config_hash = ""
+forecast = "three-day lookback"
+rule = "optimiser κ = 1"
+slope_rule = "floored"
+book_size = 5000000
+config_hash = "254f4de9d1902403"
 
 [run]
 # The forward run. first_session is a TOML date set by its decision record; empty means not
 # set. The book starts flat: the first decision is made at the close of first_session.
-first_session = ""
+first_session = 2026-11-16   # decision record 0007; its days are a fresh holdout
 calendar = "XNYS"   # exchange_calendars name
 # New York time before which a run on the morning after a session leaves it for later: the
 # source has settled the close and its corporate actions by then. The scheduler may fire at or
 # after it; earlier runs do nothing.
 run_time = 06:00:00
-
-[backup]
-# A private git repository the job copies the ledger into after each run (statarb.paper.backup).
-# Empty means not configured. Creating it and the key that can push to it is the owner's.
-remote = ""

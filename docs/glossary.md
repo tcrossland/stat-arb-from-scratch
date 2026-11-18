@@ -271,6 +271,8 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Holdout.** The most recent data, kept out of every model choice and read once at the end. In phase 5 the read is logged as entries that are not trials, and `--repeat` can only reproduce it.
 
+**Fresh holdout.** The forward run's days, from its first session on (decision record 0007): read only by the daily job and the drift report, since the phase 5 holdout has been read. The phase 2 to 4 runners cut every table at the day before the first session.
+
 **Development end.** The last date the development runner reads: every table is cut there before anything is computed, and the holdout starts the next trading day.
 
 **Common dates.** The dates every forecast's path is compared over in phase 5: from the first date every forecast has a calibrated move to the development end.

@@ -2,9 +2,10 @@
 
 `data/` is git-ignored and the ledger is the only record of the forward run,
 so after each run the job copies every ledger day into `ledger/` of a clone of
-`[backup] remote` (`config/paper.toml`) under `data/paper/backup/`, commits
-what changed and pushes to its `main` branch. The forward run's decision
-record names the repository.
+the repository in `STATARB_BACKUP_REMOTE` under `data/paper/backup/`, commits
+what changed and pushes to its `main` branch. The remote is a setting of the
+host that runs the job, like the raw store, so it is read from the
+environment and never written to the repository, the run log or a note.
 
 - **Never stops the run.** A git or network failure is returned as a result,
   recorded in the run log and shown in the next daily note; the local ledger
@@ -27,6 +28,7 @@ import filecmp
 import os
 import shutil
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,6 +42,7 @@ IDENTITY = (
     "-c", "commit.gpgsign=false",
 )
 TIMEOUT = 120                          # seconds for any one git command
+REMOTE_ENV = "STATARB_BACKUP_REMOTE"
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,11 @@ class BackupResult:
 
     def text(self) -> str:
         return f"{self.status}: {self.message}"
+
+
+def remote(environ: Mapping[str, str] = os.environ) -> str:
+    """The backup repository's git remote, from `REMOTE_ENV`; empty means not configured."""
+    return environ.get(REMOTE_ENV, "").strip()
 
 
 def _env() -> dict[str, str]:
@@ -80,7 +88,7 @@ def _clone(remote: str, clone: Path) -> None:
             git(clone, "symbolic-ref", "HEAD", f"refs/heads/{BRANCH}")
     origin = git(clone, "remote", "get-url", "origin")
     if origin != remote:
-        raise ValueError(f"{clone} pushes to {origin}, not to [backup] remote {remote}")
+        raise ValueError(f"the backup clone pushes to another remote than {REMOTE_ENV}: delete it to clone the new one")
 
 
 def _copy(ledger_root: Path, clone: Path) -> list[str]:
@@ -100,7 +108,7 @@ def _copy(ledger_root: Path, clone: Path) -> list[str]:
 def sync(ledger_root: Path, clone: Path, remote: str) -> BackupResult:
     """Copy, commit and push the ledger. Failures are returned, not raised."""
     if not remote:
-        return BackupResult("not configured", "no [backup] remote in config/paper.toml")
+        return BackupResult("not configured", f"{REMOTE_ENV} is not set")
     try:
         _clone(remote, clone)
         copied = _copy(ledger_root, clone)
@@ -112,7 +120,7 @@ def sync(ledger_root: Path, clone: Path, remote: str) -> BackupResult:
         if head is None or head == _ref(clone, f"refs/remotes/origin/{BRANCH}"):
             return BackupResult("up to date", "nothing new to push" if head else "the ledger is empty")
         git(clone, "push", "--quiet", "origin", f"HEAD:refs/heads/{BRANCH}")
-        return BackupResult("pushed", f"{head[:7]} to {remote}")
+        return BackupResult("pushed", head[:7])
     except subprocess.CalledProcessError as err:
         detail = (err.stderr or err.stdout or "").strip().splitlines()
         return BackupResult("failed", f"git {err.cmd[len(IDENTITY) + 1]}: {detail[-1] if detail else f'exit {err.returncode}'}")

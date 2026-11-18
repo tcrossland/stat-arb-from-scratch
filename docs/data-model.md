@@ -256,7 +256,7 @@ One JSON object per run of the daily job, appended and never rewritten: when it 
 
 ### `data/paper/backup/`
 
-A clone of the private repository in `[backup] remote` of `config/paper.toml` (`statarb.paper.backup`). Every run whose ledger passes its checks copies each ledger day whose bytes differ into `ledger/` of the clone under the same file name, commits and pushes to `main`. Days are added or updated, never deleted. The remote is the copy that matters: the clone can be deleted, and the next run clones it again and continues its history.
+A clone of the private repository in `STATARB_BACKUP_REMOTE` (`statarb.paper.backup`). Every run whose ledger passes its checks copies each ledger day whose bytes differ into `ledger/` of the clone under the same file name, commits and pushes to `main`. Days are added or updated, never deleted. The remote is the copy that matters: the clone can be deleted, and the next run clones it again and continues its history.
 
 ### Frozen record
 
