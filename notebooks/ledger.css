@@ -74,8 +74,119 @@
   margin: 1rem 0 0.1rem;
 }
 
-/* Numbers in tables line up by digit. */
-table td,
-table th {
+/* Controls: a small muted label and a flat, bordered field, the same for a plain and a searchable dropdown.
+   marimo draws its elements in shadow roots that adopt this sheet, so these rules reach them. The selectors are
+   marimo 0.25's test ids and parts; check them when uv.lock moves marimo. */
+.mo-label {
+  column-gap: 0.45rem;
+  padding-right: 0.35rem;
+}
+
+/* The label's text sits in a prose span with its own size. */
+.mo-label label,
+.mo-label label .paragraph {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+select[data-testid="marimo-plugin-dropdown"],
+[data-testid="marimo-plugin-searchable-dropdown"] > button {
+  height: 2rem;
+  min-width: 7.5rem;
+  margin-bottom: 0;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: none;
+  font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+  transition: border-color 120ms;
+}
+
+select[data-testid="marimo-plugin-dropdown"]:hover,
+[data-testid="marimo-plugin-searchable-dropdown"] > button:hover,
+[data-testid="marimo-plugin-searchable-dropdown"] > button[aria-expanded="true"] {
+  border-color: var(--muted-foreground);
+  box-shadow: none;
+}
+
+[data-testid="marimo-plugin-searchable-dropdown"] > button svg {
+  margin-left: 0.5rem;
+  opacity: 0.6;
+}
+
+/* Tables: the tiles' border and corner, a quiet header, room in the rows, and no rules between columns. */
+[part="table-wrapper"] {
+  border-color: var(--border);
+  border-radius: 10px;
+}
+
+/* A table that fits on one page has no search box (notebooks/ledger.py), and its toolbar goes with it. */
+[part="table-wrapper"] > .h-10:not(:has(input)) {
+  display: none;
+}
+
+[part="table-wrapper"] table {
+  font-size: 0.8125rem;
+}
+
+[part="table-wrapper"] th,
+[part="table-wrapper"] td {
+  border-right: 0;
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;   /* numbers line up by digit */
+}
+
+[part="table-wrapper"] thead,
+[part="table-wrapper"] thead tr,
+[part="table-wrapper"] thead tr:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, var(--background));
+}
+
+[part="table-wrapper"] th {
+  min-height: 0;
+  padding: 0 0.75rem;
+  vertical-align: middle;
+}
+
+[part="table-wrapper"] th > div {
+  padding: 0.45rem 0;
+}
+
+[part="table-wrapper"] th > div > div {
+  margin: 0;
+}
+
+[part="table-wrapper"] th .font-bold {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+[part="table-wrapper"] td {
+  padding: 0.42rem 0.75rem;
+}
+
+[part="table-wrapper"] tbody tr {
+  height: auto;
+  border-color: color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+[part="table-wrapper"] tbody tr:hover {
+  background: color-mix(in srgb, var(--foreground) 3%, var(--background));
+}
+
+[part="table-footer"] {
+  padding: 0.4rem 0.35rem;
+}
+
+[part="table-footer"] span {
+  font-size: 0.75rem;
+}
+
+/* "No selection": the tables are read-only, so there is nothing to select. */
+[part="table-footer"] span.italic {
+  display: none;
 }

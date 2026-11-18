@@ -15,7 +15,6 @@ app = marimo.App(width="medium", app_title="Ledger explorer", css_file="ledger.c
 
 @app.cell
 def _():
-    import datetime as dt
     from html import escape
     from pathlib import Path
 
@@ -28,7 +27,7 @@ def _():
     from statarb.data.schema import TICKER
     from statarb.paper import views
 
-    return FuncFormatter, Path, TICKER, dt, escape, mo, pd, plt, repo_root, views
+    return FuncFormatter, Path, TICKER, escape, mo, pd, plt, repo_root, views
 
 
 @app.cell
@@ -183,6 +182,7 @@ def _(escape, mo, pd):
         return mo.ui.table(
             out.rename(columns=names), selection=None, page_size=page_size, format_mapping=formats, text_justify_columns=justify,
             show_data_types=False, show_column_summaries=False, show_download=False,
+            show_search=len(out) > page_size,   # a table that fits on one page needs no search
         )
 
     return heading, note, show, tiles
@@ -214,19 +214,25 @@ def _(all_days, escape, frame, loaded, mo, money, root, signed, tiles, views):
 
 
 @app.cell
-def _(TICKER, all_days, dt, frame, mo, sectors, views):
-    day = mo.ui.dropdown({f"{d:%Y-%m-%d}": d for d in all_days}, value=f"{all_days[-1]:%Y-%m-%d}", label="Day")
-    _first, _last = all_days[0].date(), all_days[-1].date()
-    window = mo.ui.date_range(start=_first, stop=_last, value=(max(_first, _last - dt.timedelta(days=30)), _last), label="Window")
+def _(TICKER, all_days, frame, mo, pd, sectors, views):
+    # Dates are picked from the ledger's own days, written as ISO 8601: a calendar picker follows the browser's
+    # locale, and offers days the ledger does not have.
+    _days = {f"{d:%Y-%m-%d}": d for d in all_days}
+    _latest = next(reversed(_days))
+    day = mo.ui.dropdown(_days, value=_latest, searchable=True, label="Day")
+    _month_back = next(label for label, d in _days.items() if d >= all_days[-1] - pd.Timedelta(days=30))
+    since = mo.ui.dropdown(_days, value=_month_back, searchable=True, label="From")
+    until = mo.ui.dropdown(_days, value=_latest, searchable=True, label="to")
+    window = mo.hstack([since, until], justify="start", gap=0.75)
     _largest = views.book(frame, sectors, all_days[-1])[TICKER]                 # start on the largest position, if any
     ticker = mo.ui.dropdown(sorted(frame[TICKER].unique()), value=_largest.iloc[0] if len(_largest) else None, searchable=True, label="Ticker")
     by = mo.ui.dropdown({"Sector": "sector", "Ticker": "ticker", "Side": "side"}, value="Sector", label="By")
-    return by, day, ticker, window
+    return by, day, since, ticker, until, window
 
 
 @app.cell
-def _(frame, pd, views, window):
-    in_window = views.between(frame, pd.Timestamp(window.value[0]), pd.Timestamp(window.value[1]))
+def _(frame, since, until, views):
+    in_window = views.between(frame, min(since.value, until.value), max(since.value, until.value))   # either order
     return (in_window,)
 
 
@@ -322,7 +328,7 @@ def _(INK, SERIES, WIDE, bar_width, canvas, compact, day_axis, frame, heading, i
 
 
 @app.cell
-def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sectors, show, title, views, window, zero):
+def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sectors, show, since, title, until, views, zero):
     _table = views.attribution(in_window, sectors, by.value)
     _top = _table.head(15)
     _rows = list(range(len(_top)))[::-1]
@@ -334,7 +340,7 @@ def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sector
     title(_ax, f"P&L net of borrow by {by.value}, dollars" + (f": the {len(_top)} largest of {len(_table)}" if len(_table) > len(_top) else ""))
     _fig.tight_layout()
     attribution_tab = mo.vstack([
-        mo.hstack([window, by], justify="start", gap=1.5),
+        mo.hstack([since, until, by], justify="start", gap=0.75),   # flat: a nested row would push `by` to the far side
         note("P&L and borrow belong to the holding carried into each day. Trading costs are charged by day, not by name, "
              "so they are in the P&L tab and not here."),
         _fig if len(_table) else note("Nothing was carried in over this window, so there is nothing to attribute yet."),
