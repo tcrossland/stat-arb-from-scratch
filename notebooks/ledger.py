@@ -182,6 +182,7 @@ def _(escape, mo, pd):
         return mo.ui.table(
             out.rename(columns=names), selection=None, page_size=page_size, format_mapping=formats, text_justify_columns=justify,
             show_data_types=False, show_column_summaries=False, show_download=False,
+            show_search=len(out) > page_size,   # a table that fits on one page needs no search
         )
 
     return heading, note, show, tiles
@@ -218,7 +219,7 @@ def _(TICKER, all_days, frame, mo, pd, sectors, views):
     # locale, and offers days the ledger does not have.
     _days = {f"{d:%Y-%m-%d}": d for d in all_days}
     _latest = next(reversed(_days))
-    day = mo.ui.dropdown(_days, value=_latest, label="Day")
+    day = mo.ui.dropdown(_days, value=_latest, searchable=True, label="Day")
     _month_back = next(label for label, d in _days.items() if d >= all_days[-1] - pd.Timedelta(days=30))
     since = mo.ui.dropdown(_days, value=_month_back, searchable=True, label="From")
     until = mo.ui.dropdown(_days, value=_latest, searchable=True, label="to")
