@@ -62,6 +62,7 @@ flowchart TB
     D --> N["reports/phase-06/daily/"]
     L --> BK["backup repository"]
     L --> DR["statarb.paper.drift<br/>weekly"]
+    L --> EX["notebooks/ledger.py, ledger.sql<br/>local explorer"]
     PT --> DR
     RL --> DR
     DR --> DRR["reports/phase-06/drift/"]
