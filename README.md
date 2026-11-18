@@ -62,7 +62,7 @@ The project is built with Claude Code under the working rules in [CLAUDE.md](CLA
 | 3 | Cost model | done |
 | 4 | Portfolio optimiser and a statistical factor model | done |
 | 5 | ML signal | done |
-| 6 | Daily paper-trading simulation | built; forward run not started |
+| 6 | Daily paper-trading simulation | built; forward run from 2026-11-16 |
 
 ## Running it
 
