@@ -82,16 +82,10 @@ class Run:
 
 
 @dataclass(frozen=True)
-class Backup:
-    remote: str                    # git remote of the private ledger backup; empty means not configured
-
-
-@dataclass(frozen=True)
 class PaperConfig:
     choice: Choice
     frozen: Frozen
     run: Run
-    backup: Backup
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PaperConfig:

@@ -5,7 +5,7 @@
 
 ## Context
 
-Phase 6 built the paper-trading package and the evidence for choosing what it trades, and started no forward run ([phase 6 review](../phases/phase-06/review.md)). Until a decision fills `[frozen]`, `[run]` and `[backup]` in `config/paper.toml`, the daily job and the drift report refuse to run. The backlog item "Forward run" lists what this record must settle.
+Phase 6 built the paper-trading package and the evidence for choosing what it trades, and started no forward run ([phase 6 review](../phases/phase-06/review.md)). Until a decision fills `[frozen]` and `[run]` in `config/paper.toml`, the daily job and the drift report refuse to run. The backlog item "Forward run" lists what this record must settle.
 
 No path in any phase clears the deflated-Sharpe bar, so the forward run does not test a strategy expected to earn. It tests whether the pipeline, run one session at a time on data downloaded each day, behaves like its backtest. The choice is which pipeline to test. The phase 6 review gives two considerations, both measured on years phase 5 had already read:
 
@@ -34,12 +34,12 @@ The phase 5 holdout has been read. Results from the forward run are the only out
 5. **The run and its schedule.**
    - **Run time:** `[run] run_time` stays 06:00 New York. A session is processed from 06:00 New York on the day after it.
    - **Daily job:** launchd starts `statarb.paper.daily` every day at 13:15 Central European time. That is 07:15 New York for most of the year, and 08:15 in the weeks when the two change their clocks on different dates, so it is after the run time all year, with room for a host that is sometimes in London.
-   - **Drift report:** `statarb.paper.drift` runs on Saturdays at the same time.
+   - **Drift report:** `statarb.paper.drift` runs on Sundays at 14:15, when the daily job has nothing to process.
    - **Where it runs:** from a clone of the repository used for nothing else, on main at the merge of this record. The clone is updated only by a deliberate pull followed by a run that passes the reproduction check.
    - **Keys:** the Alpaca keys are read from the host's keychain by the scheduler's wrapper, never from the repository or config.
 
    [Running the daily job](../daily-job.md) gives the setup.
-6. **The backup.** After each run, the ledger is copied to a private git repository, named in `[backup] remote`. The repository and the key that can push to it are created by hand and never committed. The ledger holds fill prices, so it is never published.
+6. **The backup.** After each run, the ledger is copied to a private git repository. Its address is a setting of the host that runs the job, read from `STATARB_BACKUP_REMOTE` like the raw store's `STATARB_RAW`, so it is not committed. The repository and the key that can push to it are created by hand. The ledger holds fill prices, so it is never published.
 7. **What is committed.**
    - **Committed:** the daily notes in `reports/phase-06/daily/` and the weekly drift reports in `reports/phase-06/drift/`, once a week in one pull request. They hold statistics of the simulated book, no per-ticker values.
    - **Not committed:** the ledger, the run log in `data/paper/runs.jsonl` and the daily snapshots stay in `data/`.

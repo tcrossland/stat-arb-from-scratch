@@ -34,8 +34,3 @@ calendar = "XNYS"   # exchange_calendars name
 # source has settled the close and its corporate actions by then. The scheduler may fire at or
 # after it; earlier runs do nothing.
 run_time = 06:00:00
-
-[backup]
-# A private git repository the job copies the ledger into after each run (statarb.paper.backup).
-# Empty means not configured. Creating it and the key that can push to it is the owner's.
-remote = ""

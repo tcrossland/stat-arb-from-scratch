@@ -43,6 +43,12 @@ def _commits(remote) -> int:
 def test_an_empty_remote_is_not_configured(tmp_path) -> None:
     result = backup.sync(tmp_path / "ledger", tmp_path / "clone", "")
     assert result.status == "not configured" and not (tmp_path / "clone").exists()
+    assert backup.REMOTE_ENV in result.message
+
+
+def test_the_remote_comes_from_the_environment() -> None:
+    assert backup.remote({backup.REMOTE_ENV: " git@host:owner/ledger.git\n"}) == "git@host:owner/ledger.git"
+    assert backup.remote({}) == ""
 
 
 def test_the_first_sync_pushes_every_day_and_a_second_does_nothing(tmp_path, remote) -> None:
@@ -50,6 +56,7 @@ def test_the_first_sync_pushes_every_day_and_a_second_does_nothing(tmp_path, rem
     _write(root, *DAYS[:3])
     first = backup.sync(root, clone, str(remote))
     assert first.status == "pushed", first.text()
+    assert str(remote) not in first.text()                  # the result goes into a published note
     assert _remote_files(remote) == {f"ledger/{ledger.path_for(root, d).name}": f"day {d:%Y-%m-%d}" for d in DAYS[:3]}
     assert _git(remote, "log", "-1", "--format=%s %an", backup.BRANCH) == "Ledger through 2027-01-06 statarb daily job"
     second = backup.sync(root, clone, str(remote))
@@ -100,4 +107,5 @@ def test_a_clone_of_another_remote_is_refused(tmp_path, remote) -> None:
     other = tmp_path / "other.git"
     _git(tmp_path, "init", "--quiet", "--bare", "-b", "main", str(other))
     result = backup.sync(root, clone, str(other))
-    assert result.status == "failed" and "not to [backup] remote" in result.message
+    assert result.status == "failed" and backup.REMOTE_ENV in result.message
+    assert str(other) not in result.message and str(clone) not in result.message

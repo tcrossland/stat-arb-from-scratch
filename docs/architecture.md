@@ -157,7 +157,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.paper.frozen` | 6 | Runner: the frozen record of the strategy, every config file that shapes a decision and the model files' hashes; checks the config against it, or writes it once. |
 | `statarb.paper.reproduce` | 6 | Runner: rebuilds the frozen path on reference tables from the pinned snapshot and requires every metric of its log entry. |
 | `statarb.paper.daily` | 6 | Runner: the daily job. Locks, refuses on a changed config, model file or damaged ledger, checks the reproduction, builds the day's tables, processes each due session, writes the note and the ledger day, backs up and logs the run. |
-| `statarb.paper.backup` | 6 | Copies the ledger into a clone of a private repository, commits and pushes; a failure is recorded, never raised. |
+| `statarb.paper.backup` | 6 | Copies the ledger into a clone of the private repository in `STATARB_BACKUP_REMOTE`, commits and pushes; a failure is recorded, never raised. |
 | `statarb.paper.drift` | 6 | Runner: the weekly drift report, the forward run against the frozen path over development, with the source's revisions and the run log's failures. |
 
 ## Seams
@@ -208,7 +208,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `costs.toml` | `statarb.backtest.config` | The phase 3 fill, book sizes and configurations; the assumed half-spread, its bracket and floor, and the estimators' window and size groups; the impact coefficients and windows; the commission schedules with the date and page they were read from; the borrow rates and hard-to-borrow proxy; the no-trade zone's calibration window, which phase 4's expected moves use too. |
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
-| `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time; the backup remote. |
+| `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time. |
 
 ## External libraries
 

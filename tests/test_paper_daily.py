@@ -39,7 +39,7 @@ def _morning_after(date: pd.Timestamp) -> dt.datetime:
 
 def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backups=None, backup=None, strategy=STRATEGY) -> daily.Job:
     tables = LONG if tables is None else tables
-    backup = backup or backup_.BackupResult("pushed", "abc1234 to the test remote")
+    backup = backup or backup_.BackupResult("pushed", "abc1234")
 
     def snapshot() -> daily.Snapshot:
         if calls is not None:
