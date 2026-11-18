@@ -54,7 +54,10 @@ Set it up once, by hand:
        User git
        IdentityFile ~/.ssh/statarb-ledger
        IdentitiesOnly yes
+       IdentityAgent none
    ```
+
+   `IdentityAgent none` matters on a host whose ssh agent holds a GitHub key: ssh offers the agent's keys first, and GitHub would accept the owner's key, which can push anywhere. The alias must come before any `Host *` block. `ssh -T git@statarb-ledger` should greet the repository by name, not the owner.
 
    ```bash
    ssh -T git@statarb-ledger
