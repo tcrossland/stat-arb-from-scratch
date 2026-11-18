@@ -26,7 +26,7 @@ The brief accepts the build, and leaves the forward run's criteria to the run.
 | Every test the brief lists passes | Met: the tests above, in a suite of 521 that passes. |
 | The evidence for the choice is logged | Met: 72 entries in `reports/phase-06/experiments.jsonl`, and `choice.md` built from them. |
 | At least eight weeks of uninterrupted forward running | In progress: [decision record 0007](../../decisions/0007-forward-run.md) starts it from 2026-11-16, and the run log records that session as processed on 2026-11-18. |
-| The drift report states whether turnover, signals, IC and P&L sit within the backtest's ranges | Built and tested on synthetic sessions; it has nothing to report until the forward run starts. |
+| The drift report states whether turnover, signals, IC and P&L sit within the backtest's ranges | Built and tested on synthetic sessions. The forward run has started, and no drift report has been written yet: [decision record 0007](../../decisions/0007-forward-run.md) runs it weekly, on Sundays. |
 
 ## What the numbers showed
 
