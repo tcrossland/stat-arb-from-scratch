@@ -13,8 +13,12 @@ The plan, phase by phase. The strategy, and why it is run on free daily data, is
 | 4 | Portfolio construction | Does an optimiser with neutrality and turnover control beat decile sorts? | Model B, cvxpy optimiser, comparison report |
 | 5 | ML signal | Can a model learn when reversal works, and does it add anything through the optimiser after costs? | Feature set, LightGBM model, walk-forward IC report |
 | 6 | Paper-trading simulation | Does the live, forward-running pipeline behave like the backtest? | Daily scheduled run, simulated ledger, drift report |
+| 7 | A second source and a universe with dead names | How much does survivorship flatter the results? | Second price source, cross-check report, universe from every listed stock, survivorship report |
+| 8 | Momentum | Does a strategy that trades little fail for the same reason as one that trades a lot? | Momentum signals, reversal read once on the years before 2016, momentum report |
 
 Portfolio construction comes before the ML signal because trading costs are the binding constraint for this strategy (decision record 0002).
+
+Phases 7 and 8 are drafted, not started: each has a brief in [`phases/`](phases/), written during the forward run. Phase 7's source is paid, under decision record 0008. Phase 8 waits for the forward run's review and a decision record for its strategy.
 
 ## Principles
 
@@ -67,6 +71,15 @@ Grouped by the phase they inform. Magnitudes quoted here come from abstracts; ch
 - López de Prado, M. (2018). *Advances in Financial Machine Learning*. Wiley. Chapter 7 on purged and embargoed cross-validation.
 - Krauss, C., Do, X. A. and Huck, N. (2017). Deep neural networks, gradient-boosted trees, random forests: statistical arbitrage on the S&P 500. *European Journal of Operational Research* 259(2). Daily S&P 500 stat arb with tree models, close to the phase 5 set-up.
 - Guijarro-Ordonez, J., Pelger, M. and Zanotti, G. (2022). Deep learning statistical arbitrage. [arXiv:2106.04028](https://arxiv.org/abs/2106.04028).
+
+### Phases 7 and 8: survivorship and momentum
+
+Cited from memory when the briefs were drafted; check each against its full text before relying on it.
+
+- Shumway, T. (1997). The delisting bias in CRSP data. *Journal of Finance* 52(1). What a failed stock loses after its last trade, and what leaving it out does to a backtest.
+- Jegadeesh, N. and Titman, S. (1993). Returns to buying winners and selling losers: implications for stock market efficiency. *Journal of Finance* 48(1). The original momentum evidence, with portfolios held in overlapping slices.
+- Blitz, D., Huij, J. and Martens, M. (2011). Residual momentum. *Journal of Empirical Finance* 18(3). Momentum on residual returns, the slow counterpart of the phase 2 baseline.
+- Daniel, K. and Moskowitz, T. (2016). Momentum crashes. *Journal of Financial Economics* 122(2). Why momentum's losses come in the short leg after a market fall.
 
 ### Code
 
