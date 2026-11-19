@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import io
 import json
 import threading
@@ -28,6 +29,7 @@ DAYS = [d.date() for d in pd.bdate_range("2025-12-29", "2026-01-07")]   # spans 
 START, END = DAYS[0], DAYS[-1]
 TODAY = END + dt.timedelta(days=1)
 STORAGE = "https://files.example.invalid"
+LONG_AGO = dt.datetime(2026, 1, 8, 3, 0, tzinfo=dt.UTC)
 
 
 def day_bytes(day: dt.date, symbols: list[str], kind: str = "Stock", field: str = "date") -> bytes:
@@ -69,6 +71,8 @@ class FakeArchive:
         self.files, self.sizes = files, sizes or {}
         self.listings: list[tuple[str, dt.date, dt.date]] = []
         self.fetched: list[str] = []
+        self.modified: dict[tuple[str, dt.date], dt.datetime] = {}
+        self.etags: dict[tuple[str, dt.date], str | None] = {}      # where not the file's MD5
 
     def listing(self, asset: str, start: dt.date, end: dt.date) -> dict:
         self.listings.append((asset, start, end))
@@ -87,13 +91,21 @@ class FakeArchive:
             ],
         }
 
-    def file(self, url: str) -> bytes:
+    def file(self, url: str) -> mp.Served:
         self.fetched.append(url)
         asset, name = urllib.parse.urlsplit(url).path.strip("/").split("/")
-        return self.files[asset, dt.date.fromisoformat(name.removesuffix(".parquet"))]
+        key = asset, dt.date.fromisoformat(name.removesuffix(".parquet"))
+        etag = self.etags.get(key, hashlib.md5(self.files[key]).hexdigest())
+        return mp.Served(self.files[key], etag, self.modified.get(key, LONG_AGO))
 
 
 class Response(io.BytesIO):
+    def __init__(self, body: bytes, **headers: str) -> None:
+        super().__init__(body)
+        self.headers = Message()
+        for name, value in headers.items():
+            self.headers[name.replace("_", "-")] = value
+
     def __enter__(self):
         return self
 
@@ -155,11 +167,21 @@ def test_the_key_goes_to_the_api_and_never_to_a_file_address() -> None:
 
     client = mp.Client(key="test-key", opener=opener, clock=lambda: 0.0, sleep=lambda s: None, min_interval=0.0)
     client.listing(STOCK, START, END)
-    assert client.file(f"{STORAGE}/a.parquet?signature=x") == b"bytes"
+    assert client.file(f"{STORAGE}/a.parquet?signature=x").data == b"bytes"
     api, storage = seen
     assert api.full_url.startswith(mp.HOST + mp.MANIFEST) and api.get_header("Authorization") == "Bearer test-key"
     assert storage.get_header("Authorization") is None and "test-key" not in storage.full_url
     assert all(r.get_header("User-agent") == mp.USER_AGENT for r in seen)
+
+
+def test_a_file_comes_with_what_the_storage_host_said_of_it() -> None:
+    def client(**headers: str) -> mp.Client:
+        return mp.Client(key="k", opener=lambda r, timeout: Response(b"x", **headers), clock=lambda: 0.0, sleep=lambda s: None)
+
+    got = client(ETag='"0123abcd"', Last_Modified="Wed, 18 Nov 2026 03:12:45 GMT").file(f"{STORAGE}/a")
+    assert got == mp.Served(b"x", "0123abcd", dt.datetime(2026, 11, 18, 3, 12, 45, tzinfo=dt.UTC))
+    assert client().file(f"{STORAGE}/a") == mp.Served(b"x", None, None)
+    assert client(Last_Modified="yesterday").file(f"{STORAGE}/a").modified is None
 
 
 def test_a_file_address_must_be_https() -> None:
@@ -182,7 +204,7 @@ def test_requests_are_paced_and_a_rate_limit_waits_as_long_as_asked() -> None:
         now[0] += seconds
 
     client = mp.Client(key="k", opener=opener, clock=lambda: now[0], sleep=sleep, min_interval=0.5)
-    assert client.file(f"{STORAGE}/a") == b"ok" and client.file(f"{STORAGE}/b") == b"ok"
+    assert client.file(f"{STORAGE}/a").data == b"ok" and client.file(f"{STORAGE}/b").data == b"ok"
     assert slept == [7.0, 20.0, 0.5]     # the wait the server names, a growing one when it names none, then the pace
 
 
@@ -285,7 +307,7 @@ class CountingArchive(FakeArchive):
         super().__init__(files)
         self.lock, self.under_way, self.most = threading.Lock(), 0, 0
 
-    def file(self, url: str) -> bytes:
+    def file(self, url: str) -> mp.Served:
         with self.lock:
             self.under_way += 1
             self.most = max(self.most, self.under_way)
@@ -306,7 +328,7 @@ def test_files_are_fetched_as_many_at_once_as_asked_and_kept_in_place(tmp_path, 
 
 def test_a_failed_fetch_stops_the_rest(tmp_path) -> None:
     class Failing(FakeArchive):
-        def file(self, url: str) -> bytes:
+        def file(self, url: str) -> mp.Served:
             super().file(url)
             raise mp.RefusedError(403, "Request has expired")
 
@@ -314,6 +336,52 @@ def test_a_failed_fetch_stops_the_rest(tmp_path) -> None:
     with pytest.raises(mp.RefusedError, match="expired"):
         mp.download(archive, tmp_path, [STOCK, ETF], START, END, TODAY, workers=1)
     assert len(archive.fetched) <= 2 and cache.complete_snapshots(tmp_path, mp.NAME) == []
+
+
+def test_the_manifest_keeps_each_files_etag_and_lists_those_modified_during_the_download(tmp_path) -> None:
+    archive = FakeArchive(FILES)
+    late = (ETF, DAYS[3])
+    archive.modified[late] = dt.datetime.now(dt.UTC) + dt.timedelta(hours=1)
+    path = mp.download(archive, tmp_path, [STOCK, ETF], START, END, TODAY, workers=2)
+    manifest = cache.read_manifest(path)
+    assert set(manifest["served"]) == set(manifest["files"])
+    name = f"{STOCK}/{START.year}/{START}.parquet"
+    assert manifest["served"][name] == {
+        "etag": hashlib.md5(FILES[STOCK, START]).hexdigest(), "last_modified": LONG_AGO.isoformat(), "md5_checked": True,
+    }
+    assert manifest["modified_during_download"] == [f"{ETF}/{DAYS[3].year}/{DAYS[3]}.parquet"]
+    assert manifest["started_at"] <= manifest["downloaded_at"]
+    assert "warning: the archive modified 1 files" in marketparquet_build.describe(path)
+
+
+def test_a_file_whose_bytes_are_not_those_of_its_etag_fails_the_download(tmp_path) -> None:
+    archive = FakeArchive(FILES)
+    archive.etags[STOCK, DAYS[1]] = hashlib.md5(b"what the host holds").hexdigest()
+    with pytest.raises(mp.ArchiveError, match="MD5"):
+        mp.download(archive, tmp_path, [STOCK, ETF], START, END, TODAY, retries=2)
+    assert sum(url.startswith(f"{STORAGE}/{STOCK}/{DAYS[1]}") for url in archive.fetched) == 3
+    assert cache.complete_snapshots(tmp_path, mp.NAME) == []
+
+
+def test_an_etag_that_is_not_an_md5_is_recorded_and_not_checked(tmp_path) -> None:
+    assert mp.Served(b"x", hashlib.md5(b"x").hexdigest()).intact is True
+    assert mp.Served(b"x", hashlib.md5(b"y").hexdigest()).intact is False
+    assert mp.Served(b"x", "0123456789abcdef0123456789abcdef-4").intact is None and mp.Served(b"x").intact is None
+    archive = FakeArchive(FILES)
+    archive.etags[ETF, DAYS[0]] = "0123456789abcdef0123456789abcdef-4"      # the form of an upload in parts
+    archive.etags[ETF, DAYS[1]] = None
+    path = mp.download(archive, tmp_path, [STOCK, ETF], START, END, TODAY)
+    served = cache.read_manifest(path)["served"]
+    assert [name for name, s in served.items() if not s["md5_checked"]] == [
+        f"{ETF}/{d.year}/{d}.parquet" for d in DAYS[:2]
+    ]
+    assert f"2 of {len(FILES)} files had no MD5" in marketparquet_build.describe(path)
+
+
+def test_a_still_archive_gives_no_warning(tmp_path) -> None:
+    _, path = snapshot(tmp_path)
+    assert cache.read_manifest(path)["modified_during_download"] == []
+    assert "warning" not in marketparquet_build.describe(path)
 
 
 def test_a_file_of_the_wrong_size_fails_the_download_and_leaves_no_snapshot(tmp_path) -> None:

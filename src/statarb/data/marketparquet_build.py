@@ -100,6 +100,14 @@ def describe(path: Path) -> str:
     manifest = cache.read_manifest(path)
     lines = [f"{path.name}, digest {manifest['digest'][:12]}"]
     lines += [f"{asset}: {d['files']} files, {d['first']} to {d['last']}" for asset, d in manifest["days"].items()]
+    served = manifest.get("served", {})
+    unchecked = sum(not s["md5_checked"] for s in served.values())
+    if unchecked:
+        lines.append(f"{unchecked} of {len(served)} files had no MD5 in their ETag, so only their size was checked")
+    moved = manifest.get("modified_during_download", [])
+    if moved:
+        lines.append(f"warning: the archive modified {len(moved)} files after the download began, the first {moved[0]}; "
+                     "a ticker may be on two split bases across files, so take another snapshot before pinning")
     return "\n".join(lines)
 
 

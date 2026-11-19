@@ -10,6 +10,14 @@ together stay under the key's rate limit. Nothing is converted on the way in: th
 corrected often and carries no version, so the snapshot is the only record of
 what was served.
 
+A snapshot is not taken at one instant. The archive re-bases a ticker's whole
+history when it applies a split and rewrites recent days each night, so a
+change landing during a download could leave a ticker on two bases across
+files. The manifest therefore keeps what the storage host said of each file,
+its `ETag` and `Last-Modified`, and lists the files modified after the download
+began: an empty list says the archive stood still while it was read. Where the
+`ETag` is the file's MD5, the bytes are checked against it as they arrive.
+
 Only the daily stock and ETF datasets are ever asked for (`ASSETS`). The key is
 read from the environment and sent to the API's host alone, never to the
 address a file is fetched from.
@@ -24,9 +32,12 @@ Prices are adjusted for splits as of the download and hold no dividends.
 from __future__ import annotations
 
 import datetime as dt
+import email.utils
+import hashlib
 import io
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -58,6 +69,8 @@ MIN_INTERVAL = 60 / 500                   # seconds between requests: under the 
 # Names the client for what it is. The site's edge refuses Python's default agent string.
 USER_AGENT = "marketparquet-archive-client/1 (Python urllib)"
 
+# The storage host's ETag for an object uploaded in one part is its MD5; one uploaded in parts has another form.
+MD5_ETAG = re.compile(r"[0-9a-f]{32}")
 NO_FILES = "No data files in the requested range"     # the server's 404 for a range with no session in it
 
 SYMBOL, ASSET_TYPE = "symbol", "asset_type"
@@ -148,13 +161,40 @@ def day_files(listing: Mapping[str, Any], asset: str, start: dt.date, end: dt.da
     return files
 
 
+@dataclass(frozen=True)
+class Served:
+    """A file as fetched, with what the storage host said of it."""
+
+    data: bytes
+    etag: str | None = None                  # as sent, quotes removed
+    modified: dt.datetime | None = None      # `Last-Modified`, in UTC
+
+    @property
+    def intact(self) -> bool | None:
+        """Whether the bytes have the MD5 the ETag gives; None when the ETag is not an MD5, so nothing is checked."""
+        if self.etag is None or not MD5_ETAG.fullmatch(self.etag):
+            return None
+        return hashlib.md5(self.data, usedforsecurity=False).hexdigest() == self.etag
+
+
+def served_from(data: bytes, headers: Mapping[str, str] | None) -> Served:
+    """`Served` from a response's body and headers; a header that is absent or unreadable is None."""
+    etag = (headers.get("ETag") if headers else None) or None
+    stamp = (headers.get("Last-Modified") if headers else None) or None
+    try:
+        modified = email.utils.parsedate_to_datetime(stamp).astimezone(dt.UTC) if stamp else None
+    except (TypeError, ValueError):
+        modified = None
+    return Served(data, etag.strip('"') if etag else None, modified)
+
+
 class Archive(Protocol):
     """What a download needs of the archive. `Client` is the one that touches the network.
     `file` is called from several threads at once."""
 
     def listing(self, asset: str, start: dt.date, end: dt.date) -> dict[str, Any]: ...
 
-    def file(self, url: str) -> bytes: ...
+    def file(self, url: str) -> Served: ...
 
 
 class Client:
@@ -185,24 +225,24 @@ class Client:
         empty list: that is returned as an empty list, and any other refusal raises RefusedError."""
         headers = {"Authorization": f"Bearer {self._key}", "Accept": "application/json", "User-Agent": USER_AGENT}
         try:
-            return json.loads(self._get(manifest_url(asset, start, end), headers))
+            return json.loads(self._get(manifest_url(asset, start, end), headers).data)
         except RefusedError as exc:
             if exc.code == 404 and exc.detail == NO_FILES:
                 return {"asset_type": asset, "file_count": 0, "files": []}
             raise
 
-    def file(self, url: str) -> bytes:
+    def file(self, url: str) -> Served:
         if urllib.parse.urlsplit(url).scheme != "https":
             raise ArchiveError("a file's address must be https")
         return self._get(url, {"User-Agent": USER_AGENT})
 
-    def _get(self, url: str, headers: Mapping[str, str]) -> bytes:
+    def _get(self, url: str, headers: Mapping[str, str]) -> Served:
         request = urllib.request.Request(url, headers=dict(headers))
         for attempt in range(self._retries + 1):
             self._pace()
             try:
                 with self._opener(request, timeout=120) as response:
-                    return response.read()
+                    return served_from(response.read(), getattr(response, "headers", None))
             except urllib.error.HTTPError as exc:
                 # 429 is the rate limit and 5xx the server's own trouble; anything else will not pass on a retry.
                 if exc.code != 429 and exc.code < 500:
@@ -257,15 +297,19 @@ def download(
     """One snapshot of every day file of `assets` over [start, end], kept as served; returns its path.
 
     The snapshot is named by `today`, New York's date at the time of the download. A file whose size is not
-    the one its list gives is fetched again, and the download fails if it still differs: a snapshot with a
-    hole is not written. Up to `workers` files are fetched at once; they are written in date order by this
-    thread alone, and a failure stops the rest. `log` is given one line as each year of a dataset finishes. It also fails when a dataset's last file is before `end`, so a snapshot is never
+    the one its list gives, or whose bytes do not have the MD5 its `ETag` gives, is fetched again, and the
+    download fails if it still differs: a snapshot with a hole or a damaged file is not written. Up to `workers` files are fetched at once; they are written in date order by this
+    thread alone, and a failure stops the rest. The manifest keeps each file's `ETag` and `Last-Modified`
+    and lists the files modified after the download began. `log` is given one line as each year of a dataset finishes. It also fails when a dataset's last file is before `end`, so a snapshot is never
     taken before the archive holds the last session asked for.
     """
     if end >= today:
         raise ArchiveError(f"the last session asked for, {end}, is not before the download date {today}")
     writer = cache.SnapshotWriter(raw_root, NAME, today)
+    began = dt.datetime.now(dt.UTC).replace(microsecond=0)
     days: dict[str, dict[str, Any]] = {}
+    served: dict[str, dict[str, str | None]] = {}
+    moved: list[str] = []
     years = year_ranges(start, end)
     steps, step = len(assets) * len(years), 0
     pool = ThreadPoolExecutor(max_workers=workers)
@@ -274,9 +318,16 @@ def download(
             kept: list[DayFile] = []
             for first, last in years:
                 files = day_files(archive.listing(asset, first, last), asset, first, last)
-                served = pool.map(lambda f: _served(archive, f, retries), files)
-                for f, data in zip(files, served, strict=True):
-                    writer.write_bytes(f.name, data)
+                fetched = pool.map(lambda f: _served(archive, f, retries), files)
+                for f, got in zip(files, fetched, strict=True):
+                    writer.write_bytes(f.name, got.data)
+                    served[f.name] = {
+                        "etag": got.etag,
+                        "last_modified": got.modified.isoformat() if got.modified else None,
+                        "md5_checked": got.intact is not None,
+                    }
+                    if got.modified is not None and got.modified >= began:
+                        moved.append(f.name)
                 kept += files
                 step += 1
                 megabytes = sum(f.size for f in files) / 1e6
@@ -296,19 +347,25 @@ def download(
             "client": USER_AGENT,
             "start": start.isoformat(),
             "end_exclusive": (end + dt.timedelta(days=1)).isoformat(),
+            "started_at": began.isoformat(),
             "downloaded_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+            # What the storage host said of each file, and the files it had modified since the download began.
+            "served": served,
+            "modified_during_download": sorted(moved),
             "assets": list(assets),
             "days": days,
         }
     )
 
 
-def _served(archive: Archive, f: DayFile, retries: int) -> bytes:
+def _served(archive: Archive, f: DayFile, retries: int) -> Served:
     for _ in range(retries + 1):
-        data = archive.file(f.url)
-        if len(data) == f.size:
-            return data
-    raise ArchiveError(f"{f.asset} {f.day}: {len(data)} bytes served, {f.size} listed")
+        got = archive.file(f.url)
+        if len(got.data) == f.size and got.intact is not False:
+            return got
+    if len(got.data) != f.size:
+        raise ArchiveError(f"{f.asset} {f.day}: {len(got.data)} bytes served, {f.size} listed")
+    raise ArchiveError(f"{f.asset} {f.day}: the bytes served do not have the MD5 the ETag gives")
 
 
 # Reading -----------------------------------------------------------------------------------------------

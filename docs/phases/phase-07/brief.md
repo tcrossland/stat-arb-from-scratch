@@ -33,12 +33,13 @@ It runs while the forward run of decision record 0007 lasts, which sets its limi
 From the source's documentation and a few day files read for their schema alone, on 2026-11-19:
 
 - **The archive's last file is the session before the download's date** until the night's update, so the first snapshot, through 2026-11-19, is taken on 2026-11-20 or later. The download refuses to write a snapshot that stops short of the last session asked for.
-- **A day file has no hash,** only a size in the file list. The download checks each file against its listed size, and the snapshot's own manifest holds the hashes.
+- **The file list gives a size and no hash, but the storage host's `ETag` is the file's MD5.** The download checks each file against its listed size and, where the ETag is an MD5, its bytes against that, and the snapshot's own manifest holds the SHA-256 hashes.
 - **The day is in a column that changed name.** Files dated before 2026-03-27 carry it as a midnight timestamp in `timestamp`, later ones as `date`. The reader accepts either and requires every row of a file to be of the file's day.
 - **Stocks and ETFs are separate datasets,** `stock_daily` and `etf_daily`, each with its own file per day. The factor ETFs and SPY are in the second.
 - **Reading by ticker would open every day file for each ticker,** some 2,700 files since 2016. The snapshot is read by day instead, a window at a time into one long table, and `statarb.data.snapshot.PriceSnapshot`, which reads by ticker, refuses it. See "Design points".
 - **The file list's addresses are on a storage host, signed and valid for an hour.** The key goes to the API's host alone, and a test requires that.
 - **A file takes about half a second to arrive,** one at a time, whether or not the connection is kept open, and the storage host does not offer HTTP/2, so requests cannot share a connection. The download fetches eight files at once, as the source's documentation suggests, through the standard library's thread pool, with every request still on one pace under the key's rate limit. At eight the pace is the limit.
+- **A snapshot is not taken at one instant, and the archive moves.** Its pages say each night's run fetches the last four trading days again, rewrites any of the trailing 30 days whose values changed, and re-bases a ticker's whole history when a split is applied, with a weekly merge of newly delisted tickers. A re-base landing during a download would leave the ticker on two bases across files. The manifest keeps each file's `ETag` and `Last-Modified` and lists the files modified after the download began; a snapshot with any is not pinned.
 - **The site's edge refuses Python's default client name.** The adapter names itself for what it is, a script reading the archive, in its `User-Agent`; the source's documentation gives scripted downloads as the intended use.
 
 ## The source
