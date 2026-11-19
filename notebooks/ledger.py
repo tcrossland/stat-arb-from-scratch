@@ -15,6 +15,7 @@ app = marimo.App(width="medium", app_title="Ledger explorer", css_file="ledger.c
 
 @app.cell
 def _():
+    import datetime as dt
     from html import escape
     from pathlib import Path
 
@@ -27,7 +28,7 @@ def _():
     from statarb.data.schema import TICKER
     from statarb.paper import views
 
-    return FuncFormatter, Path, TICKER, escape, mo, pd, plt, repo_root, views
+    return FuncFormatter, Path, TICKER, dt, escape, mo, pd, plt, repo_root, views
 
 
 @app.cell
@@ -142,18 +143,21 @@ def _(escape, mo, pd):
     def note(text: str):
         return mo.Html(f'<p class="lx-note">{escape(text)}</p>')
 
+    def plural(count: int, word: str) -> str:
+        return f"{count:,} {word}{'' if count == 1 else 's'}"
+
     _WEIGHTS = {"held", "drifted", "trade", "holding", "target", "long", "short", "gross", "net", "turnover"}
     _BASIS_POINTS = {"expected_move", "prior_expected_move", "pnl", "borrow"}
     _LABELS = {
         "date": "Date", "ticker": "Ticker", "sector": "Sector", "side": "Side", "action": "Action", "names": "Names",
-        "held": "Carried in", "ret": "Return", "pnl": "P&L (bp)", "borrow": "Borrow (bp)", "drifted": "Before trade",
+        "held": "Carried in", "ret": "Return, open to open", "pnl": "P&L (bp)", "borrow": "Borrow (bp)", "drifted": "Before trade",
         "trade": "Trade", "holding": "Holding", "target": "Target", "expected_move": "Expected move (bp)",
         "prior_expected_move": "Expected move, prior close (bp)",
         "holding_usd": "Holding ($)", "trade_usd": "Trade ($)", "gross_usd": "Gross P&L ($)", "borrow_usd": "Borrow ($)",
         "cost_spread_usd": "Spread ($)", "cost_impact_usd": "Impact ($)", "cost_commission_usd": "Commission ($)",
         "net_usd": "Net ($)", "cumulative_net_usd": "Cumulative net ($)", "pnl_usd": "P&L ($)", "turnover": "Turnover",
-        "days": "Days", "entry": "Entry", "exit": "Exit", "missing_returns": "Missing returns", "status": "Solver status",
-        "slope": "Slope", "git_commit": "Commit", "git_dirty": "Dirty tree", "snapshot": "Snapshot",
+        "days": "Days", "entry": "Entry", "exit": "Exit", "status": "Solver status",
+        "slope": "Slope", "git_commit": "Commit", "git_dirty": "Tree", "snapshot": "Snapshot",
     }
 
     def _formatter(pattern: str):
@@ -195,14 +199,18 @@ def _(escape, mo, pd):
             show_search=len(out) > page_size,   # a table that fits on one page needs no search
         )
 
-    return heading, note, show, tiles
+    return heading, note, plural, show, tiles
 
 
 @app.cell
-def _(all_days, escape, frame, loaded, mo, money, root, signed, tiles, views):
+def _(all_days, dt, escape, frame, loaded, mo, money, plural, root, signed, tiles, views):
     _last = views.exposure(frame).iloc[-1]
     _net = views.pnl(frame)["net_usd"].sum()
     _problems = len(loaded.problems)
+    # What the daily job would process if it ran now, by its own rule. One session due is the usual state between the
+    # run time and the scheduler's; more than one means a run was missed.
+    _due = views.due(loaded.run, all_days[-1], dt.datetime.now(dt.UTC))
+    _state = "" if _due is None else ", up to date" if not len(_due) else f", {plural(len(_due), 'session')} due"
     mo.vstack([
         mo.Html(
             '<div class="lx-header"><h1>Ledger explorer</h1>'
@@ -210,7 +218,7 @@ def _(all_days, escape, frame, loaded, mo, money, root, signed, tiles, views):
             f"{escape(str(loaded.snapshot))} · <code>{escape(str(root))}</code></p></div>"
         ),
         tiles(
-            ("Last ledger day", f"{all_days[-1]:%Y-%m-%d}", f"day {len(all_days)} of the run"),
+            ("Last ledger day", f"{all_days[-1]:%Y-%m-%d}", f"day {len(all_days)} of the run{_state}", _due is not None and len(_due) > 1),
             ("Gross exposure", f"{_last['gross']:.1%}", "after the last open"),
             ("Net exposure", signed(_last["net"]), "after the last open"),
             ("Names long / short", f"{int(_last['names_long'])} / {int(_last['names_short'])}", "after the last open"),
@@ -247,7 +255,7 @@ def _(frame, since, until, views):
 
 
 @app.cell
-def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, sectors, show, signed, tiles, title, views, zero):
+def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, plural, sectors, show, signed, tiles, title, views, zero):
     _held = views.book(frame, sectors, day.value)
     _sectors = views.sector_exposure(_held)
     _exp = views.exposure(frame).loc[day.value]
@@ -266,8 +274,8 @@ def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, sectors, sh
         tiles(
             ("Gross exposure", f"{_exp['gross']:.1%}", f"after the open of {day.value:%Y-%m-%d}"),
             ("Net exposure", signed(_exp["net"]), "long plus short"),
-            ("Long", f"{_exp['long']:.1%}", f"{int(_exp['names_long'])} names"),
-            ("Short", f"{_exp['short']:.1%}".replace("-", "−"), f"{int(_exp['names_short'])} names"),
+            ("Long", f"{_exp['long']:.1%}", plural(int(_exp["names_long"]), "name")),
+            ("Short", f"{_exp['short']:.1%}".replace("-", "−"), plural(int(_exp["names_short"]), "name")),
         ),
         mo.hstack([_fig, show(_sectors, index=True)], widths=[1.1, 1], align="start", gap=1.5),
         heading(f"Positions, largest first ({len(_held)})"),
@@ -277,12 +285,12 @@ def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, sectors, sh
 
 
 @app.cell
-def _(TICKER, heading, in_window, mo, money, show, tiles, views, window):
+def _(TICKER, heading, in_window, mo, money, plural, show, tiles, views, window):
     _trades = views.trades(in_window)
     trades_tab = mo.vstack([
         window,
         tiles(
-            ("Trades", f"{len(_trades):,}", f"on {_trades['date'].nunique()} days"),
+            ("Trades", f"{len(_trades):,}", f"on {plural(_trades['date'].nunique(), 'day')}"),
             ("Names traded", f"{_trades[TICKER].nunique():,}", "in the window"),
             ("Traded", money(_trades["trade_usd"].abs().sum()), "buys plus sells"),
             ("Opens / closes", f"{(_trades['action'] == 'open').sum()} / {(_trades['action'] == 'close').sum()}", "flips count as neither"),
@@ -294,12 +302,13 @@ def _(TICKER, heading, in_window, mo, money, show, tiles, views, window):
 
 
 @app.cell
-def _(INK, SERIES, WIDE, bar_width, canvas, compact, day_axis, frame, heading, in_window, legend, mo, money, money_axis, percent_axis,
-      show, tiles, title, views, window, zero):
+def _(INK, SERIES, WIDE, bar_width, book_size, canvas, compact, day_axis, frame, heading, in_window, legend, mo, money, money_axis,
+      percent_axis, plural, show, tiles, title, views, window, zero):
     _pnl = views.pnl(in_window)
     _exp = views.exposure(frame).loc[_pnl.index]
     _x, _dates = list(range(len(_pnl))), list(_pnl.index)
     _costs = _pnl[["cost_spread_usd", "cost_impact_usd", "cost_commission_usd"]].sum(axis=1).sum()
+    _traded = float(_pnl["turnover"].sum()) * book_size            # dollars bought plus sold over the window
     _fig, (_top, _bottom) = canvas(WIDE, 5.8, rows=2)
     _top.bar(_x, _pnl["net_usd"], width=bar_width(len(_x), WIDE), color=INK["quiet"], label="Daily net", zorder=2)
     _top.plot(_x, _pnl["cumulative_net_usd"], color=SERIES[0], linewidth=2, solid_capstyle="round", label="Cumulative net", zorder=3)
@@ -327,9 +336,10 @@ def _(INK, SERIES, WIDE, bar_width, canvas, compact, day_axis, frame, heading, i
     pnl_tab = mo.vstack([
         window,
         tiles(
-            ("Net P&L", money(_pnl["net_usd"].sum(), signed=True), f"over {len(_pnl)} days"),
+            ("Net P&L", money(_pnl["net_usd"].sum(), signed=True), f"over {plural(len(_pnl), 'day')}"),
             ("Gross P&L", money(_pnl["gross_usd"].sum(), signed=True), "before costs and borrow"),
             ("Trading costs", money(_costs), "spread, impact, commission"),
+            ("Cost of trading", f"{_costs / _traded * 1e4:.1f} bp" if _traded else "n/a", "of each dollar traded"),
             ("Borrow", money(_pnl["borrow_usd"].sum()), "on shorts carried in"),
             ("Turnover", f"{_pnl['turnover'].mean():.1%}", "of capital a day, mean"),
         ),
@@ -356,15 +366,14 @@ def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sector
         mo.hstack([since, until, by], justify="start", gap=0.75),   # flat: a nested row would push `by` to the far side
         note("P&L and borrow belong to the holding carried into each day. Trading costs are charged by day, not by name, "
              "so they are in the P&L tab and not here."),
-        _fig if len(_table) else note("Nothing was carried in over this window, so there is nothing to attribute yet."),
-        heading(f"By {by.value}"),
-        show(_table, index=True),
+        *([_fig, heading(f"By {by.value}"), show(_table, index=True)] if len(_table)
+          else [note("Nothing was carried in over this window, so there is nothing to attribute yet.")]),
     ])
     return (attribution_tab,)
 
 
 @app.cell
-def _(frame, heading, mo, note, show, tiles, views):
+def _(frame, heading, mo, note, plural, show, tiles, views):
     _spells = views.spells(frame)
     _open = _spells["exit"].isna()
     _closed = _spells.loc[~_open, "days"]
@@ -374,7 +383,7 @@ def _(frame, heading, mo, note, show, tiles, views):
         tiles(
             ("Open spells", f"{int(_open.sum()):,}", "held after the last open"),
             ("Closed spells", f"{int((~_open).sum()):,}", "since the run began"),
-            ("Median length", f"{_closed.median():.0f} days" if len(_closed) else "n/a", "closed spells"),
+            ("Median length", plural(round(_closed.median()), "day") if len(_closed) else "n/a", "closed spells"),
         ),
         heading("Spells, latest entry first"),
         show(_spells),
@@ -411,7 +420,7 @@ def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note
             ),
             _fig,
             heading("By day"),
-            show(_h),
+            show(_h.drop(columns="target") if _h["target"].isna().all() else _h),   # no target is recorded under the optimiser
         ])
     return (ticker_tab,)
 
@@ -439,11 +448,15 @@ def _(all_days, frame, heading, mo, note, show, views):
 
 @app.cell
 def _(frame, heading, mo, note, show, views):
-    _health = views.health(frame).rename(columns={"names": "names_on_grid", "held": "names_carried_in"})
-    _health = _health.assign(git_commit=_health["git_commit"].str[:7]).iloc[::-1]
+    # Short headers and hashes, so the ten columns fit the page: the note under the tabs says what each count is.
+    _health = views.health(frame).rename(columns={"names": "on_grid", "held": "carried_in", "missing_returns": "no_return"})
+    _health = _health.assign(
+        git_commit=_health["git_commit"].str[:7], config_hash=_health["config_hash"].str[:8],
+        git_dirty=_health["git_dirty"].map({False: "clean", True: "dirty"}),
+    ).iloc[::-1]
     health_tab = mo.vstack([
-        note("One row per ledger day, latest first: what was on the grid, whether any held name had no return, how the "
-             "optimiser finished, and the code and snapshot the day ran on."),
+        note("One row per ledger day, latest first: the names on the grid, the names carried in and those of them with no "
+             "return, how the optimiser finished, the calibration slope, and the code, snapshot and config the day ran on."),
         heading("Run health"),
         show(_health, index=True),
     ])

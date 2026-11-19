@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import shutil
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import statarb.io
+from statarb.config import repo_root
 from statarb.data.schema import DATE, TICKER
 from statarb.paper import ledger, views
+from statarb.paper.config import Run, load_paper_config
 from synthetic_ledger import BOOK_SIZE, CHANGE, DATES, SECTORS, concat, frames, write
 
 
@@ -63,6 +68,36 @@ def test_an_empty_ledger_loads(tmp_path) -> None:
     (tmp_path / "config" / "data.toml").write_text('[paths]\npaper = "data/paper"\n')
     loaded = views.load(tmp_path)
     assert loaded.frame.empty and loaded.snapshot is None and loaded.problems == ()
+
+
+def test_load_reads_the_runs_sessions_where_the_checkout_has_them(root) -> None:
+    assert views.load(root).run is None                    # no config/paper.toml: not a forward run's checkout
+    shutil.copy(repo_root() / "config" / "paper.toml", root / "config" / "paper.toml")
+    assert views.load(root).run == load_paper_config().run
+
+
+RUN = Run(first_session=dt.date(2026, 11, 16), calendar="XNYS", run_time=dt.time(6, 0))
+
+
+def _utc(text: str) -> dt.datetime:
+    return dt.datetime.fromisoformat(text).replace(tzinfo=dt.UTC)
+
+
+def test_due_is_what_the_daily_job_would_process_now() -> None:
+    last = pd.Timestamp("2026-11-17")
+    assert list(views.due(RUN, last, _utc("2026-11-19T10:30"))) == []          # 05:30 New York: before the run time
+    assert list(views.due(RUN, last, _utc("2026-11-19T12:00"))) == [pd.Timestamp("2026-11-18")]
+    assert list(views.due(RUN, last, _utc("2026-11-23T12:00"))) == list(pd.to_datetime(["2026-11-18", "2026-11-19", "2026-11-20"]))
+
+
+def test_due_knows_the_markets_holidays() -> None:
+    """Thanksgiving, Thursday 2026-11-26, is a weekday with no session, so nothing is due the morning after."""
+    assert list(views.due(RUN, pd.Timestamp("2026-11-25"), _utc("2026-11-27T12:00"))) == []
+
+
+def test_due_is_unknown_without_a_configured_run() -> None:
+    assert views.due(None, pd.Timestamp("2026-11-17"), _utc("2026-11-19T12:00")) is None
+    assert views.due(Run(first_session="", calendar="XNYS", run_time=dt.time(6, 0)), None, _utc("2026-11-19T12:00")) is None
 
 
 def test_sectors_follow_their_dates(frame) -> None:

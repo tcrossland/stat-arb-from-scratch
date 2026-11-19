@@ -137,6 +137,15 @@ select[data-testid="marimo-plugin-dropdown"]:hover,
   border-right: 0;
   box-shadow: none;
   font-variant-numeric: tabular-nums;   /* numbers line up by digit */
+  /* marimo sets each column's width inline, wider than its text needs, so a table of nine or ten columns ran
+     past the page and hid the last ones behind a scroll. Columns take the width of their content instead. */
+  width: auto !important;
+}
+
+/* Each header also keeps room for two buttons that show only on hover. The column menu sorts as well, so the
+   sort toggle goes until a column is sorted, when its icon is an arrow and it shows which way. */
+[part="table-wrapper"] th button:has(.lucide-chevrons-up-down) {
+  display: none;
 }
 
 [part="table-wrapper"] thead,

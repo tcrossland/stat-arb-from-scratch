@@ -160,7 +160,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.paper.daily` | 6 | Runner: the daily job. Locks, refuses on a changed config, model file or damaged ledger, checks the reproduction, builds the day's tables, processes each due session, writes the note and the ledger day, backs up and logs the run. |
 | `statarb.paper.backup` | 6 | Copies the ledger into a clone of the private repository in `STATARB_BACKUP_REMOTE`, commits and pushes; a failure is recorded, never raised. |
 | `statarb.paper.drift` | 6 | Runner: the weekly drift report, the forward run against the frozen path over development, with the source's revisions and the run log's failures. |
-| `statarb.paper.views` | 6 | The ledger explorer's tables: the book, trades, P&L, attribution, holding spells and run health, as pure functions of the ledger, for the local app `notebooks/ledger.py`. Reads the ledger and the sectors of the snapshot in use; writes nothing. |
+| `statarb.paper.views` | 6 | The ledger explorer's tables: the book, trades, P&L, attribution, holding spells and run health, as pure functions of the ledger, for the local app `notebooks/ledger.py`, and the sessions the daily job would process now, by the job's own rule. Reads the ledger, the sectors of the snapshot in use and `[run]` of `config/paper.toml`; writes nothing. |
 
 ## Seams
 

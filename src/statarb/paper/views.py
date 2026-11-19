@@ -1,9 +1,9 @@
 """Phase 6 ledger explorer: tables over the ledger, for the local app in notebooks/ledger.py.
 
-Every function but `load` is a pure function of ledger frames, as
-`statarb.paper.drift.read_ledger` returns them, and of the sectors table.
-`load` reads the ledger and the sectors table of the snapshot in use; nothing
-here writes. The explorer reads forward days by design, so nothing it computes
+Every function but `load` is a pure function of its arguments: ledger frames,
+as `statarb.paper.drift.read_ledger` returns them, and the sectors table.
+`load` reads the ledger, the sectors table of the snapshot in use and the
+run's sessions in `config/paper.toml`; nothing here writes. The explorer reads forward days by design, so nothing it computes
 enters an experiment log, a report or a decision, and it runs only locally:
 decision record 0003 forbids redistributing the data the ledger derives from.
 
@@ -17,6 +17,7 @@ known only once the next day is filled.
 
 from __future__ import annotations
 
+import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,10 +25,12 @@ import numpy as np
 import pandas as pd
 
 from statarb.config import load_config, resolve_path
-from statarb.data.schema import DATE, TICKER
+from statarb.data.schema import DATE, TICKER, exchange_today
 from statarb.io import read_parquet
 from statarb.paper import ledger
-from statarb.paper.daily import COMPLETE, LEDGER, PROCESSED
+from statarb.paper import sessions as sessions_
+from statarb.paper.config import Run, load_paper_config
+from statarb.paper.daily import COMPLETE, LEDGER, PROCESSED, calendar_for
 from statarb.paper.drift import read_ledger
 
 NO_SECTOR = "no sector"      # names with no sector row on the day: the hedge ETFs
@@ -43,6 +46,7 @@ class Ledger:
     sectors: pd.DataFrame
     snapshot: str | None           # the processed snapshot the sectors come from; None if there is none
     problems: tuple[str, ...]      # `statarb.paper.ledger.check`: empty when the chain is intact
+    run: Run | None = None         # `[run]` of the checkout's config/paper.toml; None if it has no such file
 
 
 def load(root: Path) -> Ledger:
@@ -51,7 +55,18 @@ def load(root: Path) -> Ledger:
     processed = paper / PROCESSED
     done = sorted(p for p in processed.iterdir() if (p / COMPLETE).exists()) if processed.exists() else []
     sectors = read_parquet(done[-1] / "sectors.parquet") if done else pd.DataFrame(columns=[TICKER, "sector", "valid_from", "valid_to"])
-    return Ledger(read_ledger(paper / LEDGER), sectors, done[-1].name if done else None, tuple(ledger.check(paper / LEDGER)))
+    run = load_paper_config(root).run if (root / "config" / "paper.toml").is_file() else None
+    return Ledger(read_ledger(paper / LEDGER), sectors, done[-1].name if done else None, tuple(ledger.check(paper / LEDGER)), run)
+
+
+def due(run: Run | None, last_done: pd.Timestamp | None, now: dt.datetime) -> pd.DatetimeIndex | None:
+    """The sessions the daily job would process if it ran at `now`, by its own rule (`statarb.paper.sessions.due`)
+    on the run's calendar, first session and run time: none when the ledger is up to date. None where no forward
+    run is configured. `now` must be time zone aware."""
+    if run is None or run.first is None:
+        return None
+    sessions = calendar_for(run.calendar, run.first, exchange_today(now))
+    return sessions_.due(sessions, now, run.first, last_done, run.run_time)
 
 
 def days(frame: pd.DataFrame) -> list[pd.Timestamp]:
