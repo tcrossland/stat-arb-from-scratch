@@ -1,7 +1,7 @@
 # 0001: Simulation only, free daily data
 
 **Date:** 2026-11-16
-**Status:** accepted
+**Status:** accepted. Its free-data rule is amended by [decision record 0008](0008-marketparquet-archive-as-a-paid-price-source.md), which allows one paid source.
 
 ## Context
 

@@ -6,7 +6,7 @@ A research project: build a simplified, daily-frequency version of a cross-secti
 
 - **Simulation only.** No code in this repo places, routes or submits real orders, and no broker credentials are stored here. If a later phase adds a broker connection it is paper-trading only and needs an explicit decision recorded in `docs/decisions/`.
 - **No look-ahead.** Every value used to make a decision at time *t* must have been knowable at *t*. This is the single most important rule in the project. See "Time discipline" below.
-- **Free data only** until a decision record says otherwise.
+- **Free data only,** with one exception: MarketParquet's archive, a paid source, under decision record 0008. Any other paid source needs a decision record first.
 - **No keys in the repository.** API keys are read from the environment, never from a file in the repository, a config file or a scheduler file.
 - **No data values.** No prices, volumes or per-ticker returns from any source in reports, docs, commit messages or test fixtures. Reports hold statistics derived from the data; fixtures are synthetic.
 
