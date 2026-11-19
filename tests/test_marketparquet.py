@@ -335,21 +335,36 @@ def test_no_snapshot_before_the_archive_holds_the_last_session(tmp_path) -> None
 
 
 def test_the_runner_downloads_what_the_config_names(tmp_path) -> None:
-    cfg = {"source": {"assets": [ETF]}, "dates": {"start": START, "end": END}, "download": {"retries": 0, "workers": 2}}
+    cfg = {"source": {"assets": [ETF]}, "dates": {"start": START, "end": END, "calendar": "XNYS"}, "download": {"retries": 0, "workers": 2}}
     path = marketparquet_build.download_snapshot(FakeArchive(FILES), tmp_path, cfg, TODAY)
     assert mp.snapshot_days(path, ETF) == DAYS and mp.snapshot_days(path, STOCK) == []
     assert f"{ETF}: {len(DAYS)} files, {START} to {END}" in marketparquet_build.describe(path)
 
 
 def test_the_runner_takes_another_period_in_place_of_the_configured_one(tmp_path) -> None:
-    cfg = {"source": {"assets": [ETF]}, "dates": {"start": START, "end": END}, "download": {"retries": 0, "workers": 2}}
+    cfg = {"source": {"assets": [ETF]}, "dates": {"start": START, "end": END, "calendar": "XNYS"}, "download": {"retries": 0, "workers": 2}}
     path = marketparquet_build.download_snapshot(FakeArchive(FILES), tmp_path, cfg, TODAY, start=DAYS[2], end=DAYS[4])
     assert mp.snapshot_days(path, ETF) == DAYS[2:5]
     manifest = cache.read_manifest(path)
     assert (manifest["start"], manifest["end_exclusive"]) == (DAYS[2].isoformat(), (DAYS[4] + dt.timedelta(days=1)).isoformat())
     assert marketparquet_build.period(cfg, None, DAYS[4]) == (START, DAYS[4])
-    with pytest.raises(mp.ArchiveError, match="after the last"):
-        marketparquet_build.period(cfg, END, START)
+
+
+def test_the_end_of_a_period_moves_back_to_the_last_session() -> None:
+    cfg = {"dates": {"start": dt.date(2025, 1, 2), "end": dt.date(2025, 1, 5), "calendar": "XNYS"}}
+    friday = dt.date(2025, 1, 3)
+    assert marketparquet_build.period(cfg, None, None) == (dt.date(2025, 1, 2), friday)        # the 5th is a Sunday
+    assert marketparquet_build.period(cfg, None, friday)[1] == friday
+    assert marketparquet_build.period(cfg, dt.date(2024, 12, 2), dt.date(2025, 1, 1))[1] == dt.date(2024, 12, 31)   # a holiday
+    assert marketparquet_build.period(cfg, dt.date(2000, 1, 1), dt.date(2000, 1, 3))[1] == dt.date(2000, 1, 3)
+    for start, end in ((dt.date(2025, 1, 4), dt.date(2025, 1, 5)), (dt.date(2025, 2, 1), dt.date(2025, 1, 10))):
+        with pytest.raises(mp.ArchiveError, match="no session"):
+            marketparquet_build.period(cfg, start, end)
+
+
+def test_the_configured_end_is_a_session() -> None:
+    cfg = load_config("marketparquet")
+    assert marketparquet_build.period(cfg, None, None) == (cfg["dates"]["start"], cfg["dates"]["end"])
 
 
 def test_a_period_without_a_download_is_refused() -> None:

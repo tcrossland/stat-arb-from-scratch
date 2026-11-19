@@ -6,6 +6,8 @@
 
 `--start` and `--end` (YYYY-MM-DD, both inclusive) replace `[dates]` of the
 config for that download; the snapshot's manifest records the period it holds.
+Neither need be a trading day: the download runs to the exchange calendar's
+last session on or before the end, and requires the archive to hold that one.
 
 A download needs MARKETPARQUET_API_KEY in the environment. It writes a new
 dated snapshot of the day files as served and never modifies an existing one
@@ -29,6 +31,8 @@ import urllib.error
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from statarb.config import load_config, raw_store, repo_root
 from statarb.data import cache, marketparquet
 from statarb.data.schema import exchange_today
@@ -38,11 +42,22 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
+def last_session(calendar: str, day: dt.date) -> dt.date | None:
+    """The calendar's last session on or before `day`, looking back two weeks; None when it has none there."""
+    import exchange_calendars
+
+    end = pd.Timestamp(day)
+    sessions = exchange_calendars.get_calendar(calendar, start=end - pd.Timedelta(days=14), end=end).sessions
+    return sessions[-1].date() if len(sessions) else None
+
+
 def period(cfg: dict[str, Any], start: dt.date | None, end: dt.date | None) -> tuple[dt.date, dt.date]:
-    """The first and last session a download asks for: the config's, each replaced by the one given."""
-    first, last = start or cfg["dates"]["start"], end or cfg["dates"]["end"]
-    if first > last:
-        raise marketparquet.ArchiveError(f"the first session asked for, {first}, is after the last, {last}")
+    """The first day and the last session a download asks for: the config's dates, each replaced by the one
+    given, with the end moved back to the calendar's last session on or before it."""
+    first, asked = start or cfg["dates"]["start"], end or cfg["dates"]["end"]
+    last = last_session(cfg["dates"]["calendar"], asked)
+    if last is None or first > last:
+        raise marketparquet.ArchiveError(f"no session from {first} to {asked}")
     return first, last
 
 
@@ -62,7 +77,7 @@ def download_snapshot(
         minutes, seconds = divmod(int(time.monotonic() - began), 60)
         _log(f"[{minutes:02d}:{seconds:02d}] {message}")
 
-    _log(f"downloading {', '.join(cfg['source']['assets'])} from {first} to {last}")
+    _log(f"downloading {', '.join(cfg['source']['assets'])} from {first} to {last}, the last session asked for")
     path = marketparquet.download(
         archive,
         raw_root,

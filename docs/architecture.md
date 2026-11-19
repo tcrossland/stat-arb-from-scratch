@@ -216,7 +216,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
 | `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time. |
-| `marketparquet.toml` | `statarb.data.marketparquet_build` | The second price source: the daily datasets a download asks for, its first and last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. Outside the forward run's frozen record. |
+| `marketparquet.toml` | `statarb.data.marketparquet_build` | The second price source: the daily datasets a download asks for, its first and last day and the exchange calendar that says which is the last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. Outside the forward run's frozen record. |
 
 ## External libraries
 
@@ -231,7 +231,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |
 | LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` of `config/models.toml` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
-| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml` | the New York Stock Exchange's sessions, holidays included |
+| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml`; from phase 7 `statarb.data.marketparquet_build`, named in `[dates] calendar` of `config/marketparquet.toml` | the New York Stock Exchange's sessions, holidays included |
 | DuckDB 2.0.0 | MIT | `notebooks/ledger.sql`, read by the DuckDB command line; the Python package, in the `explore` dependency group, only by `tests/test_ledger_sql.py` | the ledger explorer's views in SQL, for the command line |
 | marimo 0.25.2 | Apache-2.0 | `notebooks/ledger.py`, in the `explore` dependency group | the ledger explorer: a local app over `statarb.paper.views`, served on 127.0.0.1 |
 

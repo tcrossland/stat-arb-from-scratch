@@ -13,7 +13,9 @@ snapshot = ""
 digest = ""
 
 [dates]
-# What a download asks for, both ends inclusive.
+# What a download asks for, both ends inclusive. Neither need be a trading day: the download runs to
+# the calendar's last session on or before the end, and fails unless the archive holds that session.
+calendar = "XNYS"    # exchange_calendars name
 start = 2000-01-03   # the archive's first session
 end = 2026-11-19     # the last session the purchase covers
 
