@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import datetime as dt
+import shutil
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import statarb.io
+from statarb.config import repo_root
 from statarb.data.schema import DATE, TICKER
 from statarb.paper import ledger, views
+from statarb.paper.config import Run, load_paper_config
 from synthetic_ledger import BOOK_SIZE, CHANGE, DATES, SECTORS, concat, frames, write
 
 
@@ -65,6 +70,36 @@ def test_an_empty_ledger_loads(tmp_path) -> None:
     assert loaded.frame.empty and loaded.snapshot is None and loaded.problems == ()
 
 
+def test_load_reads_the_runs_sessions_where_the_checkout_has_them(root) -> None:
+    assert views.load(root).run is None                    # no config/paper.toml: not a forward run's checkout
+    shutil.copy(repo_root() / "config" / "paper.toml", root / "config" / "paper.toml")
+    assert views.load(root).run == load_paper_config().run
+
+
+RUN = Run(first_session=dt.date(2026, 11, 16), calendar="XNYS", run_time=dt.time(6, 0))
+
+
+def _utc(text: str) -> dt.datetime:
+    return dt.datetime.fromisoformat(text).replace(tzinfo=dt.UTC)
+
+
+def test_due_is_what_the_daily_job_would_process_now() -> None:
+    last = pd.Timestamp("2026-11-17")
+    assert list(views.due(RUN, last, _utc("2026-11-19T10:30"))) == []          # 05:30 New York: before the run time
+    assert list(views.due(RUN, last, _utc("2026-11-19T12:00"))) == [pd.Timestamp("2026-11-18")]
+    assert list(views.due(RUN, last, _utc("2026-11-23T12:00"))) == list(pd.to_datetime(["2026-11-18", "2026-11-19", "2026-11-20"]))
+
+
+def test_due_knows_the_markets_holidays() -> None:
+    """Thanksgiving, Thursday 2026-11-26, is a weekday with no session, so nothing is due the morning after."""
+    assert list(views.due(RUN, pd.Timestamp("2026-11-25"), _utc("2026-11-27T12:00"))) == []
+
+
+def test_due_is_unknown_without_a_configured_run() -> None:
+    assert views.due(None, pd.Timestamp("2026-11-17"), _utc("2026-11-19T12:00")) is None
+    assert views.due(Run(first_session="", calendar="XNYS", run_time=dt.time(6, 0)), None, _utc("2026-11-19T12:00")) is None
+
+
 def test_sectors_follow_their_dates(frame) -> None:
     named = views.with_sector(frame, SECTORS).set_index([DATE, TICKER])["sector"]
     assert named[(DATES[2], "BB")] == "Tech"
@@ -86,6 +121,15 @@ def test_book_lists_the_names_held_after_the_open(frame) -> None:
     np.testing.assert_array_equal(held["holding_usd"], held["holding"] * BOOK_SIZE)
     assert dict(zip(held[TICKER], held["side"], strict=True)) == {"BB": "long", "CC": "long", "HX": "short"}
     assert dict(zip(held[TICKER], held["sector"], strict=True)) == {"BB": "Energy", "CC": "Health", "HX": views.NO_SECTOR}
+
+
+def test_book_pairs_a_holding_with_the_move_it_was_decided_on(frame) -> None:
+    held = views.book(frame, SECTORS, DATES[3])
+    decided = frame.loc[frame[DATE] == DATES[2]].set_index(TICKER)["expected_move"]
+    own = frame.loc[frame[DATE] == DATES[3]].set_index(TICKER)["expected_move"]
+    np.testing.assert_array_equal(held["prior_expected_move"], decided.loc[list(held[TICKER])])
+    assert not np.array_equal(held["prior_expected_move"], own.loc[list(held[TICKER])])   # not the next open's decision
+    assert views.book(frame, SECTORS, DATES[0])["prior_expected_move"].isna().all()       # nothing was decided before day one
 
 
 def test_exposure_and_sector_exposure_agree_with_the_book(frame) -> None:

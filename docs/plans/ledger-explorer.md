@@ -9,7 +9,7 @@ The daily note reports one ledger day: its P&L, costs, the book before and after
 ## Constraints
 
 - **Local only.** Decision record 0003 forbids redistributing Alpaca's data, and the ledger holds per-ticker returns and dollar holdings derived from it. The explorer runs on the owner's machine and is never hosted: no Streamlit Cloud, no Pages site, no claude.ai Artifact. Nothing it shows is committed: no screenshots of the real ledger, no exported tables.
-- **Read-only.** It never writes to `data/paper/`. It reads the ledger days and the sectors table of the processed snapshot in use, and nothing else.
+- **Read-only.** It never writes to `data/paper/`. It reads the ledger days, the sectors table of the processed snapshot in use and, to say whether a session is due, `[run]` of the checkout's `config/paper.toml`, and nothing else.
 - **Nothing it computes enters a result.** It reads forward days by design, so nothing it produces goes into an experiment log, a report or a decision. It is not a runner and does not call `load_tables`, so the forward holdout guard is not involved.
 - **Additive.** No change to the frozen config files, the engine, the daily job or any logged result. If it needs a setting, the setting goes in a config file outside the frozen record's list (`FILES` in `statarb.paper.frozen`).
 - **The job's clone stays clean.** The explorer is built in the development checkout and merged to `main` like any other change. The job's clone is pulled only deliberately, and a pull of committed code changes the ledger's `git_commit`, not its results. Any cache the app writes beside itself is git-ignored, since an untracked file in the job's clone would set `git_dirty` on the next ledger day.
