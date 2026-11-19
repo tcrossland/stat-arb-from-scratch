@@ -139,3 +139,9 @@ Notes for phase 6:
 - The decision made at the close of *d* fills at the open of *d* + 1, the phase 5 fill; the strategy refuses any other fill timing. The fill reads the decision and expected move the ledger recorded on *d*, so a revision the source makes overnight cannot change an order after the fact; the drift report shows which recorded decisions a later snapshot would have changed.
 - The forward run's days, from `[run] first_session` of `config/paper.toml` on, are a fresh holdout (decision record 0007), read only by the daily job and the drift report. The phase 2 to 4 runners cut every table at the day before the first session (`statarb.paper.config.backtest_last`); the phase 5 runners and the choice cut at the phase 5 holdout's last day, which `tests/test_forward_holdout.py` requires to come before it.
 - A model forecast on *d* comes from the saved model of the latest walk-forward block that starts on or before *d*, trained on rows whose target was known at that block's start. After the holdout's last block, its model keeps forecasting; nothing is retrained in the forward run.
+
+Notes for phase 7:
+
+- A symbol in MarketParquet's archive ends in `-DELISTED` on every day of its history once the security has stopped trading, so on any earlier day the suffix says what happened later. `statarb.data.marketparquet` keeps the symbol as served, because the suffix tells a dead security from a later one on the same ticker. It is part of the key and never an input: no universe rule, signal, cost or position may read it (decision record 0008).
+- The archive's prices are adjusted for splits as of the download, so a price level on *t* depends on splits after *t*. Returns and dollar volume do not; a price floor would.
+- A window of days is read by opening only the files of the days inside it (`read_days`), so a cut before the forward run's first session reads none of its days (`tests/test_marketparquet.py`).

@@ -6,6 +6,7 @@ How to rebuild every published result on your own machine. Parts marked *(phase 
 
 - Python 3.14 and [uv](https://docs.astral.sh/uv/). The [README](../README.md#running-it) has the setup.
 - A free Alpaca account. It is paper-only, and the project calls only the market data host, `data.alpaca.markets`, never the trading API. Create a paper API key in Alpaca's dashboard and set it in the environment as `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`. Never put it in a file in the repository or in config ([decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md)).
+- For the results of phase 7 on, MarketParquet's archive, a paid source bought once per account ([decision record 0008](decisions/0008-marketparquet-archive-as-a-paid-price-source.md)). Every earlier result needs only Alpaca. Create an API key on your MarketParquet account page and set it in the environment as `MARKETPARQUET_API_KEY`, for the download alone, and never in a file in the repository or in config. The project asks only for the daily stock and ETF files.
 - Memory for the largest runner: the phase 4 portfolio runner needs about 8 GB across its six worker processes; fewer workers (`--workers`) need less and take longer. [`docs/requirements.md`](requirements.md) has the time, memory and disk of every runner, the one place those figures are kept.
 
 The tests need neither the key nor the network:
@@ -117,6 +118,14 @@ From step 3, every runner behaves the same way in four respects:
    It reads the tables phase 5 reads, cut at the development end, and through the holdout only for the slope chart's diagnostic paths, with `config/paper.toml` for the slope rules. It retrains every phase 5 model into a temporary directory and stops unless each has its logged SHA-256, then runs every forecast through the decile sort, the no-trade zone and the optimiser under each slope rule at both book sizes (the optimiser paths in worker processes, `--workers`), and stops unless every trailing path gives the metrics phase 5 logged. It logs one entry per path, slope rule and book size and writes `reports/phase-06/choice.md` and its charts. It reads the earlier logs for the trial count. Like the holdout runner, it stops on a snapshot other than the one behind the published results, at the first model or trailing path that differs from phase 5's.
 
    The forward run's strategy and first session are frozen by [decision record 0007](decisions/0007-forward-run.md), and [running the daily job](daily-job.md) sets it up. Its days are a fresh holdout: on a snapshot taken after the first session, the phase 2 to 4 runners cut every table at the day before it, so they never read a forward day.
+
+8. *(phase 7)* Download and pin a snapshot of MarketParquet's archive:
+
+   ```bash
+   uv run python -m statarb.data.marketparquet_build --download
+   ```
+
+   It reads `config/marketparquet.toml`, asks the API for each year's file list, fetches the files eight at once (`[download] workers`), and writes them as served to `marketparquet/<download date>/` in the raw store, about 1.7 GB. It refuses to write a snapshot before the archive holds the last session `[dates] end` asks for. `--start` and `--end` (YYYY-MM-DD, both inclusive) ask for another period in place of the configured one, and the manifest records the period the snapshot holds. It prints the snapshot's date and digest: set them in `[source]` of `config/marketparquet.toml`. Without `--download` it checks the pinned snapshot against its digest and touches no network. The archive is corrected often, so your download will differ from the snapshot behind the published results. The tables and reports built from it come with the phase's later steps.
 
 ## Checking your results
 

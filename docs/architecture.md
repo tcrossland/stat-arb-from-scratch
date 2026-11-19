@@ -10,6 +10,8 @@ Two diagrams, both read top to bottom. The first builds the stored tables; the s
 flowchart TB
     W["Wikipedia<br/>constituent page"] -->|--download| RW["raw store<br/>wikipedia/&lt;date&gt;/"]
     A["Alpaca<br/>bars and corporate actions"] -->|--download| RA["raw store<br/>alpaca/&lt;date&gt;/"]
+    M["MarketParquet<br/>day files"] -->|--download| RM["raw store<br/>marketparquet/&lt;date&gt;/"]
+    RM --> MB["statarb.data.marketparquet_build<br/>phase 7"]
     RW --> B["statarb.data.build"]
     RA --> B
     B --> P["data/derived/processed/<br/>phase 0 tables"]
@@ -87,8 +89,9 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
 | `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
-| `statarb.data.snapshot` | 0 | Reads a price snapshot as bars whatever its layout, applying a raw snapshot's rules. |
+| `statarb.data.snapshot` | 0 | Reads a price snapshot as bars by ticker, applying a raw snapshot's rules; it refuses a snapshot of day files, which `statarb.data.marketparquet` reads. |
 | `statarb.data.alpaca` | 0 | The Alpaca price source and the rules of decision record 0004. |
+| `statarb.data.marketparquet` | 7 | MarketParquet's archive, the second price source (decision record 0008): the file list and download of its daily stock and ETF files, kept as served in a snapshot of day files, and the reader of a window of days as one long table with each symbol as served. |
 | `statarb.data.wikipedia` | 0 | The Wikipedia constituent source, with the request policies of decision record 0003. |
 | `statarb.data.canonical` | 0 | Converts a source's declared basis to unadjusted bars. |
 | `statarb.data.clean` | 0 | Cleaning rules, each dropped row logged with its reason. |
@@ -97,6 +100,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.sectors` | 0 | Dated GICS sectors from current sectors and recorded changes. |
 | `statarb.data.quality` | 0 | The data quality report: statistics only. |
 | `statarb.data.build` | 0 | Runner: downloads snapshots on request, builds the tables and the report. |
+| `statarb.data.marketparquet_build` | 7 | Runner: downloads a snapshot of MarketParquet's archive on request and checks the pinned one. |
 | `statarb.factors` | 1 | Factor models and residual returns. |
 | `statarb.factors.rolling` | 1 | Rolling least squares on a dates by stocks panel, each window ending the day before. |
 | `statarb.factors.model` | 1 | The `FactorModel` protocol and Model A, the ETF regression. |
@@ -166,7 +170,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 
 | Protocol | Implementations | Chosen by |
 |---|---|---|
-| `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
+| `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py`. MarketParquet's archive, the second source (decision record 0008), is read by day through `statarb.data.marketparquet` and is not yet behind the protocol: `fetch` returns `cash` and `split_ratio`, which wait for the source's rules (phase 7 brief, step 4) | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 | `FactorModel` | `EtfFactorModel` (Model A), `PcaFactorModel` (Model B) | `--model` of `statarb.factors.build`; each writes its own table |
 | `RiskModel` | `EtfRisk` (Model A), `PcaRisk` (Model B) | `[risk] model` of `config/portfolio.toml` for the headline; each path names its own |
@@ -195,12 +199,13 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.paper.reproduce` | 6 | the pinned snapshot in the raw store, the frozen record, the models it names, and `reports/phase-06/experiments.jsonl` | `data/paper/reference/<snapshot>/` |
 | `statarb.paper.daily` | 6 | what `statarb.paper.reproduce` reads, `data/paper/ledger/` and `runs.jsonl`; today's snapshot from the raw store, or Alpaca unless `--no-download`, with the keys in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; the backup's address in `STATARB_BACKUP_REMOTE` | a new snapshot in the raw store, `data/paper/processed/<snapshot>/`, the due ledger days, `reports/phase-06/daily/`, `data/paper/runs.jsonl`, the backup clone and its remote. `--now` runs as of another time |
 | `statarb.paper.drift` | 6 | `data/paper/` (the ledger, the daily and reference tables, the run log), the daily snapshots in the raw store, the frozen record and `reports/phase-06/experiments.jsonl` | `reports/phase-06/drift/<last ledger day>.md` and its chart |
+| `statarb.data.marketparquet_build` | 7 | `config/marketparquet.toml`, `[paths] raw` of `config/data.toml`, and the pinned MarketParquet snapshot in the raw store; with `--download` also MarketParquet's API, with the key from `MARKETPARQUET_API_KEY` | nothing but a summary on standard error; with `--download` a new snapshot in the raw store |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout`, and every phase 6 runner | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' and the phase 6 run's among them). |
+| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout`, every phase 6 runner, and `statarb.data.marketparquet_build` for the raw store's path | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' and the phase 6 run's among them). |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
@@ -211,6 +216,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
 | `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time. |
+| `marketparquet.toml` | `statarb.data.marketparquet_build` | The second price source: the daily datasets a download asks for, its first and last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. Outside the forward run's frozen record. |
 
 ## External libraries
 

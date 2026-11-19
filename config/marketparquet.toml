@@ -1,0 +1,24 @@
+# MarketParquet's archive, the second price source. See decision record 0008 and
+# docs/phases/phase-07/brief.md. The forward run's frozen record does not hold this file.
+# The key comes from MARKETPARQUET_API_KEY in the environment, never from this file.
+
+[source]
+name = "marketparquet"
+# The daily datasets only: intraday bars and futures are out of scope (decision record 0008).
+assets = ["stock_daily", "etf_daily"]
+# The snapshot the phase reads, by download date (YYYY-MM-DD) and digest (from its manifest).
+# A snapshot whose files no longer match the digest is refused. Both empty means the latest
+# complete snapshot, for trying a new download before pinning it.
+snapshot = ""
+digest = ""
+
+[dates]
+# What a download asks for, both ends inclusive.
+start = 2000-01-03   # the archive's first session
+end = 2026-11-19     # the last session the purchase covers
+
+[download]
+retries = 3   # for a file whose size is not the one the archive lists
+# Files fetched at once. The source's documentation suggests 8; all requests together still keep to the
+# adapter's pace, under the key's rate limit, and at 8 that pace is what limits the download.
+workers = 8
