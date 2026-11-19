@@ -33,12 +33,19 @@ LEFT JOIN sectors s
     ON s.ticker = l.ticker AND s.valid_from <= l.date AND (s.valid_to IS NULL OR l.date < s.valid_to);
 
 -- The book after each open's fill: every name held, latest day first and largest first within a day.
+-- `prior_expected_move` is the expected move the fill was decided on, which the previous ledger day recorded at
+-- its close; the day's own `expected_move` is the decision for the next open, in `next_open`.
 CREATE OR REPLACE VIEW book AS
-SELECT date, ticker, sector, CASE WHEN holding > 0 THEN 'long' ELSE 'short' END AS side,
-       holding, holding * book_size AS holding_usd, expected_move
-FROM named
-WHERE holding <> 0
-ORDER BY date DESC, abs(holding) DESC, ticker;
+WITH days AS (
+    SELECT date, lag(date) OVER (ORDER BY date) AS prior_date FROM (SELECT DISTINCT date FROM ledger)
+)
+SELECT n.date, n.ticker, n.sector, CASE WHEN n.holding > 0 THEN 'long' ELSE 'short' END AS side,
+       n.holding, n.holding * n.book_size AS holding_usd, p.expected_move AS prior_expected_move
+FROM named n
+JOIN days d ON d.date = n.date
+LEFT JOIN ledger p ON p.date = d.prior_date AND p.ticker = n.ticker
+WHERE n.holding <> 0
+ORDER BY n.date DESC, abs(n.holding) DESC, n.ticker;
 
 -- The book after one open; with no argument, the latest. `FROM book_on(DATE '2026-11-17');`
 CREATE OR REPLACE MACRO book_on(day := NULL) AS TABLE

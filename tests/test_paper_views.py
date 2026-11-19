@@ -88,6 +88,15 @@ def test_book_lists_the_names_held_after_the_open(frame) -> None:
     assert dict(zip(held[TICKER], held["sector"], strict=True)) == {"BB": "Energy", "CC": "Health", "HX": views.NO_SECTOR}
 
 
+def test_book_pairs_a_holding_with_the_move_it_was_decided_on(frame) -> None:
+    held = views.book(frame, SECTORS, DATES[3])
+    decided = frame.loc[frame[DATE] == DATES[2]].set_index(TICKER)["expected_move"]
+    own = frame.loc[frame[DATE] == DATES[3]].set_index(TICKER)["expected_move"]
+    np.testing.assert_array_equal(held["prior_expected_move"], decided.loc[list(held[TICKER])])
+    assert not np.array_equal(held["prior_expected_move"], own.loc[list(held[TICKER])])   # not the next open's decision
+    assert views.book(frame, SECTORS, DATES[0])["prior_expected_move"].isna().all()       # nothing was decided before day one
+
+
 def test_exposure_and_sector_exposure_agree_with_the_book(frame) -> None:
     exp = views.exposure(frame)
     for day in DATES:

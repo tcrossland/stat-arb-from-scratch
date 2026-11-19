@@ -143,11 +143,12 @@ def _(escape, mo, pd):
         return mo.Html(f'<p class="lx-note">{escape(text)}</p>')
 
     _WEIGHTS = {"held", "drifted", "trade", "holding", "target", "long", "short", "gross", "net", "turnover"}
-    _BASIS_POINTS = {"expected_move", "pnl", "borrow"}
+    _BASIS_POINTS = {"expected_move", "prior_expected_move", "pnl", "borrow"}
     _LABELS = {
         "date": "Date", "ticker": "Ticker", "sector": "Sector", "side": "Side", "action": "Action", "names": "Names",
         "held": "Carried in", "ret": "Return", "pnl": "P&L (bp)", "borrow": "Borrow (bp)", "drifted": "Before trade",
         "trade": "Trade", "holding": "Holding", "target": "Target", "expected_move": "Expected move (bp)",
+        "prior_expected_move": "Expected move, prior close (bp)",
         "holding_usd": "Holding ($)", "trade_usd": "Trade ($)", "gross_usd": "Gross P&L ($)", "borrow_usd": "Borrow ($)",
         "cost_spread_usd": "Spread ($)", "cost_impact_usd": "Impact ($)", "cost_commission_usd": "Commission ($)",
         "net_usd": "Net ($)", "cumulative_net_usd": "Cumulative net ($)", "pnl_usd": "P&L ($)", "turnover": "Turnover",
@@ -389,11 +390,15 @@ def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note
         _h = views.history(frame, ticker.value)
         _x = list(range(len(_h)))
         _fig, _ax = canvas(WIDE, 2.8)
-        _ax.step(_x, _h["holding"], where="post", color=SERIES[0], linewidth=2)
-        _ax.fill_between(_x, _h["holding"], step="post", color=SERIES[0], alpha=0.10, linewidth=0)
+        # A holding lasts from its open to the next, so the last one is drawn a day wide: a step that ended at the
+        # last open would give the holding now no width at all.
+        _edges, _levels = [*_x, len(_x)], [*_h["holding"], *_h["holding"].iloc[-1:]]
+        _ax.step(_edges, _levels, where="post", color=SERIES[0], linewidth=2)
+        _ax.fill_between(_edges, _levels, step="post", color=SERIES[0], alpha=0.10, linewidth=0)
         zero(_ax)
         percent_axis(_ax, "y")
         day_axis(_ax, list(_h["date"]))
+        _ax.set_xlim(-0.6, len(_x) + 0.4)
         title(_ax, f"{ticker.value}: holding after each open, % of capital")
         _fig.tight_layout()
         ticker_tab = mo.vstack([
@@ -414,11 +419,20 @@ def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note
 @app.cell
 def _(all_days, frame, heading, mo, note, show, views):
     _next = views.next_open(frame)
+    _solved_later = bool(_next["target"].isna().all())             # the optimiser: no target is recorded
+    _shown = _next.drop(columns="target") if _solved_later else _next
+    _move = _shown["expected_move"]
+    _up, _down = _shown.loc[_move > 0], _shown.loc[_move < 0].iloc[::-1]
+    _neither = _shown.loc[~(_move > 0) & ~(_move < 0)]             # held with no move recorded, or a move of zero
     next_tab = mo.vstack([
-        note(f"The decision made at the close of {all_days[-1]:%Y-%m-%d}. The optimiser solves on the expected move at the "
-             "next open, so the target is empty and its trades appear only in the next ledger day."),
-        heading(f"Expected moves behind the next open, largest first ({len(_next)})"),
-        show(_next),
+        note(f"The decision made at the close of {all_days[-1]:%Y-%m-%d}, for the next open. "
+             + ("The optimiser solves on these expected moves at that open, so the ledger records no target and its trades "
+                "appear only in the next ledger day." if _solved_later else "Target is the book the rule set for that open.")),
+        mo.hstack([
+            mo.vstack([heading(f"Expected to rise, largest first ({len(_up)})"), show(_up)]),
+            mo.vstack([heading(f"Expected to fall, largest first ({len(_down)})"), show(_down)]),
+        ], widths="equal", align="start", gap=1.5),
+        *([heading(f"No expected move ({len(_neither)})"), show(_neither)] if len(_neither) else []),
     ])
     return (next_tab,)
 

@@ -92,12 +92,18 @@ def per_day(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def book(frame: pd.DataFrame, sectors: pd.DataFrame, date: pd.Timestamp) -> pd.DataFrame:
-    """The book after the fill at the open of `date`: every name held, largest first."""
-    day = frame.loc[(frame[DATE] == pd.Timestamp(date)) & (frame["holding"] != 0)]
-    day = with_sector(day, sectors)
+    """The book after the fill at the open of `date`: every name held, largest first. `prior_expected_move` is the
+    expected move the fill was decided on, which the previous ledger day recorded at its close; the day's own
+    `expected_move` is the decision for the next open and belongs to `next_open`. NaN on the first ledger day and
+    for a name the previous day's grid did not have."""
+    date = pd.Timestamp(date)
+    earlier = frame.loc[frame[DATE] < date]
+    decided = earlier.loc[earlier[DATE] == earlier[DATE].max()].set_index(TICKER)["expected_move"]
+    day = with_sector(frame.loc[(frame[DATE] == date) & (frame["holding"] != 0)], sectors)
     out = pd.DataFrame({
         TICKER: day[TICKER], "sector": day["sector"], "side": _side(day["holding"]),
-        "holding": day["holding"], "holding_usd": _usd(day, "holding"), "expected_move": day["expected_move"],
+        "holding": day["holding"], "holding_usd": _usd(day, "holding"),
+        "prior_expected_move": day[TICKER].map(decided).astype("float64"),
     })
     return out.iloc[np.argsort(-out["holding"].abs().to_numpy(), kind="stable")].reset_index(drop=True)
 
