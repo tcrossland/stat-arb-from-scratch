@@ -17,18 +17,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation. A Pages site from a private personal repository would be public.
 - **Action:** write a decision record choosing the tool, its licence read first. The tool should render committed reports without executing code in CI, since `data/` is git-ignored. Until then, keep `reports/` as GitHub-friendly markdown with relative links.
 
-### A second price source for cross-checking
-
-- **Trigger:** the forward run's first weekly drift report, or sooner if a quality report, the residuals, a backtest or a drift report show unexplained large returns. Moved from the phase 6 review, since the drift report's revision check had not yet run.
-- **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
-- **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.
-  - **Candidate: MarketParquet's archive,** a paid source, taken up by [decision record 0008](decisions/0008-marketparquet-archive-as-a-paid-price-source.md), which amends the free-data rule of decision record 0001. The [phase 7 brief](phases/phase-07/brief.md) takes the cross-check up with it. What its pages say, read on 2026-11-19:
-    - **What it can check.** Daily bars for every listed US stock from 2000, adjusted for splits and not for dividends, with no split or dividend records. So it checks closes, volumes and splits, by putting the build's unadjusted bars on the same split basis, and it cannot check cash dividends.
-    - **Licence.** It allows backtesting and publishing derived statistics, forbids redistributing the files, and is granted per account on payment for the archive.
-    - **Independence.** Its upstream vendor is not named and may be shared with Alpaca's. Agreement would then prove little; disagreement is still worth chasing.
-    - **Revisions.** The site rewrites published days when values change, with no checksum or version. Each download is kept as a raw snapshot under its own source folder, never the daily job's, pinned by date and digest like Alpaca's.
-    - **The comparison window** ends on the phase 5 holdout's last day, 2026-11-13, so it reads no forward day (decision record 0007).
-
 ### An independent short-term reversal series
 
 - **Trigger:** when the repository goes public. Moved from the phase 6 review, since no phase needs it and it is the check a reader would ask for.
@@ -96,12 +84,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** the forward run's review, or sooner if a drift report shows a close that is not the listing exchange's closing auction price. Moved from the forward run's decision record by [decision record 0007](decisions/0007-forward-run.md): the run tests whether the live pipeline matches its backtest, which needs the closes the backtest used.
 - **Why:** the build takes the consolidated daily bar's close, which can differ from the official close set by the listing exchange's closing auction. How often it differs in this data has not been measured. The same question applies to the open: a market-on-open order fills at the opening auction, and the bar's open need not be that price.
 - **Action:** measure first, without changing the build: fetch each ticker's auctions from Alpaca into a raw snapshot of its own, find the listing exchange per ticker from a sourced list with its transfers since 2016, and count by year how often the auction close and open differ from the bar's. Rerun the headline paths with auction prices under an overlay and report the change. Adopting it is a build change after the fact, reported against the current numbers, with an amendment to decision record 0004.
-
-### Survivorship-free prices
-
-- **Trigger:** a later phase returns to the data.
-- **Why:** the universe is drawn from today's S&P 500 and has no delisted stocks ([phase 0 review](phases/phase-00/review.md)), which flatters buying recent losers. A free survivorship-aware panel would let the effect be measured rather than stated.
-- **Action:** look for a free S&P 500 panel that holds delisted members' prices with their delisting returns, on a basis the build can use (unadjusted with actions, not fully adjusted), with terms that allow this use. One candidate to read first is FINSABER-V2-Data on Hugging Face (`finsaber-team/FINSABER-V2-Data`; its basis, delisting returns and licence not yet checked). If one qualifies, write a decision record under decision record 0001 to add it behind the price and constituent interfaces, and measure how much the phase 2 to 5 results change with the missing names restored. If none does, delete this item.
 
 ### Point-in-time index membership
 
