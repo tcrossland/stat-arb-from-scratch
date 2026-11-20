@@ -335,7 +335,9 @@ def test_a_failed_fetch_stops_the_rest(tmp_path) -> None:
     archive = Failing(FILES)
     with pytest.raises(mp.RefusedError, match="expired"):
         mp.download(archive, tmp_path, [STOCK, ETF], START, END, TODAY, workers=1)
-    assert len(archive.fetched) <= 2 and cache.complete_snapshots(tmp_path, mp.NAME) == []
+    # The first year's fetches may each start before the failure is seen; nothing after that year is asked for.
+    assert archive.fetched and all(url.startswith(f"{STORAGE}/{STOCK}/{START.year}") for url in archive.fetched)
+    assert cache.complete_snapshots(tmp_path, mp.NAME) == []
 
 
 def test_the_manifest_keeps_each_files_etag_and_lists_those_modified_during_the_download(tmp_path) -> None:
