@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ledger-explorer",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "main=$(dirname \"$(git rev-parse --path-format=absolute --git-common-dir)\"); exec uv run --group explore marimo run --headless --host 127.0.0.1 --port 2718 notebooks/ledger.py -- --root \"${STATARB_LEDGER_ROOT:-$main/../stat-arb-forward}\""
+      ],
+      "port": 2718
+    }
+  ]
+}
