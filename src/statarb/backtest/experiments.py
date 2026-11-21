@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -36,13 +37,14 @@ def git_state(root: Path, ignore: tuple[str, ...] = ()) -> dict[str, Any]:
         return {"git_commit": None, "git_dirty": None}
 
 
-def run_state(root: Path) -> dict[str, Any]:
+def run_state(root: Path, source: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """What an entry records beside its config: the code (`git_state`), the config overlay if one is set,
-    and the price source and snapshot named in `[source]` of config/data.toml.
+    and the price source and snapshot the run read: `source`, a config's `[source]` table, when given, else
+    that of config/data.toml.
 
     Kept out of `config`, so `config_id` still identifies a configuration across sources and overlays.
     """
-    source = load_config("data", root)["source"]
+    source = load_config("data", root)["source"] if source is None else source
     return {**git_state(root), "config_overlay": overlay(), "price_source": source["name"], "price_snapshot": source.get("snapshot", "")}
 
 

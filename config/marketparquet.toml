@@ -65,3 +65,12 @@ name = "listed"
 # window correlate above this with another member's: share classes and companies held twice
 # (decision record 0009, rule 9).
 near_copy_correlation = 0.98
+
+[engine]
+# Names whose prices stop (phase 7 brief). A held name with no bar on this many sessions in a row is
+# closed at its last price and counted. Set once, before any path ran on this source: five sessions,
+# a trading week. Among the listed universe's members, 22 gaps began while the symbol was a member
+# and ended later, 18 of them shorter than this, and 43 members' bars stopped for good. Shorter
+# would close more names that come back; longer leaves a stopped name in the book at a zero return
+# for more of the month the ranking takes to drop it. Off for every path on Alpaca's tables.
+close_after_sessions = 5
