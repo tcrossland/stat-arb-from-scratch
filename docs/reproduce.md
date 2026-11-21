@@ -157,7 +157,7 @@ From step 3, every runner behaves the same way in four respects:
     uv run python -m statarb.backtest.survivorship
     ```
 
-    It runs the phase 2 headline's settings over development on the existing universe and on three universes of the second source: today's S&P 500, every listed symbol still trading at the download, and every listed symbol of the day. Each runs on returns and on Model B's residuals, fitted month by month on the members to date; Model A runs where sectors exist. It logs the seven paths on the second source to `reports/phase-07/experiments.jsonl` and writes `reports/phase-07/survivorship.md` with its chart. `--no-log` runs without logging.
+    It runs the phase 2 headline's settings over development on the existing universe and on three universes of the second source: today's S&P 500, every listed symbol still trading at the download, and every listed symbol of the day. Each runs on returns and on Model B's residuals, fitted month by month on the members to date; Model A runs where sectors exist. It needs step 5's Model B table too. It logs the seven paths on the second source, and Model B's residuals on the existing universe, to `reports/phase-07/experiments.jsonl` and writes `reports/phase-07/survivorship.md` with its chart. `--no-log` runs without logging.
 
 ## Checking your results
 
