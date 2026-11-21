@@ -12,3 +12,4 @@ Short records of decisions that change scope, data source or methodology: contex
 | [0006](0006-partial-adjustment-in-phase-5.md) | Partial adjustment enters phase 5, before the holdout read | accepted | 2026-11-17 |
 | [0007](0007-forward-run.md) | The forward run: its strategy, first session and schedule | accepted | 2026-11-17 |
 | [0008](0008-marketparquet-archive-as-a-paid-price-source.md) | MarketParquet's archive as a paid price source | accepted | 2026-11-19 |
+| [0009](0009-rules-for-marketparquets-data.md) | Rules for MarketParquet's data | accepted | 2026-11-21 |
