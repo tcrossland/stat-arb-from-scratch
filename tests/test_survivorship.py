@@ -55,7 +55,9 @@ def inputs(suffix: str = mp.SUFFIX) -> sv.Inputs:
         prices, sorted(set(prices["ticker"]) - set(ETFS)), MARKET_CAL, RANKING["size"], RANKING["liquidity_window_days"], RANKING["liquidity_min_observations"]
     )
     first = dict(zip(TABLES, synthetic_market(seed=11), strict=True))
-    return sv.Inputs(existing=first, candidates=candidates, prices=prices, returns=returns, listed=listed, last=LAST)
+    stocks = sorted(set(first["residuals"]["ticker"]))
+    first_b = sv.PcaFactorModel(PCA).residuals(first["returns"], pd.DataFrame(), stocks, MARKET_CAL)
+    return sv.Inputs(existing=first, existing_pca=first_b, candidates=candidates, prices=prices, returns=returns, listed=listed, last=LAST)
 
 
 def measured(suffix: str = mp.SUFFIX):
@@ -102,9 +104,9 @@ def test_model_b_rests_on_no_later_ranking_and_no_later_return() -> None:
     pd.testing.assert_frame_equal(early(whole), early(again))
 
 
-def test_seven_paths_run_on_the_second_source_and_two_on_the_first(result) -> None:
+def test_seven_paths_run_on_the_second_source_and_three_on_the_first(result) -> None:
     existing, paths, universes = result
-    assert [(p.universe, p.form) for p in existing] == [(sv.EXISTING, sv.MODEL_A), (sv.EXISTING, sv.RAW)]
+    assert [(p.universe, p.form) for p in existing] == [(sv.EXISTING, sv.MODEL_A), (sv.EXISTING, sv.RAW), (sv.EXISTING, sv.MODEL_B)]
     assert [(p.universe, p.form) for p in paths] == [
         (sv.CANDIDATES, sv.RAW), (sv.CANDIDATES, sv.MODEL_B), (sv.CANDIDATES, sv.MODEL_A),
         (sv.SURVIVORS, sv.RAW), (sv.SURVIVORS, sv.MODEL_B), (sv.LISTED, sv.RAW), (sv.LISTED, sv.MODEL_B),
@@ -156,6 +158,26 @@ def test_the_paths_are_seven_new_trials(result) -> None:
     reports = Path(repo_root()) / load_config("data")["paths"]["reports"]
     earlier = {path_id(e["config"]) for path in logs(reports, "phase-06") for e in experiments.read(path)}
     assert not ids & earlier
+
+
+def test_model_b_on_the_existing_universe_is_an_eighth_trial_with_no_universe_key(result) -> None:
+    existing, paths, _ = result
+    cfg = backtest_config()
+    eighth = sv.eighth_trial(existing)
+    assert (eighth.universe, eighth.form, eighth.close_after) == (sv.EXISTING, sv.MODEL_B, None)
+    now = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+    entries = sv.log_entries([eighth], cfg, LAST, {}, now)
+    config = entries[0]["config"]
+    assert len(entries) == len(cfg.costs.levels_bps)
+    assert (config["universe"], config["close_after"], config["residuals"], config["signal"]) == (None, None, "pca", "residual")
+    ids = {path_id(e["config"]) for e in entries}
+    others = {path_id(e["config"]) for e in sv.log_entries(paths, cfg, LAST, {}, now)}
+    reports = Path(repo_root()) / load_config("data")["paths"]["reports"]
+    earlier = {path_id(e["config"]) for path in logs(reports, "phase-06") for e in experiments.read(path)}
+    assert len(ids) == 1 and not ids & others and not ids & earlier
+    # It is phase 2's headline with Model B's residuals in the same tables, and nothing else changed.
+    head = next(p for p in existing if p.form == sv.MODEL_A)
+    assert list(eighth.book.columns) == list(head.book.columns) and not eighth.book.equals(head.book)
 
 
 def test_stopped_after_a_fall_reads_the_price_path_alone() -> None:

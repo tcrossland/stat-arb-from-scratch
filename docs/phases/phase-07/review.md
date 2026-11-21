@@ -73,6 +73,15 @@ How the two sources agree, for the 515 existing tickers:
 - **The archive moves during the day, and a symbol's marker can be look-ahead twice.** Files for October and November were modified at three times on one day, so a snapshot is not taken at one instant; the manifest now records what the host says of each file. And a fifth letter Q, the exchange's bankruptcy marker, is on some symbols' whole history, as the suffix is. No rule reads either.
 - **A rule accepted before its contract was read.** Decision record 0009 first put the source behind `PriceSource` with a split ratio of 1 on every day. The protocol's contract tests require each split on its ex-date and a round trip to unadjusted prices, which the archive cannot give. The rule was corrected the day it was accepted, before any code rested on it.
 
+## Added after the review: an eighth trial
+
+Stated on 2026-11-22, before the path ran. The brief fixed seven trials. This adds one, on the owner's decision, to explain the result above that the review left unexplained: Model B's residuals on today's S&P 500 at a gross Sharpe ratio of 0.955.
+
+- **The path:** the phase 2 headline's settings (lookback 1, holding 1, decile 0.1, fill at the open of *t+1*) on the existing universe and Alpaca's total returns, over development, with Model B's residuals in place of Model A's. The residuals are phase 4's stored table, fitted on every candidate throughout, put into the tables as phase 4 puts them. Nothing else differs from the logged phase 2 headline.
+- **What it separates.** The 0.955 differs from phase 4's Model B decile sort, 0.66, in three ways at once: a one-day holding period against two, a fit month by month on the members to date against one on every candidate, and this source against Alpaca. This path has the one-day holding period with phase 4's fit and Alpaca's prices. If it is near 0.955, the holding period explains the gap. If it is near phase 4's figure or Model A's, the fit and the source do.
+- **How it counts.** It is a new position path, so a trial: logged in this phase's log with Alpaca as its source and no universe key, since its universe is phase 0's. Nothing is chosen from it, and no setting is changed after it is seen.
+- **The result** is added below once the logged run exists.
+
 ## Review questions
 
 **How closely do the two sources agree, and what explains where they do not?** Closely on returns and from 2023 almost exactly: 99.2% of price returns on days with nothing going ex agree within 0.0001, and closes on one split basis agree on 93.2% of symbol-days in 2016 and 99.7% in 2026. Dividends, folded spin-offs and the halts of March 2020 explain three kinds of disagreement. Differing closes and lower volumes before 2022 to 2023 are open. The near-exact agreement of recent years fits a shared upstream, so it proves less than it seems.

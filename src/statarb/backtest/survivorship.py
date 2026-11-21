@@ -13,8 +13,15 @@ sweep, on four universes of the same size over development:
 
 in two forms: reversal on returns (`raw`), and on Model B's residuals, which
 need no sectors. Model A runs on universes 1 and 2, where sectors exist. The
-seven paths on universes 2 to 4 are trials and are logged; universe 1's are
-paths already counted and are not logged again.
+seven paths on universes 2 to 4 are trials and are logged; universe 1's two
+are paths already counted and are not logged again.
+
+An eighth trial was added after the phase's review, stated there before it
+ran: reversal on Model B's residuals on universe 1, with phase 4's stored fit
+on every candidate. It is the like-for-like path that says whether Model B's
+result on universe 2 comes from the one-day holding period or from the fit and
+the source. It is logged with Alpaca as its source and no universe key, since
+its universe is phase 0's.
 
 Universe 3 is built with look-ahead on purpose: it keeps the symbols without
 the delisted suffix, which is the bias being measured. `survivors_universe`
@@ -71,6 +78,7 @@ from statarb.data.quality import _table
 from statarb.data.schema import DATE, TICKER
 from statarb.data.universe import build_universe
 from statarb.factors.build import build_residuals, market_calendar, stocks_to_model
+from statarb.factors.model import wide
 from statarb.factors.pca import PcaFactorModel, PcaModelConfig
 from statarb.factors.report import save_figure
 from statarb.io import read_parquet
@@ -195,14 +203,20 @@ def run_path(
 
 
 def entry_config(p: Path_, level: float, cfg: BacktestConfig, last: pd.Timestamp) -> dict[str, Any]:
-    """The configuration an entry logs. `universe` and `close_after` put the path apart from every earlier one."""
+    """The configuration an entry logs. `universe` and `close_after` put a path on the second source apart
+    from every earlier one; a path on the existing universe has neither, as every earlier entry."""
     return {
         **record(p.variant, cfg.fills.headline, level, cfg),
-        "universe": p.universe,
+        "universe": None if p.universe == EXISTING else p.universe,
         "close_after": p.close_after,
         "residuals": None if p.form == MODEL_A else "pca",       # the raw form is scored from Model B's first residual on
         "last_date": last.date().isoformat(),
     }
+
+
+def eighth_trial(existing: list[Path_]) -> Path_:
+    """The one path on the existing universe that is a new trial: reversal on Model B's residuals."""
+    return next(p for p in existing if p.form == MODEL_B)
 
 
 def log_entries(paths: list[Path_], cfg: BacktestConfig, last: pd.Timestamp, state: dict[str, Any], now: dt.datetime) -> list[dict[str, Any]]:
@@ -328,6 +342,7 @@ class Inputs:
     """What the measurement reads, every table already cut at the development end."""
 
     existing: dict[str, pd.DataFrame]     # Alpaca's long tables (statarb.signals.tables.TABLES)
+    existing_pca: pd.DataFrame            # phase 4's Model B residuals on them, fitted on every candidate
     candidates: pd.DataFrame
     prices: pd.DataFrame                  # this source's
     returns: pd.DataFrame
@@ -347,9 +362,12 @@ def measure(
     sectors = inputs.existing["sectors"]
 
     first_tables = build_tables(*inputs.existing.values(), market, sector_etfs)
+    # Model B's residuals in the same tables, as phase 4 puts them there (statarb.portfolio.run.with_residuals).
+    first_b = dataclasses.replace(first_tables, residual=wide(inputs.existing_pca, "residual", first_tables.dates, first_tables.stocks))
     existing = [
         run_path(EXISTING, MODEL_A, kinds["residual"], first_tables, cfg, sector_etfs, None),
         run_path(EXISTING, RAW, kinds[RAW], first_tables, cfg, sector_etfs, None),
+        run_path(EXISTING, MODEL_B, kinds["residual"], first_b, cfg, sector_etfs, None),
     ]
 
     universes = {
@@ -388,7 +406,9 @@ def report(
         (f"- The phase 2 headline's settings: lookback {head.lookback_days}, holding {head.holding_days}, decile "
         f"{cfg.portfolio.decile:g}, fill {cfg.fills.headline}, first signal {cfg.period.start}, through {inputs.last.date()}, the development end"),
         f"- Alpaca snapshot {snapshots['alpaca']}; MarketParquet snapshot {snapshots['marketparquet']}",
-        "- `existing`: today's S&P 500 on Alpaca's total returns, the logged universe, rerun over development and not logged again",
+        ("- `existing`: today's S&P 500 on Alpaca's total returns, the logged universe, rerun over development. Its paths on "
+        "returns and on Model A's residuals are phase 2's and are not logged again. Its path on Model B's residuals, with "
+        "phase 4's fit on every candidate, is an eighth trial added after the phase's review and logged."),
         "- `candidates`: today's S&P 500, ranked and priced on MarketParquet",
         "- `survivors`: every listed stock symbol without the delisted suffix, built with look-ahead on purpose",
         "- `listed`: every stock symbol of the day",
@@ -396,7 +416,8 @@ def report(
         "(decision record 0009). The engine closes a held name after "
         f"{paths[0].close_after} sessions without a bar; `closed` counts those."),
         "- The raw form is scored from a symbol's first Model B residual on, as phase 2 scores it from its first Model A residual.",
-        f"- Trials: the {trials[0]} paths on MarketParquet are new; the repository's logs hold {trials[1]} with them.",
+        (f"- Trials: {trials[0]} paths here are new, seven on MarketParquet and one on the existing universe; the repository's "
+        f"logs hold {trials[1]} with them."),
         "",
     ]
     for name, universe in universes.items():
@@ -409,7 +430,8 @@ def report(
         "",
         f"Differences at {level:g} bps, the second universe taken from the first.",
         "",
-        "The source, with its missing dividends (`candidates` less `existing`):",
+        ("The source, with its missing dividends (`candidates` less `existing`). For Model B the two also differ in the fit: "
+        "on every candidate throughout for `existing`, month by month on the members to date for `candidates`."),
         "",
         _table(difference_table(everything, level, CANDIDATES, EXISTING)),
         "The change of candidates, from today's S&P 500 to every surviving listed symbol (`survivors` less `candidates`):",
@@ -461,6 +483,7 @@ def main(argv: list[str] | None = None) -> int:
     reports = resolve_path(data_cfg["paths"]["reports"], root)
     inputs = Inputs(
         existing=cut_after(load_long(processed), last),
+        existing_pca=read_cut(processed / "residuals_pca.parquet", last),
         candidates=read_parquet(processed / "candidates.parquet"),
         prices=read_cut(derived / "prices.parquet", last),
         returns=read_cut(derived / "returns.parquet", last),
@@ -473,9 +496,11 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = reports / "phase-07"
     out_dir.mkdir(parents=True, exist_ok=True)
     if not args.no_log:
-        state = experiments.run_state(root, mp_cfg["source"])
-        experiments.append(out_dir / "experiments.jsonl", log_entries(paths, cfg, last, state, dt.datetime.now(dt.UTC)))
-    new = {path_id(entry_config(p, 0.0, cfg, last)) for p in paths}
+        now = dt.datetime.now(dt.UTC)
+        entries = log_entries(paths, cfg, last, experiments.run_state(root, mp_cfg["source"]), now)
+        entries += log_entries([eighth_trial(existing)], cfg, last, experiments.run_state(root), now)
+        experiments.append(out_dir / "experiments.jsonl", entries)
+    new = {path_id(entry_config(p, 0.0, cfg, last)) for p in [*paths, eighth_trial(existing)]}
     text = report(
         existing, paths, universes, inputs, cfg, marketparquet.SUFFIX, mp_cfg["survivorship"]["delisting"],
         {"alpaca": data_cfg["source"]["snapshot"], "marketparquet": mp_cfg["source"]["snapshot"]},
