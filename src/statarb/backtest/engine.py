@@ -21,6 +21,12 @@ untraded (phase 3's no-trade zone) or set them itself (phase 4's optimiser),
 and may return a note for the day, which the result keeps in order; without
 one nothing changes.
 
+A name whose bars stop for good would stay in the book at a zero return, since
+it can never trade again. `run` takes an option for that, off unless asked for:
+with `close_after` set, a held name with no bar at that many grid times in a
+row is closed at its last price, by a trade the cost model charges like any
+other, and counted. It can be traded again if its bars return.
+
 Weights are dollars per unit of capital, with no leverage built in. Results are
 reported per dollar of gross exposure (metrics.daily_returns), so the scale of
 the targets does not matter.
@@ -99,6 +105,7 @@ class EngineResult:
     gross_after: np.ndarray  # sum |holdings filled at s|, per day
     missing_returns: int     # held name-days with no return (booked as zero)
     notes: tuple[Any, ...] = ()   # the policy's notes, one per grid time it returned one
+    closed: int = 0          # holdings closed because the name's bars had stopped (`close_after`)
 
 
 
@@ -170,15 +177,19 @@ def run(
     delay: int,
     borrow_annual: float | np.ndarray,
     policy: Policy | None = None,
+    close_after: int | None = None,
 ) -> EngineResult:
     """Fill `targets` (decided at the close of each date) at grid time t + delay.
 
     `borrow_annual` is a flat rate or a (dates x tickers) panel of rates, where
     row s applies to the shorts held from s-1 to s. `policy`, if given, sees the
     targets due at each grid time and may replace entries with NaN to leave a
-    name untraded; its notes are kept in the result.
+    name untraded; its notes are kept in the result. `close_after`, if given,
+    closes a held name once it has had no bar at that many grid times in a row.
     """
     T, N = grid.returns.shape
+    if close_after is not None and close_after < 1:
+        raise ValueError(f"close_after must be at least 1, got {close_after}")
     if targets.shape != (T, N):
         raise ValueError(f"targets shape {targets.shape} does not match grid {grid.returns.shape}")
     shifted = shift_targets(targets, delay)
@@ -191,18 +202,28 @@ def run(
     gross_held = np.zeros(T)
     held = np.zeros(N)
     missing = 0
+    closed = 0
+    absent = np.zeros(N, dtype="int64")      # grid times in a row, up to s, with no bar
     notes = []
     for s in range(T):
         out = step(s, held, grid.returns[s], grid.tradable[s], shifted[s], rates[s], policy)
+        filled, traded = out.holdings, out.trades
+        if close_after is not None:
+            absent = np.where(grid.tradable[s], 0, absent + 1)
+            stopped = (filled != 0) & (absent >= close_after)
+            if stopped.any():
+                filled = np.where(stopped, 0.0, filled)
+                traded = filled - out.drifted
+                closed += int(stopped.sum())
         pnl[s] = out.pnl
         borrow[s] = out.borrow.sum()
         gross_held[s] = np.abs(held).sum()
-        trades[s] = out.trades
-        holdings[s] = out.holdings
+        trades[s] = traded
+        holdings[s] = filled
         missing += out.missing
         if out.note is not None:
             notes.append(out.note)
-        held = out.holdings
+        held = filled
     return EngineResult(
         dates=grid.dates,
         tickers=grid.tickers,
@@ -214,6 +235,7 @@ def run(
         gross_after=np.abs(holdings).sum(axis=1),
         missing_returns=missing,
         notes=tuple(notes),
+        closed=closed,
     )
 
 

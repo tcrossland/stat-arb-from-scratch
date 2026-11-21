@@ -17,18 +17,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation. A Pages site from a private personal repository would be public.
 - **Action:** write a decision record choosing the tool, its licence read first. The tool should render committed reports without executing code in CI, since `data/` is git-ignored. Until then, keep `reports/` as GitHub-friendly markdown with relative links.
 
-### A second price source for cross-checking
-
-- **Trigger:** the forward run's first weekly drift report, or sooner if a quality report, the residuals, a backtest or a drift report show unexplained large returns. Moved from the phase 6 review, since the drift report's revision check had not yet run.
-- **Why:** the build has one price source, so an error Alpaca makes and no rule catches goes into every later phase. Comparing closes and actions with an independent source would find them. Decision record 0003 rules out sources whose terms forbid automated collection.
-- **Action:** find a free source whose terms allow automated collection, read its licence and terms, and write a decision record. Cross-check closes and ex-date actions over the universe; do not mix its prices into the build.
-  - **Candidate: MarketParquet's archive,** a paid source, taken up by [decision record 0008](decisions/0008-marketparquet-archive-as-a-paid-price-source.md), which amends the free-data rule of decision record 0001. The [phase 7 brief](phases/phase-07/brief.md) takes the cross-check up with it. What its pages say, read on 2026-11-19:
-    - **What it can check.** Daily bars for every listed US stock from 2000, adjusted for splits and not for dividends, with no split or dividend records. So it checks closes, volumes and splits, by putting the build's unadjusted bars on the same split basis, and it cannot check cash dividends.
-    - **Licence.** It allows backtesting and publishing derived statistics, forbids redistributing the files, and is granted per account on payment for the archive.
-    - **Independence.** Its upstream vendor is not named and may be shared with Alpaca's. Agreement would then prove little; disagreement is still worth chasing.
-    - **Revisions.** The site rewrites published days when values change, with no checksum or version. Each download is kept as a raw snapshot under its own source folder, never the daily job's, pinned by date and digest like Alpaca's.
-    - **The comparison window** ends on the phase 5 holdout's last day, 2026-11-13, so it reads no forward day (decision record 0007).
-
 ### An independent short-term reversal series
 
 - **Trigger:** when the repository goes public. Moved from the phase 6 review, since no phase needs it and it is the check a reader would ask for.
@@ -44,7 +32,7 @@ Deferred work, variants and open questions that do not belong in the current pha
 ### Tolerance for a rebuild from another snapshot
 
 - **Trigger:** a second snapshot is pinned at least a few weeks after the first.
-- **Why:** the published results reproduce exactly only from the snapshot behind them, which is not redistributed. A reader who downloads their own gets Alpaca's later revisions to old data, so their numbers match closely, not exactly, and [reproducing the results](reproduce.md#checking-your-results) says the tolerance is not yet measured. The cache holds snapshots taken a day apart, too close to show what revisions do over weeks. Without a measured tolerance, a reader cannot tell a revision from an error in their rebuild.
+- **Why:** the published results reproduce exactly only from the snapshot behind them, which is not redistributed. A reader who downloads their own gets Alpaca's later revisions to old data, so their numbers match closely, not exactly, and [reproducing the results](reproduce.md#checking-your-results) says the tolerance is not yet measured. The cache holds snapshots taken a day apart, too close to show what revisions do over weeks. Without a measured tolerance, a reader cannot tell a revision from an error in their rebuild. From phase 7 the same holds for MarketParquet's archive, which is corrected more often and carries no version ([phase 7 review](phases/phase-07/review.md#what-carries-forward)).
 - **Action:** pin the second snapshot and run every runner that accepts another snapshot on it with the same code (phase 0 to the phase 5 development run; the holdout and choice runners stop by design), then compare each logged metric with the first snapshot's by `config_id`. State the largest difference per metric in "Checking your results" in `docs/reproduce.md`, in place of the note that it is not yet measured. Once the forward run's drift report has run, check its revision count against the same comparison.
 
 ### Other strategies on free daily data
@@ -94,25 +82,19 @@ Deferred work, variants and open questions that do not belong in the current pha
 ### Closes from the listing exchange's closing auctions
 
 - **Trigger:** the forward run's review, or sooner if a drift report shows a close that is not the listing exchange's closing auction price. Moved from the forward run's decision record by [decision record 0007](decisions/0007-forward-run.md): the run tests whether the live pipeline matches its backtest, which needs the closes the backtest used.
-- **Why:** the build takes the consolidated daily bar's close, which can differ from the official close set by the listing exchange's closing auction. How often it differs in this data has not been measured. The same question applies to the open: a market-on-open order fills at the opening auction, and the bar's open need not be that price.
+- **Why:** the build takes the consolidated daily bar's close, which can differ from the official close set by the listing exchange's closing auction. How often it differs in this data has not been measured. The same question applies to the open: a market-on-open order fills at the opening auction, and the bar's open need not be that price. The phase 7 cross-check found that Alpaca's close and MarketParquet's differ on up to 1% of stock symbol-days a year before 2022 and on far more of the factor ETFs', with the cause open ([cross-check](../reports/phase-07/cross_check.md)).
 - **Action:** measure first, without changing the build: fetch each ticker's auctions from Alpaca into a raw snapshot of its own, find the listing exchange per ticker from a sourced list with its transfers since 2016, and count by year how often the auction close and open differ from the bar's. Rerun the headline paths with auction prices under an overlay and report the change. Adopting it is a build change after the fact, reported against the current numbers, with an amendment to decision record 0004.
-
-### Survivorship-free prices
-
-- **Trigger:** a later phase returns to the data.
-- **Why:** the universe is drawn from today's S&P 500 and has no delisted stocks ([phase 0 review](phases/phase-00/review.md)), which flatters buying recent losers. A free survivorship-aware panel would let the effect be measured rather than stated.
-- **Action:** look for a free S&P 500 panel that holds delisted members' prices with their delisting returns, on a basis the build can use (unadjusted with actions, not fully adjusted), with terms that allow this use. One candidate to read first is FINSABER-V2-Data on Hugging Face (`finsaber-team/FINSABER-V2-Data`; its basis, delisting returns and licence not yet checked). If one qualifies, write a decision record under decision record 0001 to add it behind the price and constituent interfaces, and measure how much the phase 2 to 5 results change with the missing names restored. If none does, delete this item.
 
 ### Point-in-time index membership
 
-- **Trigger:** phase 7's review, if a result still turns on which stocks were in the index, or a source of constituent history is found.
-- **Why:** the candidates are the S&P 500 of one pinned Wikipedia revision. Phase 7 measures survivorship on a universe ranked from every listed stock, which answers the question for a universe defined by rule, not for the index: a stock that left the index and still trades is in neither measurement. Tickers are the only key, so a reused ticker or a renamed company can make a false entry or exit.
+- **Trigger:** the decision record that takes up the next strategy, or a source of constituent history is found. Moved from the phase 7 review, which found that a result does still turn on it.
+- **Why:** the candidates are the S&P 500 of one pinned Wikipedia revision. Phase 7 measures survivorship on a universe ranked from every listed stock, which answers the question for a universe defined by rule, not for the index: a stock that left the index and still trades is in neither measurement. Tickers are the only key, so a reused ticker or a renamed company can make a false entry or exit. Phase 7 found the choice of candidates to be the largest effect it measured: at the phase 2 headline's settings, reversal on today's S&P 500 does better than on every surviving listed stock by several times what survivorship takes or gives ([phase 7 review](phases/phase-07/review.md#what-surprised-us)).
 - **Action:** find a constituent history with announcement and effective dates, keyed by an identifier that survives a ticker change, and read its terms; a paid one needs a decision record under decision record 0001. Behind the `ConstituentSource` interface, with membership on a day taken as known that day. Measure how the phase 2 to 5 results change with the removed members restored.
 
 ### Cash-out for names whose prices stop
 
 - **Trigger:** the forward run's review, or sooner if a held name loses its prices during the run.
-- **Why:** the engine keeps a name with no bar at its holding and books a held name with no return at zero (`statarb.backtest.engine`). After an acquisition or a delisting the position therefore stays in the book at its last weight, earns nothing, takes gross exposure and is never cashed out. The daily note and the drift report count such names. On today's survivors the case is rare; the [phase 7 brief](phases/phase-07/brief.md) builds a rule for it as an engine option, off by default, because a universe with dead names meets it constantly.
+- **Why:** the engine keeps a name with no bar at its holding and books a held name with no return at zero (`statarb.backtest.engine`). After an acquisition or a delisting the position therefore stays in the book at its last weight, earns nothing, takes gross exposure and is never cashed out. The daily note and the drift report count such names. On today's survivors the case is rare; the [phase 7 brief](phases/phase-07/brief.md) builds a rule for it as an engine option, off by default, because a universe with dead names meets it constantly. Phase 7 built the rule, `close_after` on the engine's `run`, and measured the case on the universe of every listed stock: about ten holdings closed in nine years ([phase 7 review](phases/phase-07/review.md#what-the-numbers-showed)).
 - **Action:** decide whether the rule becomes the default for the existing universe: close the position at the last price after a set number of sessions without a bar, in the engine so the backtest and the paper run agree. It moves logged results and the frozen strategy's behaviour, so it is a change after the fact, reported against the current numbers, never made during the run. The review lists any name held at zero during the run, for how long, and the gross it took.
 
 ### Other universes
@@ -132,3 +114,10 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** the forward run's review, or the documentation site, whichever comes first.
 - **Why:** each review reports its own phase, and a reader has no single view of how the headline moved from phase to phase, how much each step lost to costs and how many trials the bar has absorbed.
 - **Action:** store each phase's headline path's daily returns in one table, written by the runners that already produce them, so no earlier phase is rerun. From it, one report with the shrinkage of the headline Sharpe from gross to net by phase, drawdown curves, the trial histogram against the deflated bar, and the sample and holdout timeline. Statistics and charts only, no prices.
+
+### Splits and dividends for MarketParquet's symbols from Alpaca
+
+- **Trigger:** the phase 3 cost model, a price floor or total returns on a universe built from MarketParquet's archive.
+- **Why:** the archive has no table of splits and no dividends, so no unadjusted price and no total return can be derived from it ([decision record 0009](decisions/0009-rules-for-marketparquets-data.md), rules 5 to 7). A probe of 60 symbols the archive marks delisted found Alpaca's daily bars for all of them and corporate actions for about half. The probe was read once and is not a snapshot, so it supports no result.
+- **Action:** take a raw snapshot of Alpaca's actions, and its bars if they are to replace the archive's, keyed by the archive's symbols: some 14,000 requests for the actions alone. Match each symbol to Alpaca's by the dates it traded, since Alpaca reuses symbols (decision record 0004, rule 9), and decide what happens to a ticker that decision record 0004 would fail, since its hand-checked corrections do not scale to that many names. It needs a decision record first: decision record 0008 says no table mixes the two sources' prices, and joining one source's actions to the other's prices is close to that.
+
