@@ -46,6 +46,7 @@ The architecture and data model documents are empty until the first module lands
 - Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review.
 - A phase's pull request is merged with a merge commit, never squashed or rebased, so its commits keep the hashes the experiment logs record. Once it is merged, tag the merge commit `phase-NN`, annotated `phase-NN: <phase title>`, so the tag is on `main`'s own line, includes any change made in review, and gives the project as `main` held it when the phase ended, whatever else was merged while the phase ran. Never tag before the merge. The tags `phase-00` to `phase-07` are on each pull request's last commit, the rule until phase 8, and stay there.
 - Anything another phase depends on lives in `src/statarb/` with tests, not in a notebook.
+- A runner whose paths are trials is tried on synthetic fixtures. Its first run on real data is the logged one, from a clean tree, so no result is seen before it is logged and no setting can follow one.
 
 ## Stack
 
@@ -77,6 +78,8 @@ The rules. What each phase may use when is in `docs/time-discipline.md`.
 - Backtests must reproduce exactly from a fixed config and seed in the environment fixed by `uv.lock`. After a dependency upgrade, results must match in content even if file bytes differ.
 - Tests never touch the network. They run on small synthetic fixtures committed under `tests/`; only the data build reads the cache or downloads. `tests/conftest.py` enforces this.
 - `uv run ruff check` and `uv run pytest -m "not slow"` must pass before every commit, and the full `uv run pytest` before every push and every logged run. Tests that take seconds each, such as a runner end to end, are marked `slow`; a look-ahead check stays unmarked unless another unmarked test covers the same code. A commit that touches only docs needs only the tests that check docs against the code, and only when it changes a page they read. CI runs both on push to `main` and on pull requests, with the full suite, and checks each pull request's commit messages with `scripts/check_commits.py`. Ruff uses its default rules; `[tool.ruff]` in `pyproject.toml` records any exceptions. pytest runs in strict mode.
+- A push is gated on the test command's own exit status. Where its output is piped, as through `tail`, set `set -o pipefail` first, so a failing run cannot be followed by a push.
+- A push no test covers, such as docs no test reads, may skip CI with a line `[skip ci]: <reason>` in the head commit's body, once `scripts/check_commits.py` has passed locally. Never on the commit a pull request is merged at: `main` requires the checks `pytest` and `commit-messages`, and a skipped head commit leaves both unrun and the merge blocked.
 
 ## Commits
 
