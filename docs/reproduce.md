@@ -125,7 +125,15 @@ From step 3, every runner behaves the same way in four respects:
    uv run python -m statarb.data.marketparquet_build --download
    ```
 
-   It reads `config/marketparquet.toml`, asks the API for each year's file list, fetches the files eight at once (`[download] workers`), and writes them as served to `marketparquet/<download date>/` in the raw store, about 1.6 GB in about half an hour. It refuses to write a snapshot before the archive holds the last session on or before `[dates] end`, by the exchange calendar. `--start` and `--end` (YYYY-MM-DD, both inclusive, neither needing to be a trading day) ask for another period in place of the configured one, and the manifest records the period the snapshot holds. It prints the snapshot's date and digest: set them in `[source]` of `config/marketparquet.toml`. Without `--download` it checks the pinned snapshot against its digest and touches no network. The archive is corrected often, so your download will differ from the snapshot behind the published results. The tables and reports built from it come with the phase's later steps.
+   It reads `config/marketparquet.toml`, asks the API for each year's file list, fetches the files eight at once (`[download] workers`), and writes them as served to `marketparquet/<download date>/` in the raw store, about 1.6 GB in about half an hour. It refuses to write a snapshot before the archive holds the last session on or before `[dates] end`, by the exchange calendar. `--start` and `--end` (YYYY-MM-DD, both inclusive, neither needing to be a trading day) ask for another period in place of the configured one, and the manifest records the period the snapshot holds. It prints the snapshot's date and digest: set them in `[source]` of `config/marketparquet.toml`. Without `--download` it checks the pinned snapshot against its digest and touches no network. The archive is corrected often, so your download will differ from the snapshot behind the published results. The tables built from it come with the phase's later steps.
+
+9. *(phase 7)* Write the quality report on the pinned snapshot:
+
+   ```bash
+   uv run python -m statarb.data.marketparquet_quality
+   ```
+
+   It reads the snapshot pinned in `config/marketparquet.toml` and writes `reports/phase-07/data_quality.md`, statistics only. `[sample]` of the config says what it reads of each day file: the bars from `start` to before `end`, the footer alone (schema and row count) before `start`, and nothing from `end`, the forward run's first session, on.
 
 ## Checking your results
 

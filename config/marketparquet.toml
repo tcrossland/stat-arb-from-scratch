@@ -24,3 +24,16 @@ retries = 3   # for a file whose size is not the one the archive lists
 # Files fetched at once. The source's documentation suggests 8; all requests together still keep to the
 # adapter's pace, under the key's rate limit, and at 8 that pace is what limits the download.
 workers = 8
+
+[sample]
+# What phase 7 reads of each day file. Before `start` a file gives its schema and row count and nothing
+# else: no configuration has seen those years, and phase 8's decision record says what they are for.
+start = 2016-01-01
+# Exclusive. The forward run's first day (decision record 0007): no file from here on is opened.
+end = 2026-11-16
+
+[quality]
+# A move from one bar's close to the next bar's open counts as the size of a split when it is within
+# `split_tolerance` of one of these ratios or its inverse.
+split_ratios = [2, 3, 4, 5, 10, 20]
+split_tolerance = 0.03

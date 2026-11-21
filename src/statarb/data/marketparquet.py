@@ -74,6 +74,9 @@ MD5_ETAG = re.compile(r"[0-9a-f]{32}")
 NO_FILES = "No data files in the requested range"     # the server's 404 for a range with no session in it
 
 SYMBOL, ASSET_TYPE = "symbol", "asset_type"
+# What the archive appends to the symbol of a security that has since been delisted, through its whole
+# history. It says what happened later: part of the key, never an input to a decision.
+SUFFIX = "-DELISTED"
 # Files dated before 2026-03-27 carry the day as a midnight timestamp in `timestamp`; later ones as `date`.
 DAY_FIELDS = ("date", "timestamp")
 SERVED = [SYMBOL, ASSET_TYPE, *PRICE_COLUMNS, "volume"]
