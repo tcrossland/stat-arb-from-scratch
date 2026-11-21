@@ -1,7 +1,7 @@
 # 0008: MarketParquet's archive as a paid price source
 
 **Date:** 2026-11-19
-**Status:** accepted
+**Status:** accepted, its point 1's interface amended by 0009
 
 ## Context
 

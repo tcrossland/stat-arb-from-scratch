@@ -199,6 +199,14 @@ Model B's residual returns (phase 4): each candidate's daily return less what th
 | `beta_j` | double | beta to eigenportfolio *j* over the window ending the trading day before `date` |
 | `eigenvalue_j` | double | eigenvalue *j* of that window's correlation matrix: the variance of eigenportfolio *j*'s returns over the window, the same for every stock on `date` |
 
+## MarketParquet's tables
+
+`data/derived/marketparquet/` (`[tables] derived` of `config/marketparquet.toml`), written by `statarb.data.marketparquet_tables` from the pinned MarketParquet snapshot, bars from `[sample] start` to before `[sample] end`. They are never joined to the tables above: one price source per table (decision record 0008). A ticker here is the archive's symbol as served, with the `-DELISTED` suffix where it has one, which is part of the key and read by no rule ([time discipline](time-discipline.md)).
+
+- **`prices`**: `date`, `ticker`, `open`, `high`, `low`, `close`, `volume` (double). Key: `date`, `ticker`. Every symbol of the stock dataset and the factor ETFs from the ETF dataset, adjusted for splits as of the download, less the bars decision record 0009 drops: a bar with zero volume, and a bar with a price missing or not positive, a high below its low, or an open or close outside the two. A symbol has no row on a day it did not trade.
+- **`returns`**: the columns of `returns` above. `ret` is the close over the symbol's previous close, less one: a price return with no dividend. `split_ratio` is 1 and `cash` 0 on every row.
+- **`universe_listed`**: the columns of `universe` above. The phase 0 ranking, with the size and window of `[universe]` of `config/data.toml`, over every stock symbol with a bar, not over a candidate list.
+
 ## Features
 
 Phase 5's features are recomputed from `returns`, `prices`, `residuals`, `universe` and `sectors` in each run and never stored (`statarb.models.features`, whose docstring defines each). One row per universe member and day with a residual, keyed by `date` and `ticker`, with fifteen columns: `res_sum_1`, `res_sum_3`, `res_sum_5`, `res_sum_20`, `res_vol_20`, `res_vol_60`, `volume_ratio`, `range`, `from_high_20`, `from_low_20`, `from_high_60`, `from_low_60`, `market_vol`, `dispersion` and `sector`, the last an integer code by position in `[features] sectors` of `config/models.toml`.

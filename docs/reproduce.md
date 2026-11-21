@@ -143,6 +143,14 @@ From step 3, every runner behaves the same way in four respects:
 
     It compares the two sources' bars for the candidates and the factor ETFs, with Alpaca's put on the split basis of its download, then runs the phase 2 headline on each source's prices for the same universe and sets both beside the logged metrics. It writes `reports/phase-07/cross_check.md`, logs nothing and adds no trial. It reads no day after the last the backtest runners read.
 
+11. *(phase 7)* Build the second source's tables and its universe, from the snapshot of step 8:
+
+    ```bash
+    uv run python -m statarb.data.marketparquet_tables
+    ```
+
+    It applies the rules of [decision record 0009](decisions/0009-rules-for-marketparquets-data.md) to the bars of `[sample]`, writes `prices`, `returns` and `universe_listed` to `data/derived/marketparquet/` and the universe's report to `reports/phase-07/universe.md`. The universe is the phase 0 ranking over every stock symbol of the day. With step 1's tables present, the report also compares it with the existing universe.
+
 ## Checking your results
 
 Every backtest result from phase 2 is logged with its configuration and `config_id` in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. What you can expect to match depends on your snapshot:

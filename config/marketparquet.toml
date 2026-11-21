@@ -51,3 +51,17 @@ basis_tolerance = 0.001    # a basis further from 1 than this is another basis t
 close_bands = [1e-6, 1e-4, 1e-3, 1e-2]   # distances of a close from its basis the report counts beyond
 busiest_days = 10          # how many of the days with most partings the report lists
 one_sided_rows = 5         # a ticker with fewer rows in one source alone is counted, not listed
+
+[tables]
+# Where this source's derived tables go: never data/derived/processed, which holds Alpaca's
+# (decision record 0008). Safe to delete; statarb.data.marketparquet_tables rebuilds them.
+derived = "data/derived/marketparquet"
+
+[universe]
+# The phase 0 liquidity ranking, with its size and window from [universe] of config/data.toml, over
+# every symbol of the stock dataset on the day: no candidate list, and the suffix decides nothing.
+name = "listed"
+# The universe's report counts, at each month end, the members whose returns over the ranking's
+# window correlate above this with another member's: share classes and companies held twice
+# (decision record 0009, rule 9).
+near_copy_correlation = 0.98
