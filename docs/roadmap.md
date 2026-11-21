@@ -18,7 +18,7 @@ The plan, phase by phase. The strategy, and why it is run on free daily data, is
 
 Portfolio construction comes before the ML signal because trading costs are the binding constraint for this strategy (decision record 0002).
 
-Phase 7 started on 2026-11-19, during the forward run; its source is paid, under decision record 0008. Phase 8 is drafted, not started: its brief in [`phases/`](phases/) was written during the forward run, and it waits for the forward run's review and a decision record for its strategy.
+Phase 7 ran from 2026-11-19 to 2026-11-21, during the forward run; its source is paid, under decision record 0008, and its [review](phases/phase-07/review.md) holds what it found. Phase 8 is drafted, not started: its brief in [`phases/`](phases/) was written during the forward run, and it waits for the forward run's review and a decision record for its strategy.
 
 ## Principles
 
