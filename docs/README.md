@@ -9,7 +9,7 @@ Organised by what you want to do. Read the sections in order for the full pictur
 
 ## Follow the story
 
-Each phase in order: its brief, then its build commits, then its review. The tags `phase-00` to `phase-06` mark where each phase ends, so `git log phase-01..phase-02` lists phase 2's commits, and checking out a tag gives the project as that phase left it.
+Each phase in order: its brief, then its build commits, then its review. The tags `phase-00` to `phase-07` mark where each phase ends, so `git log phase-01..phase-02` lists phase 2's commits, and checking out a tag gives the project as that phase left it.
 
 - [`roadmap.md`](roadmap.md): the phases, the question each one asks, and the references.
 - [`phases/`](phases/): one folder per phase, with its `brief.md` and, once it ends, its `review.md`.
