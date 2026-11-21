@@ -39,6 +39,12 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Survivorship bias.** A list of today's index members leaves out the companies that fell out of the index or stopped trading, which flatters any history built from it.
 
+**Delisted suffix.** `-DELISTED`, which MarketParquet's archive appends to the symbol of a security that has since stopped trading, on every day of its history. It says what happened after each of those days, so it is part of a security's key and never an input (decision record 0008).
+
+**Listed universe, survivors, candidates (phase 7).** Three universes of the same size ranked on the second source. `listed`: every stock symbol with a bar on the day. `survivors`: those without the delisted suffix, built with look-ahead on purpose to measure survivorship. `candidates`: today's S&P 500. `existing` names the universe phase 0 built on Alpaca's prices.
+
+**Near-copy.** Two members of a universe whose returns over the ranking's window correlate above a stated level: two share classes of one company, or one company the archive holds under two symbols. Counted in the universe's report and left in (decision record 0009).
+
 **Split, dividend, ex-date.** Corporate actions that change the price without changing the holder's wealth. The ex-date is the first day a stock trades on the new basis after a split, or without the right to a dividend.
 
 **Adjusted prices.** Past prices rescaled so that a series runs smoothly across splits and dividends. Sources rescale the whole history after each new action, so adjusted levels are derived here, never stored as the source of truth.

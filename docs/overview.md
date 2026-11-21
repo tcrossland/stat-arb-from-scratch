@@ -4,7 +4,7 @@ The whole pipeline on one page: what each stage does, which phase builds it and 
 
 ```mermaid
 flowchart LR
-    D["data<br/>phase 0"] --> U["universe<br/>phase 0"] --> R["residuals<br/>phases 1 and 4"] --> S["signal<br/>phases 2 and 5"] --> P["portfolio<br/>phases 2 and 4"] --> T["paper trading<br/>phase 6"]
+    D["data<br/>phases 0 and 7"] --> U["universe<br/>phases 0 and 7"] --> R["residuals<br/>phases 1 and 4"] --> S["signal<br/>phases 2 and 5"] --> P["portfolio<br/>phases 2 and 4"] --> T["paper trading<br/>phase 6"]
     C["costs<br/>phase 3"] --> P
     C --> T
     M["ML model<br/>phase 5"] --> S
@@ -18,13 +18,21 @@ Daily bars for the candidates and the factor ETFs from Alpaca's market data API,
 
 The rules for Alpaca's data, from zero-volume bars to withholding on foreign dividends, are numbered in [decision record 0004](decisions/0004-rules-for-alpacas-data.md), and every correction to its records cites a primary source in `config/alpaca.toml`. Cleaning logs each dropped row with its reason. A rebuild of a pinned snapshot is identical byte for byte.
 
+A second price source enters in phase 7: MarketParquet's archive, a paid source that holds the stocks since delisted ([decision record 0008](decisions/0008-marketparquet-archive-as-a-paid-price-source.md)). It serves one file per trading day with every symbol's bar, adjusted for splits and with no dividends, so its tables hold price returns and nothing built on it reads a price level; its rules are in [decision record 0009](decisions/0009-rules-for-marketparquets-data.md). It stays outside `PriceSource`, whose contract needs each split on its ex-date, and its tables are kept apart from Alpaca's: no table mixes the two. A cross-check sets the two sources side by side for the existing names.
+
 Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md), [quality report](../reports/phase-00/data_quality.md). Package: [`src/statarb/data/`](../src/statarb/data/); tables in the [data model](data-model.md).
+
+Phase 7: [brief](phases/phase-07/brief.md), [review](phases/phase-07/review.md), [quality report](../reports/phase-07/data_quality.md), [cross-check](../reports/phase-07/cross_check.md). Modules: [`marketparquet`](../src/statarb/data/marketparquet.py), [`marketparquet_tables`](../src/statarb/data/marketparquet_tables.py), [`cross_check`](../src/statarb/data/cross_check.py).
 
 ## Universe
 
 The candidates are today's S&P 500 constituents, from a pinned revision of Wikipedia's list. On the last trading day of each month the most liquid of them, ranked on median dollar volume over a trailing window and needing most of that window to rank, form the universe from the next trading day (`[universe]` in `config/data.toml`). Sectors are dated from the structural GICS changes since 2016 and, from phase 1, the company-level moves of the candidates, so a reclassification applies from the day it happened. Using today's constituents leaves survivorship bias, which the [phase 0 review](phases/phase-00/review.md#review-questions) states.
 
+Phase 7 measures it. On the second source the same ranking runs with no candidate list, over every stock symbol of the day, dead names included, and a survivorship measurement runs the phase 2 headline's settings on that universe, on the symbols still trading today and on today's S&P 500. The delisted names turn out not to be the bias that matters; the candidate list is ([phase 7 review](phases/phase-07/review.md#what-surprised-us)). The engine can close a held name whose bars stop, an option used on that universe alone.
+
 Phase 0: [brief](phases/phase-00/brief.md), [review](phases/phase-00/review.md). Package: [`src/statarb/data/`](../src/statarb/data/) (`universe`, `sectors`).
+
+Phase 7: [brief](phases/phase-07/brief.md), [review](phases/phase-07/review.md), [universe report](../reports/phase-07/universe.md), [survivorship report](../reports/phase-07/survivorship.md). Modules: [`marketparquet_tables`](../src/statarb/data/marketparquet_tables.py), [`survivorship`](../src/statarb/backtest/survivorship.py).
 
 ## Residuals
 

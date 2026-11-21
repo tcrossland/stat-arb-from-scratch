@@ -11,6 +11,11 @@ raw data fails a rule is left out and reported, as a failed download is.
 A snapshot of a source with no rules to apply (`layout = "bars"`, such as the
 synthetic sources of the tests) keeps `<ticker>.parquet` with
 `schema.BAR_COLUMNS` already made, and is read as it is.
+
+A snapshot of MarketParquet's archive (`layout = "days"`, decision record 0008)
+keeps the day files as served, `<dataset>/<year>/<date>.parquet`, each holding
+every symbol of the day. It is read by day, not by ticker
+(`statarb.data.marketparquet.read_days`), and `PriceSnapshot` refuses it.
 """
 
 from __future__ import annotations
@@ -22,7 +27,7 @@ from typing import Any
 
 import pandas as pd
 
-from statarb.data import alpaca, cache
+from statarb.data import alpaca, cache, marketparquet
 from statarb.io import read_parquet
 
 RAW = "raw"
@@ -41,7 +46,10 @@ class PriceSnapshot:
 
     @classmethod
     def open(cls, path: Path) -> PriceSnapshot:
-        return cls(path, cache.read_manifest(path))
+        manifest = cache.read_manifest(path)
+        if manifest.get("layout") == marketparquet.LAYOUT:
+            raise ValueError(f"a snapshot of day files is read by statarb.data.marketparquet.read_days: {path}")
+        return cls(path, manifest)
 
     @property
     def raw(self) -> bool:

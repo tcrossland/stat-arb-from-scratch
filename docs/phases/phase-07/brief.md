@@ -1,6 +1,6 @@
 # Phase 7: A second source and a universe with dead names
 
-Drafted on 2026-11-19, during the forward run. To be revised at the start of the phase with what earlier phases and the run have found by then.
+Drafted on 2026-11-19, during the forward run, and started the same day. Revised at the start with what the first requests to the source showed, under "Found at the start".
 
 ## Goal
 
@@ -28,7 +28,19 @@ It runs while the forward run of decision record 0007 lasts, which sets its limi
 - how snapshots are kept and pinned, where the key is read from, and that nothing of the data is published;
 - that the years before 2016 are unread and stay so in this phase (see "The sample" below).
 
-What is left before the phase starts is the revision of this brief.
+## Found at the start
+
+From the source's documentation and a few day files read for their schema alone, on 2026-11-19:
+
+- **The archive's last file is the session before the download's date** until the night's update, so the first snapshot, through 2026-11-19, is taken on 2026-11-20 or later. The download refuses to write a snapshot that stops short of the last session asked for.
+- **The file list gives a size and no hash, but the storage host's `ETag` is the file's MD5.** The download checks each file against its listed size and, where the ETag is an MD5, its bytes against that, and the snapshot's own manifest holds the SHA-256 hashes.
+- **The day is in a column that changed name.** Files dated before 2026-03-27 carry it as a midnight timestamp in `timestamp`, later ones as `date`. The reader accepts either and requires every row of a file to be of the file's day.
+- **Stocks and ETFs are separate datasets,** `stock_daily` and `etf_daily`, each with its own file per day. The factor ETFs and SPY are in the second.
+- **Reading by ticker would open every day file for each ticker,** some 2,700 files since 2016. The snapshot is read by day instead, a window at a time into one long table, and `statarb.data.snapshot.PriceSnapshot`, which reads by ticker, refuses it. See "Design points".
+- **The file list's addresses are on a storage host, signed and valid for an hour.** The key goes to the API's host alone, and a test requires that.
+- **A file takes about half a second to arrive,** one at a time, whether or not the connection is kept open, and the storage host does not offer HTTP/2, so requests cannot share a connection. The download fetches eight files at once, as the source's documentation suggests, through the standard library's thread pool, with every request still on one pace under the key's rate limit. At eight the pace is the limit.
+- **A snapshot is not taken at one instant, and the archive moves.** Its pages say each night's run fetches the last four trading days again, rewrites any of the trailing 30 days whose values changed, and re-bases a ticker's whole history when a split is applied, with a weekly merge of newly delisted tickers. A re-base landing during a download would leave the ticker on two bases across files. The manifest keeps each file's `ETag` and `Last-Modified` and lists the files modified after the download began; a snapshot with any is not pinned.
+- **The site's edge refuses Python's default client name.** The adapter names itself for what it is, a script reading the archive, in its `User-Agent`; the source's documentation gives scripted downloads as the intended use.
 
 ## The source
 
@@ -52,7 +64,7 @@ MarketParquet's archive, as its own pages describe it on 2026-11-19. Decision re
 
 In order. Each step is a commit or a short series.
 
-1. **The adapter and the first snapshot.** `statarb.data.marketparquet`, settings in `config/marketparquet.toml`, the key from `MARKETPARQUET_API_KEY` in the environment. A download asks for each year's files with one manifest request, stays under the key's rate limit, and writes a snapshot under `marketparquet/<download date>/` in the raw store, complete when its manifest of file hashes is written, pinned by date and digest. The first snapshot runs through 2026-11-19.
+1. **The adapter and the first snapshot.** `statarb.data.marketparquet` and its runner `statarb.data.marketparquet_build`, settings in `config/marketparquet.toml`, the key from `MARKETPARQUET_API_KEY` in the environment. A download asks for each year's files with one manifest request, stays under the key's rate limit, and writes a snapshot under `marketparquet/<download date>/` in the raw store, complete when its manifest of file hashes is written, pinned by date and digest. The first snapshot runs through 2026-11-19.
 2. **The source's quality report,** `reports/phase-07/data_quality.md`, statistics only: symbols per day by year, the share of suffixed symbols, missing sessions, jumps the size of a split, bars whose open or close lies outside the day's range, and symbols that appear, vanish and reappear.
 3. **The cross-check against Alpaca,** `reports/phase-07/cross_check.md`, on the existing candidates over 2016-01-01 to 2026-11-13:
    - closes and volumes, with Alpaca's put on the same split basis, and the share of symbol-days that agree to a stated tolerance, by year;
@@ -90,8 +102,8 @@ The reversal headline of phase 2, with its lookback, holding period, decile and 
 
 ## Design points
 
-- **The price source seam.** `PriceSource.fetch` takes one ticker and a date range. This source serves one file per day. The adapter downloads by day and the snapshot is read by ticker, so the protocol gains no second shape unless that reading proves too slow, in which case the brief is revised before the seam is.
-- **The snapshot's layout** is a third one beside `raw` and `bars` in `statarb.data.snapshot`: the day files as served, with the source's rules applied by the build.
+- **The price source seam.** `PriceSource.fetch` takes one ticker and a date range and returns bars with `cash` and `split_ratio`. This source serves one file per day and has neither column. The adapter downloads by day and reads by day (`read_days`), since reading by ticker would open every file for each ticker. Decision record 0008 puts the source behind `PriceSource`: that waits for step 4, whose rules say what `cash` and `split_ratio` are for this source, and is then a class over the table `read_days` returns, so the protocol gains no second shape. If the rules cannot supply those columns, the record is amended before the seam is. They cannot: decision record 0009, rule 11, leaves the source outside the protocol.
+- **The snapshot's layout** is a third one, `days`, beside `raw` and `bars`: the day files as served, `<dataset>/<year>/<date>.parquet`, with the source's rules applied by the build.
 - **Derived tables of their own.** This source's tables go under a directory named in `config/marketparquet.toml`, never into `data/derived/processed/`, which holds Alpaca's.
 - **The trial id needs the universe.** `PATH_KEYS` in `statarb.backtest.trials` holds the signal, lookback, fill and the rest, but neither the universe nor the source, so a logged run on another universe would take the existing path's id and replace its statistic. A `universe` key enters, null for the existing universe so every earlier id holds, and a test requires that.
 - **The run state names the source it read.** `run_state` takes the source and snapshot from `[source]` of `config/data.toml`. A run on this source records its own.
@@ -109,7 +121,7 @@ The engine's rule is that a name with no bar cannot trade and keeps its holding,
 
 ## Backlog items this phase takes up
 
-When the phase starts, these leave the backlog and the review says so:
+These left the backlog when the phase started, and the review says so:
 
 - **"A second price source for cross-checking"**: step 3.
 - **"Survivorship-free prices"**: step 7. It asks for a free S&P 500 panel with delisting returns. This phase measures survivorship on an own universe from a paid source without delisting returns, and says what that leaves unmeasured. What it leaves is the backlog's "Point-in-time index membership".

@@ -1,0 +1,94 @@
+# MarketParquet's archive, the second price source. See decision record 0008 and
+# docs/phases/phase-07/brief.md. The forward run's frozen record does not hold this file.
+# The key comes from MARKETPARQUET_API_KEY in the environment, never from this file.
+
+[source]
+name = "marketparquet"
+# The daily datasets only: intraday bars and futures are out of scope (decision record 0008).
+assets = ["stock_daily", "etf_daily"]
+# The snapshot the phase reads, by download date (YYYY-MM-DD) and digest (from its manifest).
+# A snapshot whose files no longer match the digest is refused. Both empty means the latest
+# complete snapshot, for trying a new download before pinning it.
+snapshot = "2026-11-20"
+digest = "dae4a405cb5b16aa116bff35774835f684208afe7a5fb607cc93dedea5cadb72"
+
+[dates]
+# What a download asks for, both ends inclusive. Neither need be a trading day: the download runs to
+# the calendar's last session on or before the end, and fails unless the archive holds that session.
+calendar = "XNYS"    # exchange_calendars name
+start = 2000-01-03   # the archive's first session
+end = 2026-11-19     # the last session the purchase covers
+
+[download]
+retries = 3   # for a file whose size is not the one the archive lists
+# Files fetched at once. The source's documentation suggests 8; all requests together still keep to the
+# adapter's pace, under the key's rate limit, and at 8 that pace is what limits the download.
+workers = 8
+
+[sample]
+# What phase 7 reads of each day file. Before `start` a file gives its schema and row count and nothing
+# else: no configuration has seen those years, and phase 8's decision record says what they are for.
+start = 2016-01-01
+# Exclusive. The forward run's first day (decision record 0007): no file from here on is opened.
+end = 2026-11-16
+
+[quality]
+# A move from one bar's close to the next bar's open counts as the size of a split when it is within
+# `split_tolerance` of one of these ratios or its inverse.
+split_ratios = [2, 3, 4, 5, 10, 20]
+split_tolerance = 0.03
+
+[cross_check]
+# The check against Alpaca for the existing candidates and factor ETFs (reports/phase-07/cross_check.md),
+# over [sample] cut at the last day the backtest runners read. Tolerances are stated, not fitted.
+close_tolerance = 1e-4     # relative: closes on one split basis agree within this
+volume_tolerance = 0.01    # relative
+return_tolerance = 1e-4    # absolute: two daily returns agree within this
+step = 0.01                # absolute: returns further apart than this are where the two series part
+cash_sizes = [0.02, 0.05]  # edges for sizing what went ex on a cash day, as a share of the price
+basis_window_days = 11     # centred median of the two closes' ratio: the basis a close is measured against
+basis_tolerance = 0.001    # a basis further from 1 than this is another basis than Alpaca's splits give
+close_bands = [1e-6, 1e-4, 1e-3, 1e-2]   # distances of a close from its basis the report counts beyond
+busiest_days = 10          # how many of the days with most partings the report lists
+one_sided_rows = 5         # a ticker with fewer rows in one source alone is counted, not listed
+
+[tables]
+# Where this source's derived tables go: never data/derived/processed, which holds Alpaca's
+# (decision record 0008). Safe to delete; statarb.data.marketparquet_tables rebuilds them.
+derived = "data/derived/marketparquet"
+
+[universe]
+# The phase 0 liquidity ranking, with its size and window from [universe] of config/data.toml, over
+# every symbol of the stock dataset on the day: no candidate list, and the suffix decides nothing.
+name = "listed"
+# The universe's report counts, at each month end, the members whose returns over the ranking's
+# window correlate above this with another member's: share classes and companies held twice
+# (decision record 0009, rule 9).
+near_copy_correlation = 0.98
+
+[engine]
+# Names whose prices stop (phase 7 brief). A held name with no bar on this many sessions in a row is
+# closed at its last price and counted. Set once, before any path ran on this source: five sessions,
+# a trading week. Among the listed universe's members, 22 gaps began while the symbol was a member
+# and ended later, 18 of them shorter than this, and 43 members' bars stopped for good. Shorter
+# would close more names that come back; longer leaves a stopped name in the book at a zero return
+# for more of the month the ranking takes to drop it. Off for every path on Alpaca's tables.
+close_after_sessions = 5
+
+[survivorship]
+# The survivorship measurement (reports/phase-07/survivorship.md): the phase 2 headline's lookback,
+# holding period, decile and fill, on three universes of this source over development, cut at
+# [period] development_end of config/models.toml. Seven paths, fixed in the phase 7 brief.
+universes = ["candidates", "survivors", "listed"]
+
+[survivorship.delisting]
+# The one stated sensitivity for what follows a last bar (decision record 0009, rule 10), fixed before
+# any path ran. A held name whose bars stop before the sample's end, and whose close fell by more than
+# `fall` over its last `bars` bars, takes a further loss of `loss` when the engine closes it. The fall
+# stands in for a delisting reason, which the source does not give. The loss is the corrected return
+# Shumway and Warther (1999, Journal of Finance 54(6), abstract) estimate for missing
+# performance-related delisting returns in CRSP's Nasdaq data, -55%: a bound, not an estimate, since
+# it is applied to listings of every exchange.
+bars = 21
+fall = 0.10
+loss = 0.55

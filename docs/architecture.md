@@ -10,6 +10,19 @@ Two diagrams, both read top to bottom. The first builds the stored tables; the s
 flowchart TB
     W["Wikipedia<br/>constituent page"] -->|--download| RW["raw store<br/>wikipedia/&lt;date&gt;/"]
     A["Alpaca<br/>bars and corporate actions"] -->|--download| RA["raw store<br/>alpaca/&lt;date&gt;/"]
+    M["MarketParquet<br/>day files"] -->|--download| RM["raw store<br/>marketparquet/&lt;date&gt;/"]
+    RM --> MB["statarb.data.marketparquet_build<br/>phase 7"]
+    RM --> MQ["statarb.data.marketparquet_quality"]
+    MQ --> QM["reports/phase-07/<br/>data_quality.md"]
+    RM --> MT["statarb.data.marketparquet_tables"]
+    MT --> PM["data/derived/marketparquet/<br/>prices, returns, universe_listed"]
+    MT --> UM["reports/phase-07/<br/>universe.md"]
+    RM --> SC["statarb.backtest.source_check"]
+    P --> SC
+    SC --> XC["reports/phase-07/<br/>cross_check.md"]
+    PM --> SV["statarb.backtest.survivorship"]
+    P --> SV
+    SV --> SR["reports/phase-07/<br/>survivorship.md, experiments.jsonl"]
     RW --> B["statarb.data.build"]
     RA --> B
     B --> P["data/derived/processed/<br/>phase 0 tables"]
@@ -87,8 +100,9 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
 | `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
-| `statarb.data.snapshot` | 0 | Reads a price snapshot as bars whatever its layout, applying a raw snapshot's rules. |
+| `statarb.data.snapshot` | 0 | Reads a price snapshot as bars by ticker, applying a raw snapshot's rules; it refuses a snapshot of day files, which `statarb.data.marketparquet` reads. |
 | `statarb.data.alpaca` | 0 | The Alpaca price source and the rules of decision record 0004. |
+| `statarb.data.marketparquet` | 7 | MarketParquet's archive, the second price source (decision record 0008): the file list and download of its daily stock and ETF files, kept as served in a snapshot of day files, and the reader of a window of days as one long table with each symbol as served. |
 | `statarb.data.wikipedia` | 0 | The Wikipedia constituent source, with the request policies of decision record 0003. |
 | `statarb.data.canonical` | 0 | Converts a source's declared basis to unadjusted bars. |
 | `statarb.data.clean` | 0 | Cleaning rules, each dropped row logged with its reason. |
@@ -97,6 +111,10 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.sectors` | 0 | Dated GICS sectors from current sectors and recorded changes. |
 | `statarb.data.quality` | 0 | The data quality report: statistics only. |
 | `statarb.data.build` | 0 | Runner: downloads snapshots on request, builds the tables and the report. |
+| `statarb.data.marketparquet_build` | 7 | Runner: downloads a snapshot of MarketParquet's archive on request and checks the pinned one. |
+| `statarb.data.marketparquet_quality` | 7 | Runner and its checks: the quality report on the MarketParquet snapshot's day files, statistics only. Bars inside the sample, footers alone before it, no file from its end on. |
+| `statarb.data.marketparquet_tables` | 7 | Runner and its build: the rules of decision record 0009 applied to the snapshot's bars, this source's `prices` and `returns`, the universe ranked from every stock symbol of the day, and the universe's report. |
+| `statarb.data.cross_check` | 7 | One price source's bars against another's for the same names: the first put on the split basis of its download, then closes, volumes, returns by what went ex, cash days and each close against its ticker's basis. Statistics only. |
 | `statarb.factors` | 1 | Factor models and residual returns. |
 | `statarb.factors.rolling` | 1 | Rolling least squares on a dates by stocks panel, each window ending the day before. |
 | `statarb.factors.model` | 1 | The `FactorModel` protocol and Model A, the ETF regression. |
@@ -117,12 +135,14 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.backtest.config` | 2 | `config/backtest.toml` and, from phase 3, `config/costs.toml` as frozen dataclasses that reject unknown or missing keys. |
 | `statarb.backtest.costs` | 2 | The `CostModel` protocol and the flat cost per dollar traded; from phase 3 the cost inputs, `TradingCost` (half-spread, square-root impact, commission), the borrow rates and the no-trade zone. |
 | `statarb.backtest.spreads` | 3 | The EDGE, Abdi-Ranaldo and Corwin-Schultz spread estimators, rolling over a trailing window. |
-| `statarb.backtest.engine` | 2 | Fill grids at the close and the open, the daily engine from target weights to holdings, trades and P&L with an optional `Policy` at each fill (phase 3), which from phase 4 also sees the previous fill's holdings and returns a note for the day, and daily returns on gross. |
+| `statarb.backtest.engine` | 2 | Fill grids at the close and the open, the daily engine from target weights to holdings, trades and P&L with an optional `Policy` at each fill (phase 3), which from phase 4 also sees the previous fill's holdings and returns a note for the day, and daily returns on gross. From phase 7 `run` can close a held name whose bars have stopped for a set number of sessions, off unless asked for. |
 | `statarb.backtest.rules` | 2 | The `PortfolioRule` protocol: decile books held in *k* slices, and the s-score thresholds with their hedges. |
 | `statarb.backtest.metrics` | 2 | Sharpe, drawdown, break-even cost, hit rates, P&L by year and the deflated Sharpe ratio. |
-| `statarb.backtest.experiments` | 2 | The experiment log: entries with `config_id`, `run_state` and metrics, appended as JSON Lines; from phase 6 the working tree's state can ignore named directories. |
-| `statarb.backtest.trials` | 2 | Every distinct position path in the repository's experiment logs up to a phase, for the deflated Sharpe; from phase 6 without the holdout, diagnostic and identical paths, and with the slope rule in a path's id unless it is trailing. |
+| `statarb.backtest.experiments` | 2 | The experiment log: entries with `config_id`, `run_state` and metrics, appended as JSON Lines; from phase 6 the working tree's state can ignore named directories; from phase 7 `run_state` records the source a run was given, for a run not on `config/data.toml`'s. |
+| `statarb.backtest.trials` | 2 | Every distinct position path in the repository's experiment logs up to a phase, for the deflated Sharpe; from phase 6 without the holdout, diagnostic and identical paths, and with the slope rule in a path's id unless it is trailing; from phase 7 with the universe's name and the engine's stop rule in the id where they are set. |
 | `statarb.backtest.sweep` | 2 | The phase 2 configurations: each variant's signal and rule, the fill grids, costs and the logged record. |
+| `statarb.backtest.source_check` | 7 | Runner: the cross-check of MarketParquet against Alpaca on the existing names, and the phase 2 headline run on each source's prices for the same universe, beside the logged metrics. Logs nothing. |
+| `statarb.backtest.survivorship` | 7 | Runner: the survivorship measurement. The phase 2 headline's settings on the existing universe and on three universes of the second source (today's S&P 500, every surviving listed symbol, every listed symbol of the day), on returns and on Model B's residuals fitted on the members to date, with Model A where sectors exist. Logs the seven paths on the second source. |
 | `statarb.backtest.report` | 2 | The phase 2 report and its charts: statistics only. |
 | `statarb.backtest.run` | 2 | Runner: the phase 2 sweep, the placebo, the experiment log and the report. |
 | `statarb.backtest.cost_run` | 3 | Runner: the phase 3 configurations under the cost model at each book size and cost setting, the no-trade zone, the judgement against the bar and the experiment log. |
@@ -166,7 +186,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 
 | Protocol | Implementations | Chosen by |
 |---|---|---|
-| `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py` | `[source] name` in `config/data.toml` |
+| `PriceSource` | `AlpacaSource`; synthetic sources in `tests/helpers.py`. MarketParquet's archive, the second source, is not behind the protocol and will not be (decision record 0009, rule 11): the contract requires each split on its ex-date, which the archive does not give. It is read by day through `statarb.data.marketparquet` | `[source] name` in `config/data.toml` |
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 | `FactorModel` | `EtfFactorModel` (Model A), `PcaFactorModel` (Model B) | `--model` of `statarb.factors.build`; each writes its own table |
 | `RiskModel` | `EtfRisk` (Model A), `PcaRisk` (Model B) | `[risk] model` of `config/portfolio.toml` for the headline; each path names its own |
@@ -195,12 +215,17 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.paper.reproduce` | 6 | the pinned snapshot in the raw store, the frozen record, the models it names, and `reports/phase-06/experiments.jsonl` | `data/paper/reference/<snapshot>/` |
 | `statarb.paper.daily` | 6 | what `statarb.paper.reproduce` reads, `data/paper/ledger/` and `runs.jsonl`; today's snapshot from the raw store, or Alpaca unless `--no-download`, with the keys in `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY`; the backup's address in `STATARB_BACKUP_REMOTE` | a new snapshot in the raw store, `data/paper/processed/<snapshot>/`, the due ledger days, `reports/phase-06/daily/`, `data/paper/runs.jsonl`, the backup clone and its remote. `--now` runs as of another time |
 | `statarb.paper.drift` | 6 | `data/paper/` (the ledger, the daily and reference tables, the run log), the daily snapshots in the raw store, the frozen record and `reports/phase-06/experiments.jsonl` | `reports/phase-06/drift/<last ledger day>.md` and its chart |
+| `statarb.data.marketparquet_build` | 7 | `config/marketparquet.toml`, `[paths] raw` of `config/data.toml`, and the pinned MarketParquet snapshot in the raw store; with `--download` also MarketParquet's API, with the key from `MARKETPARQUET_API_KEY` | nothing but a summary on standard error; with `--download` a new snapshot in the raw store |
+| `statarb.data.marketparquet_quality` | 7 | `config/marketparquet.toml`, `[paths]` of `config/data.toml`, and the pinned MarketParquet snapshot in the raw store | `reports/phase-07/data_quality.md` |
+| `statarb.data.marketparquet_tables` | 7 | `config/marketparquet.toml`, `[universe]`, `[factors]` and `[paths]` of `config/data.toml`, the pinned MarketParquet snapshot in the raw store, and the existing `universe` table when it is there, for the report's comparison | `prices.parquet`, `returns.parquet` and `universe_listed.parquet` in `data/derived/marketparquet/`, `reports/phase-07/universe.md` |
+| `statarb.backtest.source_check` | 7 | the phase 0 and 1 tables, the pinned MarketParquet snapshot, `config/marketparquet.toml`, `config/backtest.toml`, `config/factors.toml`, `config/data.toml`, `config/paper.toml` for the last day read, and `reports/phase-02/experiments.jsonl` | `reports/phase-07/cross_check.md` |
+| `statarb.backtest.survivorship` | 7 | the phase 0 and 1 tables cut at the development end, `candidates`, the second source's `prices`, `returns` and `universe_listed` cut there as they are read, `config/marketparquet.toml`, `config/backtest.toml`, `config/factors.toml`, `config/data.toml`, `[period] development_end` of `config/models.toml`, and every phase's log for the trial count | `reports/phase-07/survivorship.md` and `survivorship.png`; one entry per path and cost level appended to `reports/phase-07/experiments.jsonl` unless `--no-log` |
 
 ## Config files
 
 | File | Read by | Holds |
 |---|---|---|
-| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout`, and every phase 6 runner | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' and the phase 6 run's among them). |
+| `data.toml` | `statarb.data.build`, `statarb.factors.build`, `statarb.factors.sensitivity`, `statarb.backtest.run`, `statarb.backtest.cost_run`, `statarb.portfolio.run`, `statarb.models.run`, `statarb.models.holdout`, every phase 6 runner, and `statarb.data.marketparquet_build` for the raw store's path | Start date, price source and the pinned snapshot's date and digest, download pacing, universe, factor ETFs, quality thresholds, paths (the phase 5 models' and the phase 6 run's among them). |
 | `universe.toml` | `statarb.data.build` | The pinned Wikipedia revision, and the date and digest of the snapshot of it the build reads. |
 | `sector_changes.toml` | `statarb.data.sectors` | GICS sector changes since 2016 with effective dates. |
 | `listing_starts.toml` | `statarb.data.clean` | First trading dates for tickers whose source history starts before their listing, with sources. |
@@ -211,6 +236,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
 | `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time. |
+| `marketparquet.toml` | `statarb.data.marketparquet_build`, `statarb.data.marketparquet_quality`, `statarb.data.marketparquet_tables`, `statarb.backtest.source_check`, `statarb.backtest.survivorship` | The second price source: the daily datasets a download asks for, its first and last day and the exchange calendar that says which is the last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. The sample phase 7 reads: the first day whose bars are read and the day from which no file is opened. The quality report's split ratios and tolerance. The cross-check's tolerances. Where this source's tables go, the universe's name and the correlation above which its report counts two members as near-copies. The sessions without a bar after which the engine closes a held name. The survivorship measurement's universes and the amounts of its delisting sensitivity. Outside the forward run's frozen record. |
 
 ## External libraries
 
@@ -225,7 +251,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |
 | LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` of `config/models.toml` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
-| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml` | the New York Stock Exchange's sessions, holidays included |
+| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml`; from phase 7 `statarb.data.marketparquet_build` and `statarb.data.marketparquet_quality`, named in `[dates] calendar` of `config/marketparquet.toml` | the New York Stock Exchange's sessions, holidays included |
 | DuckDB 2.0.0 | MIT | `notebooks/ledger.sql`, read by the DuckDB command line; the Python package, in the `explore` dependency group, only by `tests/test_ledger_sql.py` | the ledger explorer's views in SQL, for the command line |
 | marimo 0.25.2 | Apache-2.0 | `notebooks/ledger.py`, in the `explore` dependency group | the ledger explorer: a local app over `statarb.paper.views`, served on 127.0.0.1 |
 
