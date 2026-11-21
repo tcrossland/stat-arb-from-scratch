@@ -43,7 +43,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -397,13 +397,20 @@ def read_day(data: bytes | Path, day: dt.date) -> pd.DataFrame:
     return frame.astype(dict.fromkeys([*PRICE_COLUMNS, "volume"], "float64"))[DAY_COLUMNS]
 
 
-def read_days(path: Path, asset: str, start: dt.date, end: dt.date) -> pd.DataFrame:
+def read_days(
+    path: Path, asset: str, start: dt.date, end: dt.date, symbols: Collection[str] | None = None
+) -> pd.DataFrame:
     """A snapshot's bars for trading dates in [start, end), one row per date and symbol, sorted by both.
 
     Only the files of days inside the window are opened, so a cut is a cut: nothing outside it is read.
+    With `symbols`, only their rows are kept, each day's as it is read, so a few names cost little memory.
     """
     days = [day for day in snapshot_days(path, asset) if start <= day < end]
-    frames = [read_day(path / asset / str(day.year) / f"{day.isoformat()}.parquet", day) for day in days]
+    wanted = None if symbols is None else set(symbols)
+    frames = []
+    for day in days:
+        frame = read_day(path / asset / str(day.year) / f"{day.isoformat()}.parquet", day)
+        frames.append(frame if wanted is None else frame.loc[frame[TICKER].isin(wanted)])
     if not frames:
         return pd.DataFrame(columns=DAY_COLUMNS).astype(
             {DATE: "datetime64[ns]", TICKER: "str", ASSET_TYPE: "str", **dict.fromkeys([*PRICE_COLUMNS, "volume"], "float64")}

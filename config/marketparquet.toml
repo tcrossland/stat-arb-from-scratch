@@ -37,3 +37,17 @@ end = 2026-11-16
 # `split_tolerance` of one of these ratios or its inverse.
 split_ratios = [2, 3, 4, 5, 10, 20]
 split_tolerance = 0.03
+
+[cross_check]
+# The check against Alpaca for the existing candidates and factor ETFs (reports/phase-07/cross_check.md),
+# over [sample] cut at the last day the backtest runners read. Tolerances are stated, not fitted.
+close_tolerance = 1e-4     # relative: closes on one split basis agree within this
+volume_tolerance = 0.01    # relative
+return_tolerance = 1e-4    # absolute: two daily returns agree within this
+step = 0.01                # absolute: returns further apart than this are where the two series part
+cash_sizes = [0.02, 0.05]  # edges for sizing what went ex on a cash day, as a share of the price
+basis_window_days = 11     # centred median of the two closes' ratio: the basis a close is measured against
+basis_tolerance = 0.001    # a basis further from 1 than this is another basis than Alpaca's splits give
+close_bands = [1e-6, 1e-4, 1e-3, 1e-2]   # distances of a close from its basis the report counts beyond
+busiest_days = 10          # how many of the days with most partings the report lists
+one_sided_rows = 5         # a ticker with fewer rows in one source alone is counted, not listed

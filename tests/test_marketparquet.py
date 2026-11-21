@@ -515,3 +515,12 @@ def test_a_bug_keeps_its_traceback(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(marketparquet_build, "run", fail)
     with pytest.raises(ValueError, match="a bug"):
         marketparquet_build.main([])
+
+
+def test_a_read_can_keep_the_named_symbols_alone(tmp_path) -> None:
+    path = mp.download(FakeArchive(FILES), tmp_path, [STOCK, ETF], START, END, TODAY)
+    whole = mp.read_days(path, STOCK, START, TODAY)
+    kept = mp.read_days(path, STOCK, START, TODAY, ["AAA", "BRK.B", "NOT THERE"])
+    assert set(kept["ticker"]) == {"AAA", "BRK.B"} and len(kept) == 2 * len(DAYS)
+    assert kept.equals(whole.loc[whole["ticker"].isin(["AAA", "BRK.B"])].reset_index(drop=True))
+    assert mp.read_days(path, STOCK, START, TODAY, []).empty

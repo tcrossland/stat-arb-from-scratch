@@ -135,6 +135,14 @@ From step 3, every runner behaves the same way in four respects:
 
    It reads the snapshot pinned in `config/marketparquet.toml` and writes `reports/phase-07/data_quality.md`, statistics only. `[sample]` of the config says what it reads of each day file: the bars from `start` to before `end`, the footer alone (schema and row count) before `start`, and nothing from `end`, the forward run's first session, on.
 
+10. *(phase 7)* Check the second source against the first. It needs step 1's tables, step 2's residuals, step 3's log and the snapshot of step 8:
+
+    ```bash
+    uv run python -m statarb.backtest.source_check
+    ```
+
+    It compares the two sources' bars for the candidates and the factor ETFs, with Alpaca's put on the split basis of its download, then runs the phase 2 headline on each source's prices for the same universe and sets both beside the logged metrics. It writes `reports/phase-07/cross_check.md`, logs nothing and adds no trial. It reads no day after the last the backtest runners read.
+
 ## Checking your results
 
 Every backtest result from phase 2 is logged with its configuration and `config_id` in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. What you can expect to match depends on your snapshot:
