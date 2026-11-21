@@ -151,6 +151,14 @@ From step 3, every runner behaves the same way in four respects:
 
     It applies the rules of [decision record 0009](decisions/0009-rules-for-marketparquets-data.md) to the bars of `[sample]`, writes `prices`, `returns` and `universe_listed` to `data/derived/marketparquet/` and the universe's report to `reports/phase-07/universe.md`. The universe is the phase 0 ranking over every stock symbol of the day. With step 1's tables present, the report also compares it with the existing universe.
 
+12. *(phase 7)* Run the survivorship measurement. It needs the tables of steps 1, 2 and 11 and the logs of steps 3 to 7:
+
+    ```bash
+    uv run python -m statarb.backtest.survivorship
+    ```
+
+    It runs the phase 2 headline's settings over development on the existing universe and on three universes of the second source: today's S&P 500, every listed symbol still trading at the download, and every listed symbol of the day. Each runs on returns and on Model B's residuals, fitted month by month on the members to date; Model A runs where sectors exist. It logs the seven paths on the second source to `reports/phase-07/experiments.jsonl` and writes `reports/phase-07/survivorship.md` with its chart. `--no-log` runs without logging.
+
 ## Checking your results
 
 Every backtest result from phase 2 is logged with its configuration and `config_id` in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. What you can expect to match depends on your snapshot:

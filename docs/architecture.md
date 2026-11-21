@@ -20,6 +20,9 @@ flowchart TB
     RM --> SC["statarb.backtest.source_check"]
     P --> SC
     SC --> XC["reports/phase-07/<br/>cross_check.md"]
+    PM --> SV["statarb.backtest.survivorship"]
+    P --> SV
+    SV --> SR["reports/phase-07/<br/>survivorship.md, experiments.jsonl"]
     RW --> B["statarb.data.build"]
     RA --> B
     B --> P["data/derived/processed/<br/>phase 0 tables"]
@@ -139,6 +142,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.backtest.trials` | 2 | Every distinct position path in the repository's experiment logs up to a phase, for the deflated Sharpe; from phase 6 without the holdout, diagnostic and identical paths, and with the slope rule in a path's id unless it is trailing; from phase 7 with the universe's name and the engine's stop rule in the id where they are set. |
 | `statarb.backtest.sweep` | 2 | The phase 2 configurations: each variant's signal and rule, the fill grids, costs and the logged record. |
 | `statarb.backtest.source_check` | 7 | Runner: the cross-check of MarketParquet against Alpaca on the existing names, and the phase 2 headline run on each source's prices for the same universe, beside the logged metrics. Logs nothing. |
+| `statarb.backtest.survivorship` | 7 | Runner: the survivorship measurement. The phase 2 headline's settings on the existing universe and on three universes of the second source (today's S&P 500, every surviving listed symbol, every listed symbol of the day), on returns and on Model B's residuals fitted on the members to date, with Model A where sectors exist. Logs the seven paths on the second source. |
 | `statarb.backtest.report` | 2 | The phase 2 report and its charts: statistics only. |
 | `statarb.backtest.run` | 2 | Runner: the phase 2 sweep, the placebo, the experiment log and the report. |
 | `statarb.backtest.cost_run` | 3 | Runner: the phase 3 configurations under the cost model at each book size and cost setting, the no-trade zone, the judgement against the bar and the experiment log. |
@@ -215,6 +219,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.data.marketparquet_quality` | 7 | `config/marketparquet.toml`, `[paths]` of `config/data.toml`, and the pinned MarketParquet snapshot in the raw store | `reports/phase-07/data_quality.md` |
 | `statarb.data.marketparquet_tables` | 7 | `config/marketparquet.toml`, `[universe]`, `[factors]` and `[paths]` of `config/data.toml`, the pinned MarketParquet snapshot in the raw store, and the existing `universe` table when it is there, for the report's comparison | `prices.parquet`, `returns.parquet` and `universe_listed.parquet` in `data/derived/marketparquet/`, `reports/phase-07/universe.md` |
 | `statarb.backtest.source_check` | 7 | the phase 0 and 1 tables, the pinned MarketParquet snapshot, `config/marketparquet.toml`, `config/backtest.toml`, `config/factors.toml`, `config/data.toml`, `config/paper.toml` for the last day read, and `reports/phase-02/experiments.jsonl` | `reports/phase-07/cross_check.md` |
+| `statarb.backtest.survivorship` | 7 | the phase 0 and 1 tables cut at the development end, `candidates`, the second source's `prices`, `returns` and `universe_listed` cut there as they are read, `config/marketparquet.toml`, `config/backtest.toml`, `config/factors.toml`, `config/data.toml`, `[period] development_end` of `config/models.toml`, and every phase's log for the trial count | `reports/phase-07/survivorship.md` and `survivorship.png`; one entry per path and cost level appended to `reports/phase-07/experiments.jsonl` unless `--no-log` |
 
 ## Config files
 
@@ -231,7 +236,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `portfolio.toml` | `statarb.portfolio.config` | The phase 4 fill, book sizes and the two signals optimised; the optimiser's horizon, caps, tolerances, solver and its tolerances, and the re-solve's rounds; the risk models' windows and the headline risk model; the rule that sets the headline risk aversion; the headline settings and the sweep. |
 | `models.toml` | `statarb.models.config` | The phase 5 development end and holdout, the walk-forward's blocks and embargo, the target horizons, the features' windows and sector codes, the model library, LightGBM's fixed settings and the tuning grid; what the development runner compares: the phase 3 variants beside the model, the rules and the optimiser's cost multipliers; and partial adjustment's trade-rate grid. |
 | `paper.toml` | `statarb.paper.config`, and through it `statarb.backtest.run`, `statarb.backtest.cost_run` and `statarb.portfolio.run` for the first session | The slope rules the choice compares; the frozen strategy (forecast, rule, slope rule, book size) and its record's hash, set by decision record 0007; the run's first session, from which the forward days are a fresh holdout, its calendar and New York run time. |
-| `marketparquet.toml` | `statarb.data.marketparquet_build`, `statarb.data.marketparquet_quality`, `statarb.data.marketparquet_tables`, `statarb.backtest.source_check` | The second price source: the daily datasets a download asks for, its first and last day and the exchange calendar that says which is the last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. The sample phase 7 reads: the first day whose bars are read and the day from which no file is opened. The quality report's split ratios and tolerance. The cross-check's tolerances. Where this source's tables go, the universe's name and the correlation above which its report counts two members as near-copies. The sessions without a bar after which the engine closes a held name. Outside the forward run's frozen record. |
+| `marketparquet.toml` | `statarb.data.marketparquet_build`, `statarb.data.marketparquet_quality`, `statarb.data.marketparquet_tables`, `statarb.backtest.source_check`, `statarb.backtest.survivorship` | The second price source: the daily datasets a download asks for, its first and last day and the exchange calendar that says which is the last session, the retries for a file of the wrong size, how many files are fetched at once, and the pinned snapshot's date and digest. The sample phase 7 reads: the first day whose bars are read and the day from which no file is opened. The quality report's split ratios and tolerance. The cross-check's tolerances. Where this source's tables go, the universe's name and the correlation above which its report counts two members as near-copies. The sessions without a bar after which the engine closes a held name. The survivorship measurement's universes and the amounts of its delisting sensitivity. Outside the forward run's frozen record. |
 
 ## External libraries
 

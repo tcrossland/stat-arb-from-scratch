@@ -74,3 +74,21 @@ near_copy_correlation = 0.98
 # would close more names that come back; longer leaves a stopped name in the book at a zero return
 # for more of the month the ranking takes to drop it. Off for every path on Alpaca's tables.
 close_after_sessions = 5
+
+[survivorship]
+# The survivorship measurement (reports/phase-07/survivorship.md): the phase 2 headline's lookback,
+# holding period, decile and fill, on three universes of this source over development, cut at
+# [period] development_end of config/models.toml. Seven paths, fixed in the phase 7 brief.
+universes = ["candidates", "survivors", "listed"]
+
+[survivorship.delisting]
+# The one stated sensitivity for what follows a last bar (decision record 0009, rule 10), fixed before
+# any path ran. A held name whose bars stop before the sample's end, and whose close fell by more than
+# `fall` over its last `bars` bars, takes a further loss of `loss` when the engine closes it. The fall
+# stands in for a delisting reason, which the source does not give. The loss is the corrected return
+# Shumway and Warther (1999, Journal of Finance 54(6), abstract) estimate for missing
+# performance-related delisting returns in CRSP's Nasdaq data, -55%: a bound, not an estimate, since
+# it is applied to listings of every exchange.
+bars = 21
+fall = 0.10
+loss = 0.55
