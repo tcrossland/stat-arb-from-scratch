@@ -26,7 +26,7 @@ The brief accepts the build, and leaves the forward run's criteria to the run.
 | Every test the brief lists passes | Met: the tests above, in a suite of 521 that passes. |
 | The evidence for the choice is logged | Met: 72 entries in `reports/phase-06/experiments.jsonl`, and `choice.md` built from them. |
 | At least eight weeks of uninterrupted forward running | In progress: [decision record 0007](../../decisions/0007-forward-run.md) starts it from 2026-11-16, and the run log records that session as processed on 2026-11-18. The record's amendment of 2026-11-18 sets the last session, 2027-01-13. |
-| The drift report states whether turnover, signals, IC and P&L sit within the backtest's ranges | Built and tested on synthetic sessions. The forward run has started, and no drift report has been written yet: [decision record 0007](../../decisions/0007-forward-run.md) runs it weekly, on Sundays. |
+| The drift report states whether turnover, signals, IC and P&L sit within the backtest's ranges | In progress: [decision record 0007](../../decisions/0007-forward-run.md) runs it weekly, on Sundays. The first report, [to 2026-11-20](../../../reports/phase-06/drift/2026-11-20.md), written on 2026-11-22, states it for signals, IC and P&L. Turnover and gross exposure leave out the first five sessions while the book fills, so the report of 2026-11-29 is the first to state them. |
 
 ## What the numbers showed
 
