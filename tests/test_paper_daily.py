@@ -15,8 +15,10 @@ import pytest
 from helpers import MARKET_CAL
 from runner_helpers import market_long, market_settings
 from statarb.backtest import experiments
+from statarb.data import cache
 from statarb.paper import backup as backup_
 from statarb.paper import daily, frozen, ledger
+from statarb.paper import sessions as sessions_
 from statarb.paper.config import TRAILING
 from statarb.paper.day import strategy_of, strategy_panels
 
@@ -37,14 +39,14 @@ def _morning_after(date: pd.Timestamp) -> dt.datetime:
     return dt.datetime(nxt.year, nxt.month, nxt.day, 6, 0, tzinfo=NY)
 
 
-def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backups=None, backup=None, strategy=STRATEGY) -> daily.Job:
+def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backups=None, backup=None, strategy=STRATEGY, taken=None) -> daily.Job:
     tables = LONG if tables is None else tables
     backup = backup or backup_.BackupResult("pushed", "abc1234")
 
     def snapshot() -> daily.Snapshot:
         if calls is not None:
             calls.append(1)
-        return daily.Snapshot("2026-01-01", tables, ("ZZZ",))
+        return daily.Snapshot("2026-01-01", tables, ("ZZZ",), taken)
 
     def reproduce() -> daily.Reproduction:
         if checks is not None:
@@ -345,6 +347,57 @@ def test_run_records_are_json_lines(tmp_path) -> None:
     daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1])))
     record = json.loads((tmp_path / "runs.jsonl").read_text().splitlines()[0])
     assert {"recorded_at", "as_of", "status", "message", "due", "processed", "snapshot", "reproduced", "backup", "config_hash", "git_commit", "git_dirty"} <= set(record)
+
+
+@pytest.mark.parametrize(("taken", "early"), [("2026-01-01T10:59:00+00:00", True), ("2026-01-01T11:00:00+00:00", False), (None, None)])
+def test_the_run_log_records_when_the_snapshot_was_taken_against_the_run_time(tmp_path, taken, early) -> None:
+    """05:59 and 06:00 New York (EST) on the date the snapshot is named for."""
+    daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1]), taken=taken))
+    record = experiments.read(tmp_path / "runs.jsonl")[-1]
+    assert record["snapshot"] == "2026-01-01" and record["snapshot_taken"] == taken and record["snapshot_early"] is early
+
+
+# The day's snapshot ---------------------------------------------------------------------------------
+
+
+def _downloader(raw_root):
+    """A download that writes a complete snapshot named for the day it is given, and the days it was given."""
+    days = []
+
+    def download(day: dt.date):
+        days.append(day)
+        writer = cache.SnapshotWriter(raw_root, "alpaca", day)
+        writer.write_bytes("bars.txt", day.isoformat().encode())
+        return writer.commit({"end_exclusive": day.isoformat()})
+
+    return download, days
+
+
+def test_a_run_before_the_run_time_neither_takes_nor_reuses_that_dates_snapshot(tmp_path) -> None:
+    raw = tmp_path / "raw"
+    download, days = _downloader(raw)
+
+    def pick(month, day, hour, minute):
+        now = dt.datetime(2026, month, day, hour, minute, tzinfo=NY)
+        return daily.pick_snapshot(raw, "alpaca", sessions_.run_day(now, dt.time(6, 0)), download).name
+
+    assert pick(11, 18, 5, 59) == "2026-11-17"               # bars before the 17th only: every one settled
+    assert not cache.snapshot_dir(raw, "alpaca", dt.date(2026, 11, 18)).exists()
+    assert pick(11, 18, 6, 0) == "2026-11-18"
+    assert pick(11, 18, 13, 15) == "2026-11-18"              # reused
+    assert pick(11, 19, 4, 8) == "2026-11-18"                # the next morning, before the run time: reused, not retaken
+    assert days == [dt.date(2026, 11, 17), dt.date(2026, 11, 18)]
+
+
+def test_without_a_download_the_latest_snapshot_no_later_than_the_run_day_is_used(tmp_path) -> None:
+    raw = tmp_path / "raw"
+    download, _ = _downloader(raw)
+    for day in (16, 17, 19):
+        download(dt.date(2026, 11, day))
+    assert daily.pick_snapshot(raw, "alpaca", dt.date(2026, 11, 18), None).name == "2026-11-17"
+    assert daily.pick_snapshot(raw, "alpaca", dt.date(2026, 11, 19), None).name == "2026-11-19"
+    with pytest.raises(FileNotFoundError, match="2026-11-15 or earlier"):
+        daily.pick_snapshot(raw, "alpaca", dt.date(2026, 11, 15), None)
 
 
 def test_dollars_put_the_sign_first() -> None:

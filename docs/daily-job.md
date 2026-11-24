@@ -129,7 +129,7 @@ A run as of a time before the first session is due finds nothing to process and 
 
 ## 4. When it runs
 
-`[run] run_time` in `config/paper.toml` is 06:00 New York time. A session is processed by the first run on a later New York date at or after the run time; a run before 06:00 New York treats the previous day as today. Why it waits until then is in [`time-discipline.md`](time-discipline.md). So the scheduler does not need the exact time, and can fire more than once:
+`[run] run_time` in `config/paper.toml` is 06:00 New York time. A session is processed by the first run on a later New York date at or after the run time; a run before 06:00 New York treats the previous day as today, and takes or reuses only a snapshot named for that day. Why it waits until then is in [`time-discipline.md`](time-discipline.md). So the scheduler does not need the exact time, and can fire more than once:
 
 - **Fire every day, weekends included.** A run with nothing due takes a few seconds and changes nothing but the run log.
 - **Pick a local time at or after 06:00 New York on every day of the year,** with a few minutes of margin for a slow clock. In Central Europe, 13:15, the time decision record 0007 sets, is 07:15 New York for most of the year and 08:15 in the weeks when the two change their clocks on different dates. It stays after 06:00 New York if the host moves to London.

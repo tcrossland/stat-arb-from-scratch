@@ -50,7 +50,7 @@ class DayMeta:
     config_hash: str
     git_commit: str | None
     git_dirty: bool | None
-    snapshot: str              # download date of the price snapshot the day was built from
+    snapshot: str              # name of the price snapshot the day was built from: bars before it
 
 
 @dataclass(frozen=True)

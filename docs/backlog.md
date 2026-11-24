@@ -12,17 +12,10 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ## Next
 
-### No snapshot before the run time
-
-- **Trigger:** the first deliberate pull into the job's clone, with the progress log; sooner if a run before 06:00 New York happens again. It changes no frozen file or logged result.
-- **Target:** the next deliberate pull into the job's clone.
-- **Why:** a session is due only from `[run] run_time`, 06:00 New York the next day, when the source has settled the close and its corporate actions. But the job names the day's snapshot by the New York calendar date and reuses a complete one (`daily_snapshot` in `statarb.paper.daily`). A run before 06:00 New York with an earlier session due downloads a snapshot then, and every later run that New York day reuses it, so the session that falls due at 06:00 is processed from bars taken before its settling point. It happened on the first day: a run by hand at 04:08 New York on 2026-11-18 took snapshot `2026-11-18`, and the 13:15 run processes 2026-11-17 from it.
-- **Action:** a run before the run time on its New York date neither downloads nor reuses that date's snapshot: it processes what is due from the latest complete snapshot taken at or after the previous run time, or downloads one named for the previous date. Record the snapshot's download time against the run time in the run log, so the drift report can count sessions processed from an early snapshot. Tests with the synthetic job's clock: a run at 05:59 New York leaves no snapshot for the day; a run at 06:00 downloads one; a later run reuses it.
-
 ### Progress log for the daily job
 
 - **Trigger:** the first deliberate pull into the job's clone, or sooner if a run's duration or stall needs diagnosing. It changes no frozen file or logged result, so it can merge to `main` during the run; the clone gets it only at that pull, which then needs a run that passes the reproduction check.
-- **Target:** the next deliberate pull into the job's clone, with the item above.
+- **Target:** the next deliberate pull into the job's clone.
 - **Why:** the daily job reports progress only while it downloads (`prices: i/N` every 50 tickers, then the saved path), and then nothing until its final JSON line; no line carries a time. Building the day's tables, the reproduction check, each session, the notes and the backup run silently, so a watcher cannot tell a slow stage from a hung one, and an unattended run's `daily.log` cannot say where the time went. The download also prints the build's hint to pin the new snapshot in `[source]` of `config/data.toml`, which for a forward-run snapshot is the one thing the fresh holdout forbids. Peak memory is recorded nowhere; `docs/requirements.md` needs it.
 - **Action:** in `statarb.paper.daily`, log each stage to stderr with a UTC timestamp and its duration: the frozen check, the download, the tables built, the reproduction check, each session processed, the backup. Let `download_prices` leave out the pinning hint when the daily job calls it. Record the run's duration and peak memory (`resource.getrusage`, children included) in its line of `data/paper/runs.jsonl`, add both to `docs/data-model.md`, and let the drift report's operations section show them. Tests on the synthetic job: the stages appear in order, and the hint does not.
 

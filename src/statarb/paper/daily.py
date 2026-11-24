@@ -1,7 +1,7 @@
 """Phase 6 daily job: process every due session of the forward run.
 
-    uv run python -m statarb.paper.daily                    # download today's snapshot if needed, then run
-    uv run python -m statarb.paper.daily --no-download      # use the latest complete snapshot
+    uv run python -m statarb.paper.daily                    # download the run day's snapshot if needed, then run
+    uv run python -m statarb.paper.daily --no-download      # use the latest complete snapshot up to the run day
     uv run python -m statarb.paper.daily --now 2027-01-05T06:00-05:00
 
 Nothing here runs until the forward run's decision record sets `[frozen]` and
@@ -20,10 +20,13 @@ any download. Each run:
 4. rebuilds the reference tables from the pinned snapshot and the frozen path
    on them, and refuses to run unless it gives its logged metrics exactly
    (`statarb.paper.reproduce`);
-5. takes today's price snapshot from the source in `[source]` of
+5. takes the run day's price snapshot from the source in `[source]` of
    `config/data.toml` into the raw store (reused if complete) and builds the
    phase 0 tables and Model A residuals from it into
-   `data/paper/processed/<snapshot>/`, never into the development tables;
+   `data/paper/processed/<snapshot>/`, never into the development tables.
+   The snapshot is named for the run day (New York's date, or the day before
+   until the run time) and holds bars before it, so a run before the run time
+   never takes or reuses one whose last session may not have settled;
 6. for each due session in order, cuts the tables at the session, takes the
    step from the previous ledger day and records the decision
    (`statarb.paper.day`), and writes a daily note to `reports/phase-06/daily/`
@@ -78,9 +81,10 @@ PRICE_SOURCES = ("alpaca",)
 
 @dataclass(frozen=True)
 class Snapshot:
-    name: str                              # download date of the price snapshot
+    name: str                              # the price snapshot's run day: it holds bars before it
     tables: Mapping[str, pd.DataFrame]
     failed: tuple[str, ...] = ()           # tickers the snapshot gave no bars for: failed downloads and failed rules
+    taken: str | None = None               # its manifest's `downloaded_at`, UTC
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,7 @@ class RunResult:
     due: tuple[pd.Timestamp, ...] = ()
     processed: tuple[pd.Timestamp, ...] = ()
     snapshot: str | None = None
+    snapshot_taken: str | None = None
     problems: tuple[str, ...] = field(default=())
     reproduced: str | None = None          # the log entry the frozen path reproduced in this run
     backup: str | None = None              # `BackupResult.text()`; None when the run was refused for its ledger
@@ -153,14 +158,14 @@ def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
             inputs = session_inputs(snap.tables, date, job.first, job.strategy)
         except MissingSession as err:
             message = f"stopped at {date:%Y-%m-%d}: {err}; the next run retries it"
-            return RunResult("incomplete", message, due, tuple(processed), snap.name, reproduced=check.entry)
+            return RunResult("incomplete", message, due, tuple(processed), snap.name, snap.taken, reproduced=check.entry)
         meta = ledger.DayMeta(job.strategy.book_size, job.config_hash, job.git.get("git_commit"), job.git.get("git_dirty"), snap.name)
         frame, _ = ledger_day(inputs, carry, meta)
         write_note(job.notes_root, frame, job.strategy, snap, check.entry, backed_up)   # first: a crash before the ledger day reruns the day
         ledger.write_day(job.ledger_root, frame)
         carry = ledger.carry_of(frame)
         processed.append(date)
-    return RunResult("done", f"processed {len(processed)} session(s)", due, tuple(processed), snap.name, reproduced=check.entry)
+    return RunResult("done", f"processed {len(processed)} session(s)", due, tuple(processed), snap.name, snap.taken, reproduced=check.entry)
 
 
 def previous_backup(runs_log: Path) -> str:
@@ -178,6 +183,13 @@ def run_record(now: dt.datetime, status: str, message: str) -> dict[str, Any]:
     }
 
 
+def snapshot_early(name: str | None, taken: str | None, run_time: dt.time) -> bool | None:
+    """Whether the snapshot was taken before the run time on the date it is named for; None if either is unknown."""
+    if name is None or taken is None:
+        return None
+    return sessions_.early(dt.date.fromisoformat(name), dt.datetime.fromisoformat(taken), run_time)
+
+
 def _log(job: Job, result: RunResult) -> RunResult:
     record = {
         **run_record(job.now, result.status, result.message),
@@ -185,6 +197,8 @@ def _log(job: Job, result: RunResult) -> RunResult:
         "processed": [f"{d:%Y-%m-%d}" for d in result.processed],
         "problems": list(result.problems),
         "snapshot": result.snapshot,
+        "snapshot_taken": result.snapshot_taken,
+        "snapshot_early": snapshot_early(result.snapshot, result.snapshot_taken, job.run_time),
         "reproduced": result.reproduced,
         "backup": result.backup,
         "config_hash": job.config_hash,
@@ -276,8 +290,9 @@ def write_note(notes_root: Path, frame: pd.DataFrame, strategy: Strategy, snap: 
 # Snapshot and tables ---------------------------------------------------------------------------------
 
 
-def download_snapshot(root: Path, today: dt.date) -> Path:
-    """Today's price snapshot for the pinned candidate list, the market and the sector ETFs. Never called by a test."""
+def download_snapshot(root: Path, day: dt.date) -> Path:
+    """A price snapshot named for `day`, of bars before it, for the pinned candidate list, the market and the sector
+    ETFs. Never called by a test."""
     from statarb.data.alpaca import AlpacaSource
     from statarb.data.build import (
         download_prices,
@@ -297,7 +312,7 @@ def download_snapshot(root: Path, today: dt.date) -> Path:
     tickers += [cfg["factors"]["market"], *cfg["factors"]["sectors"]]
     source = AlpacaSource(price_rules(name, root))   # reads the keys from the environment first
     d = cfg["download"]
-    return download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], today, d["pause_seconds"], d["retries"])
+    return download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], day, d["pause_seconds"], d["retries"])
 
 
 def build_tables(root: Path, snapshot: str, digest: str, out_dir: Path) -> None:
@@ -335,22 +350,41 @@ def read_tables(out_dir: Path) -> dict[str, pd.DataFrame]:
     return {k: read_parquet(out_dir / f"{k}.parquet") for k in TABLES}
 
 
-def daily_snapshot(root: Path, today: dt.date, download: bool) -> Snapshot:
+def pick_snapshot(raw_root: Path, source: str, day: dt.date, download: Callable[[dt.date], Path] | None) -> Path:
+    """The price snapshot for run day `day` (`statarb.paper.sessions.run_day`).
+
+    Named for the run day, so it holds bars before it: every session due that
+    day, and no session whose close and corporate actions may not have settled.
+    A run before the run time has the previous date as its run day, so it
+    neither takes nor reuses a snapshot named for New York's date. Reused if
+    complete; otherwise downloaded under that name or, without a download, the
+    latest complete snapshot named no later than the run day.
+    """
+    path = cache.snapshot_dir(raw_root, source, day)
+    if cache.is_complete(path):
+        return path
+    if download is not None:
+        return download(day)
+    found = [p for p in cache.complete_snapshots(raw_root, source) if p.name <= day.isoformat()]
+    if not found:
+        raise FileNotFoundError(f"no complete {source} snapshot named {day} or earlier under {raw_root}")
+    return found[-1]
+
+
+def daily_snapshot(root: Path, day: dt.date, download: bool) -> Snapshot:
     cfg = load_config("data", root)
     raw_root = raw_store(cfg["paths"]["raw"], root)
-    source = cfg["source"]["name"]
-    path = cache.snapshot_dir(raw_root, source, today)
-    if not cache.is_complete(path):
-        path = download_snapshot(root, today) if download else cache.select_snapshot(raw_root, source)
+    path = pick_snapshot(raw_root, cfg["source"]["name"], day, (lambda d: download_snapshot(root, d)) if download else None)
+    manifest = cache.read_manifest(path)
     processed = resolve_path(cfg["paths"]["paper"], root) / PROCESSED
     out_dir = processed / path.name
     if not (out_dir / COMPLETE).exists():
-        build_tables(root, path.name, cache.read_manifest(path)["digest"], out_dir)
+        build_tables(root, path.name, manifest["digest"], out_dir)
     for other in processed.iterdir():                 # derived and large: keep only the snapshot in use
         if other != out_dir and other.is_dir():
             shutil.rmtree(other)
     failed = tuple(sorted(json.loads((out_dir / FAILED).read_text())))
-    return Snapshot(path.name, read_tables(out_dir), failed)
+    return Snapshot(path.name, read_tables(out_dir), failed, manifest.get("downloaded_at"))
 
 
 def reproduction(root: Path, strategy: Strategy | None = None) -> Reproduction:
@@ -403,6 +437,7 @@ def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
     paper = resolve_path(cfg["paths"]["paper"], root)
     reports = resolve_path(cfg["paths"]["reports"], root)
     today = exchange_today(now)
+    day = sessions_.run_day(now, pc.run.run_time)
     strategy = frozen.load_strategy(root)
     remote = backup_.remote()
     return Job(
@@ -417,14 +452,14 @@ def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
         config_hash=config_hash,
         git=experiments.git_state(root, ignore=tuple(str((reports / p).relative_to(root)) for p in (NOTES, DRIFT))),
         reproduce=lambda: reproduction(root, strategy),
-        snapshot=lambda: daily_snapshot(root, today, download),
+        snapshot=lambda: daily_snapshot(root, day, download),
         backup=lambda: backup_.sync(paper / LEDGER, paper / BACKUP, remote),
     )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--no-download", action="store_true", help="use the latest complete snapshot instead of downloading")
+    parser.add_argument("--no-download", action="store_true", help="use the latest complete snapshot named no later than the run day instead of downloading")
     parser.add_argument("--now", help="run as of this time (ISO 8601 with an offset), for catch-up and checks")
     args = parser.parse_args(argv)
     now = dt.datetime.fromisoformat(args.now) if args.now else dt.datetime.now(dt.UTC)

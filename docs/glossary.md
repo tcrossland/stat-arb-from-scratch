@@ -51,7 +51,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Unadjusted prices.** Prices as they traded on the day, with splits and dividends stored separately as corporate actions.
 
-**Raw snapshot.** One download, kept in the raw store at `<source>/<download date>/` exactly as the source returned it, read-only and never modified. Builds read snapshots, never the network.
+**Raw snapshot.** One download, kept in the raw store at `<source>/<download date>/` exactly as the source returned it, read-only and never modified. The daily job names its price snapshots for the run day instead, the download date except for a download before the run time. Builds read snapshots, never the network.
 
 **Raw store, derived data.** The raw store (`data/raw/`, or the path in `STATARB_RAW`) holds raw snapshots, the only data that cannot be replaced; it is backed up privately and never committed. Derived data (`data/derived/`) is everything rebuilt from it, and can be deleted at any time.
 
@@ -300,6 +300,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 **Reproduction check.** Before each day's run, the frozen path is rebuilt over development on tables from the pinned snapshot, and every metric must equal its logged entry. It catches a code change that alters behaviour, which the frozen record cannot see.
 
 **Session, due session.** A day the exchange is open, from its calendar. A session is due once New York's date has passed it and its clock has reached the run time, 06:00, so a run processes the same sessions however early, late or often the scheduler fires it.
+
+**Run day.** New York's date at a run of the daily job, or the day before until its clock reaches the run time. Sessions before the run day are due, and the job's price snapshot is named for the run day and holds bars before it, so a run before 06:00 never takes or reuses a snapshot whose last session may not have settled.
+
+**Early snapshot.** A price snapshot taken before the run time on the date it is named for, whose last session may not have settled. The daily job takes none; the run log flags any it used (`snapshot_early`).
 
 **Late session.** A forward-run session not processed by the first run after it falls due, from a snapshot taken on that New York day after the run time: one caught up after a missed day, or processed from an early snapshot. It still counts toward the run, and the run's review reports results with and without the late sessions (decision record 0007, amendment of 2026-11-18).
 

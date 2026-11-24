@@ -51,6 +51,16 @@ def run_day(now: dt.datetime, run_time: dt.time = MIDNIGHT) -> dt.date:
     return today
 
 
+def early(name: dt.date, taken: dt.datetime, run_time: dt.time = MIDNIGHT) -> bool:
+    """Whether a snapshot named for New York date `name` was taken before `run_time` on that date.
+
+    Its last session may then not have settled. The daily job names its
+    snapshots for the run day, so it takes none early; one taken by hand can be.
+    """
+    at = taken.astimezone(ZoneInfo(EXCHANGE_TZ))
+    return (at.date(), at.time()) < (name, run_time)
+
+
 def due(
     sessions: pd.DatetimeIndex, now: dt.datetime, first: pd.Timestamp, last_done: pd.Timestamp | None, run_time: dt.time = MIDNIGHT
 ) -> pd.DatetimeIndex:
