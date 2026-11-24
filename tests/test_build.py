@@ -61,6 +61,13 @@ def _build(raw_root, snapshot: str = "", digest: str = ""):
     return b.build(raw_root, cfg, UNIVERSE_CFG, [], _constituents(), "synthetic")
 
 
+@pytest.mark.parametrize("pin_hint", [True, False])
+def test_the_hint_to_pin_a_price_snapshot_can_be_left_out(tmp_path, capsys, pin_hint) -> None:
+    b.download_prices(SplitAdjustedSource(TRUTHS), tmp_path / "raw", ["AAA", "SPY"], START, FIRST, 0.0, 0, pin_hint=pin_hint)
+    err = capsys.readouterr().err
+    assert "prices: saved to" in err and ("set in [source] of config/data.toml" in err) is pin_hint
+
+
 def test_build_writes_every_deliverable(raw_root, tmp_path) -> None:
     out = _build(raw_root)
     b.write_outputs(out, tmp_path / "processed", tmp_path / "reports")

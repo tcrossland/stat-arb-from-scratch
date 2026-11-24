@@ -349,6 +349,21 @@ def _revision_lines(d: Drift, shown: int) -> list[str]:
     return out
 
 
+def _minutes(seconds: float) -> str:
+    return f"{seconds / 60:.1f} min"
+
+
+def _cost_line(r: dict) -> str:
+    if not r["timed"]:
+        return "- Run time and peak memory: not recorded by any run yet."
+    longest, peak = r["longest"], r["peak"]
+    return (
+        f"- Run time over the {r['timed']} runs that recorded it: median {_minutes(r['median_seconds'])}, longest "
+        f"{_minutes(longest['duration_seconds'])} (as of {longest.get('as_of', '')}). Highest peak memory: "
+        f"{peak['peak_memory_mb'] / 1024:.1f} GiB (as of {peak.get('as_of', '')})."
+    )
+
+
 def _operations_lines(d: Drift, shown: int) -> list[str]:
     r = d.runs
     failures = r["backup_failures"]
@@ -358,6 +373,7 @@ def _operations_lines(d: Drift, shown: int) -> list[str]:
         "## Operations\n",
         f"- Runs logged: {r['runs']} (" + ", ".join(f"{k} {v}" for k, v in sorted(r["by_status"].items())) + ").",
         f"- Ledger backup failures: {len(failures)}" + (f", the last: {failures[-1]['backup']}." if failures else "."),
+        _cost_line(r),
         f"- Sessions due and not yet in the ledger: {_dates(d.lagging)}.",
         f"- Days with held names that had no return (booked as zero): {missing}.",
         f"- Tickers the source failed to return: {failed}.",

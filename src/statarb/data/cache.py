@@ -1,5 +1,8 @@
 """Raw download snapshots: data/raw/<source>/<download date>/.
 
+The daily job names its price snapshots for its run day instead
+(`statarb.paper.daily.pick_snapshot`), the download date except before the run time.
+
 A snapshot is complete only once manifest.json exists; it is written last,
 with the SHA-256 of every file and the snapshot's digest: the SHA-256 of its
 sorted `path hash` lines. Config pins a snapshot by date and digest, and a

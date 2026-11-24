@@ -129,7 +129,7 @@ A run as of a time before the first session is due finds nothing to process and 
 
 ## 4. When it runs
 
-`[run] run_time` in `config/paper.toml` is 06:00 New York time. A session is processed by the first run on a later New York date at or after the run time; a run before 06:00 New York treats the previous day as today. Why it waits until then is in [`time-discipline.md`](time-discipline.md). So the scheduler does not need the exact time, and can fire more than once:
+`[run] run_time` in `config/paper.toml` is 06:00 New York time. A session is processed by the first run on a later New York date at or after the run time; a run before 06:00 New York treats the previous day as today, and takes or reuses only a snapshot named for that day. Why it waits until then is in [`time-discipline.md`](time-discipline.md). So the scheduler does not need the exact time, and can fire more than once:
 
 - **Fire every day, weekends included.** A run with nothing due takes a few seconds and changes nothing but the run log.
 - **Pick a local time at or after 06:00 New York on every day of the year,** with a few minutes of margin for a slow clock. In Central Europe, 13:15, the time decision record 0007 sets, is 07:15 New York for most of the year and 08:15 in the weeks when the two change their clocks on different dates. It stays after 06:00 New York if the host moves to London.
@@ -221,11 +221,12 @@ cron skips a time at which the host was off; the next day's run catches up. A sy
 
 ## 6. After it starts
 
-- **Each run** appends a line to `data/paper/runs.jsonl` with its status, the sessions due and processed, the reproduction check and the backup.
+- **Each run** appends a line to `data/paper/runs.jsonl` with its status, the sessions due and processed, the reproduction check, the backup, its duration and its peak memory.
+- **Each stage** writes a line to stderr, and so to `daily.log`, with the UTC time as it starts and its duration as it ends: the frozen check, the price snapshot, its tables, the reproduction check, each session and the backup. A stage with a start line and no end line is the one still running, or the one a crash stopped.
 - **Each processed session** writes a note to `reports/phase-06/daily/`.
 - **The weekly drift report** reads the run log and the ledger, and writes to `reports/phase-06/drift/`.
 
-**The first run.** Start the first run that downloads by hand, `~/bin/stat-arb-job daily`, and check it end to end: the download, the tables built into `data/paper/processed/`, the reproduction check, the ledger day, the note and the backup. Then record its time, memory and disk in [`requirements.md`](requirements.md).
+**The first run.** Start the first run that downloads by hand, `~/bin/stat-arb-job daily`, and check it end to end: the download, the tables built into `data/paper/processed/`, the reproduction check, the ledger day, the note and the backup. Then record its time, memory and disk in [`requirements.md`](requirements.md); its line in the run log has the time and memory.
 
 ### Each week
 
