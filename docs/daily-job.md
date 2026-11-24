@@ -221,11 +221,12 @@ cron skips a time at which the host was off; the next day's run catches up. A sy
 
 ## 6. After it starts
 
-- **Each run** appends a line to `data/paper/runs.jsonl` with its status, the sessions due and processed, the reproduction check and the backup.
+- **Each run** appends a line to `data/paper/runs.jsonl` with its status, the sessions due and processed, the reproduction check, the backup, its duration and its peak memory.
+- **Each stage** writes a line to stderr, and so to `daily.log`, with the UTC time as it starts and its duration as it ends: the frozen check, the price snapshot, its tables, the reproduction check, each session and the backup. A stage with a start line and no end line is the one still running, or the one a crash stopped.
 - **Each processed session** writes a note to `reports/phase-06/daily/`.
 - **The weekly drift report** reads the run log and the ledger, and writes to `reports/phase-06/drift/`.
 
-**The first run.** Start the first run that downloads by hand, `~/bin/stat-arb-job daily`, and check it end to end: the download, the tables built into `data/paper/processed/`, the reproduction check, the ledger day, the note and the backup. Then record its time, memory and disk in [`requirements.md`](requirements.md).
+**The first run.** Start the first run that downloads by hand, `~/bin/stat-arb-job daily`, and check it end to end: the download, the tables built into `data/paper/processed/`, the reproduction check, the ledger day, the note and the backup. Then record its time, memory and disk in [`requirements.md`](requirements.md); its line in the run log has the time and memory.
 
 ### Each week
 

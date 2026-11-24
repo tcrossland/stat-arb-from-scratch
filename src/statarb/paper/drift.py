@@ -27,7 +27,8 @@ no new ledger day rewrites the same report.
   latest snapshot against the decision the ledger recorded. A difference in
   the second is a decision the source's revisions would have changed.
 - **Operations.** Runs by status from `data/paper/runs.jsonl`, the runs that
-  failed, refused or stopped short, failed backups, sessions due and not yet
+  failed, refused or stopped short, failed backups, the runs' median and
+  longest duration and highest peak memory, sessions due and not yet
   in the ledger, held names without a return, and tickers the source failed to
   return.
 
@@ -302,7 +303,14 @@ def run_summary(runs: list[dict[str, Any]]) -> dict[str, Any]:
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
     trouble = [r for r in runs if r["status"] not in ("done", "nothing due")]
     backups = [r for r in runs if (r.get("backup") or "").startswith("failed")]
-    return {"runs": len(runs), "by_status": by_status, "trouble": trouble, "backup_failures": backups}
+    timed = [r for r in runs if r.get("duration_seconds") is not None]   # runs logged before these were recorded have neither
+    return {
+        "runs": len(runs), "by_status": by_status, "trouble": trouble, "backup_failures": backups,
+        "timed": len(timed),
+        "median_seconds": float(np.median([r["duration_seconds"] for r in timed])) if timed else None,
+        "longest": max(timed, key=lambda r: r["duration_seconds"]) if timed else None,
+        "peak": max(timed, key=lambda r: r["peak_memory_mb"]) if timed else None,
+    }
 
 
 def source_failures(snapshots: list[str], raw_root: Path, source: str, rules: Rules | None = None) -> dict[str, list[str]]:

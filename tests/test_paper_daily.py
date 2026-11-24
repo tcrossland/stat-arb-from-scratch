@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import subprocess
 from dataclasses import replace
 from zoneinfo import ZoneInfo
@@ -39,7 +40,7 @@ def _morning_after(date: pd.Timestamp) -> dt.datetime:
     return dt.datetime(nxt.year, nxt.month, nxt.day, 6, 0, tzinfo=NY)
 
 
-def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backups=None, backup=None, strategy=STRATEGY, taken=None) -> daily.Job:
+def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backups=None, backup=None, strategy=STRATEGY, taken=None, lines=None) -> daily.Job:
     tables = LONG if tables is None else tables
     backup = backup or backup_.BackupResult("pushed", "abc1234")
 
@@ -72,6 +73,7 @@ def _job(tmp_path, now, tables=None, calls=None, mismatch=(), checks=None, backu
         reproduce=reproduce,
         snapshot=snapshot,
         backup=back_up,
+        log=daily.quiet if lines is None else lines.append,
     )
 
 
@@ -347,6 +349,34 @@ def test_run_records_are_json_lines(tmp_path) -> None:
     daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1])))
     record = json.loads((tmp_path / "runs.jsonl").read_text().splitlines()[0])
     assert {"recorded_at", "as_of", "status", "message", "due", "processed", "snapshot", "reproduced", "backup", "config_hash", "git_commit", "git_dirty"} <= set(record)
+
+
+def test_each_stage_logs_its_start_and_duration_in_order(tmp_path) -> None:
+    lines: list[str] = []
+    daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1]), lines=lines))
+    stages = ["reproduction check", f"session {SESSIONS[0]:%Y-%m-%d}", f"session {SESSIONS[1]:%Y-%m-%d}", "backup"]
+    assert [line.split(": ")[0] for line in lines] == [s for s in stages for _ in range(2)]
+    assert all(a.endswith(": started") and re.search(r": done in \d+\.\ds$", b) for a, b in zip(lines[::2], lines[1::2], strict=True))
+
+
+def test_a_stage_that_raises_logs_its_failure() -> None:
+    lines: list[str] = []
+    with pytest.raises(ValueError), daily.stage(lines.append, "download"):
+        raise ValueError("boom")
+    assert lines[0] == "download: started" and re.fullmatch(r"download: failed after \d+\.\ds", lines[1])
+
+
+def test_the_stderr_log_puts_the_utc_time_first(capsys) -> None:
+    daily.stderr_log("backup: started")
+    stamp, message = capsys.readouterr().err.rstrip("\n").split(" ", 1)
+    assert dt.datetime.fromisoformat(stamp).utcoffset() == dt.timedelta(0) and message == "backup: started"
+
+
+def test_every_run_records_its_duration_and_peak_memory(tmp_path) -> None:
+    daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1])))
+    daily.run_job(_job(tmp_path, _morning_after(SESSIONS[1])))      # nothing due
+    for record in experiments.read(tmp_path / "runs.jsonl"):
+        assert record["duration_seconds"] >= 0 and record["peak_memory_mb"] > 0
 
 
 @pytest.mark.parametrize(("taken", "early"), [("2026-01-01T10:59:00+00:00", True), ("2026-01-01T11:00:00+00:00", False), (None, None)])

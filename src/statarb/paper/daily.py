@@ -36,7 +36,12 @@ any download. Each run:
    backup clone in `data/paper/backup/`, commits and pushes
    (`statarb.paper.backup`); a failure is recorded, not raised;
 8. appends a record of the run to `data/paper/runs.jsonl`, refused and failed
-   runs included.
+   runs included, with its duration and peak memory.
+
+Each stage (the frozen check, the snapshot, its tables, the reproduction
+check, each session, the backup) writes a line to stderr with a UTC timestamp
+as it starts and another with its duration as it ends, so a watcher or
+`daily.log` shows where a run is and where its time went.
 
 A second run with nothing due changes nothing but the run log.
 """
@@ -48,8 +53,10 @@ import datetime as dt
 import fcntl
 import json
 import os
+import resource
 import shutil
 import sys
+import time
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
@@ -77,6 +84,42 @@ DRIFT = Path("phase-06") / "drift"        # under [paths] reports: the weekly dr
 COMPLETE = "COMPLETE"
 FAILED = "failed.json"      # beside the tables: tickers the snapshot gave no bars for, failed downloads and failed rules
 PRICE_SOURCES = ("alpaca",)
+
+Log = Callable[[str], None]
+
+
+def stderr_log(message: str) -> None:
+    """A progress line on stderr, after the UTC time it was written."""
+    print(f"{dt.datetime.now(dt.UTC).isoformat(timespec='seconds')} {message}", file=sys.stderr, flush=True)
+
+
+def quiet(message: str) -> None:
+    """No progress lines: the default for a job built by hand, as the tests build it."""
+
+
+@contextmanager
+def stage(log: Log, name: str) -> Iterator[None]:
+    """A line as the stage starts and one with its duration as it ends, failed or not."""
+    log(f"{name}: started")
+    start = time.monotonic()
+    try:
+        yield
+    except BaseException:
+        log(f"{name}: failed after {time.monotonic() - start:.1f}s")
+        raise
+    log(f"{name}: done in {time.monotonic() - start:.1f}s")
+
+
+def peak_memory_mb() -> float:
+    """The larger of this process's peak resident memory and its largest child's, in MiB."""
+    unit = 1 if sys.platform == "darwin" else 1024    # ru_maxrss is bytes on macOS, kibibytes on Linux
+    peak = max(resource.getrusage(who).ru_maxrss for who in (resource.RUSAGE_SELF, resource.RUSAGE_CHILDREN))
+    return round(peak * unit / 2**20, 1)
+
+
+def run_cost(started: float) -> dict[str, float]:
+    """The run's duration from `started` (`time.monotonic`) and its peak memory so far."""
+    return {"duration_seconds": round(time.monotonic() - started, 1), "peak_memory_mb": peak_memory_mb()}
 
 
 @dataclass(frozen=True)
@@ -111,6 +154,8 @@ class Job:
     reproduce: Callable[[], Reproduction]
     snapshot: Callable[[], Snapshot]
     backup: Callable[[], backup_.BackupResult]
+    log: Log = quiet
+    started: float = field(default_factory=time.monotonic)    # `time.monotonic` when the run started, for its duration
 
 
 @dataclass(frozen=True)
@@ -139,7 +184,9 @@ def run_job(job: Job) -> RunResult:
     if problems:                                          # a damaged ledger is never backed up
         return _log(job, RunResult("refused", "the ledger needs attention before the run can continue", problems=tuple(problems)))
     result = _process(job, done, previous_backup(job.runs_log))
-    return _log(job, replace(result, backup=job.backup().text()))
+    with stage(job.log, "backup"):
+        backed = job.backup().text()
+    return _log(job, replace(result, backup=backed))
 
 
 def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
@@ -147,7 +194,8 @@ def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
     due = tuple(sessions_.due(job.sessions, job.now, job.first, done[-1] if done else None, job.run_time))
     if not due:
         return RunResult("nothing due", "no session is due")
-    check = job.reproduce()
+    with stage(job.log, "reproduction check"):
+        check = job.reproduce()
     if check.problems:
         return RunResult("refused", f"the frozen path no longer gives the metrics of log entry {check.entry}", due, problems=check.problems)
     snap = job.snapshot()
@@ -159,10 +207,11 @@ def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
         except MissingSession as err:
             message = f"stopped at {date:%Y-%m-%d}: {err}; the next run retries it"
             return RunResult("incomplete", message, due, tuple(processed), snap.name, snap.taken, reproduced=check.entry)
-        meta = ledger.DayMeta(job.strategy.book_size, job.config_hash, job.git.get("git_commit"), job.git.get("git_dirty"), snap.name)
-        frame, _ = ledger_day(inputs, carry, meta)
-        write_note(job.notes_root, frame, job.strategy, snap, check.entry, backed_up)   # first: a crash before the ledger day reruns the day
-        ledger.write_day(job.ledger_root, frame)
+        with stage(job.log, f"session {date:%Y-%m-%d}"):
+            meta = ledger.DayMeta(job.strategy.book_size, job.config_hash, job.git.get("git_commit"), job.git.get("git_dirty"), snap.name)
+            frame, _ = ledger_day(inputs, carry, meta)
+            write_note(job.notes_root, frame, job.strategy, snap, check.entry, backed_up)   # first: a crash before the ledger day reruns the day
+            ledger.write_day(job.ledger_root, frame)
         carry = ledger.carry_of(frame)
         processed.append(date)
     return RunResult("done", f"processed {len(processed)} session(s)", due, tuple(processed), snap.name, snap.taken, reproduced=check.entry)
@@ -174,12 +223,13 @@ def previous_backup(runs_log: Path) -> str:
     return results[-1] if results else "no earlier run has backed up the ledger"
 
 
-def run_record(now: dt.datetime, status: str, message: str) -> dict[str, Any]:
+def run_record(now: dt.datetime, status: str, message: str, started: float) -> dict[str, Any]:
     return {
         "recorded_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "as_of": now.astimezone(dt.UTC).isoformat(timespec="seconds"),
         "status": status,
         "message": message,
+        **run_cost(started),
     }
 
 
@@ -192,7 +242,7 @@ def snapshot_early(name: str | None, taken: str | None, run_time: dt.time) -> bo
 
 def _log(job: Job, result: RunResult) -> RunResult:
     record = {
-        **run_record(job.now, result.status, result.message),
+        **run_record(job.now, result.status, result.message, job.started),
         "due": [f"{d:%Y-%m-%d}" for d in result.due],
         "processed": [f"{d:%Y-%m-%d}" for d in result.processed],
         "problems": list(result.problems),
@@ -312,7 +362,7 @@ def download_snapshot(root: Path, day: dt.date) -> Path:
     tickers += [cfg["factors"]["market"], *cfg["factors"]["sectors"]]
     source = AlpacaSource(price_rules(name, root))   # reads the keys from the environment first
     d = cfg["download"]
-    return download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], day, d["pause_seconds"], d["retries"])
+    return download_prices(source, raw_root, sorted(set(tickers)), cfg["dates"]["start"], day, d["pause_seconds"], d["retries"], pin_hint=False)
 
 
 def build_tables(root: Path, snapshot: str, digest: str, out_dir: Path) -> None:
@@ -371,15 +421,19 @@ def pick_snapshot(raw_root: Path, source: str, day: dt.date, download: Callable[
     return found[-1]
 
 
-def daily_snapshot(root: Path, day: dt.date, download: bool) -> Snapshot:
+def daily_snapshot(root: Path, day: dt.date, download: bool, log: Log = quiet) -> Snapshot:
     cfg = load_config("data", root)
     raw_root = raw_store(cfg["paths"]["raw"], root)
-    path = pick_snapshot(raw_root, cfg["source"]["name"], day, (lambda d: download_snapshot(root, d)) if download else None)
+    with stage(log, f"price snapshot for {day}"):
+        path = pick_snapshot(raw_root, cfg["source"]["name"], day, (lambda d: download_snapshot(root, d)) if download else None)
     manifest = cache.read_manifest(path)
     processed = resolve_path(cfg["paths"]["paper"], root) / PROCESSED
     out_dir = processed / path.name
-    if not (out_dir / COMPLETE).exists():
-        build_tables(root, path.name, manifest["digest"], out_dir)
+    if (out_dir / COMPLETE).exists():
+        log(f"tables from snapshot {path.name}: reused")
+    else:
+        with stage(log, f"tables from snapshot {path.name}"):
+            build_tables(root, path.name, manifest["digest"], out_dir)
     for other in processed.iterdir():                 # derived and large: keep only the snapshot in use
         if other != out_dir and other.is_dir():
             shutil.rmtree(other)
@@ -427,9 +481,12 @@ def calendar_for(name: str, first: pd.Timestamp, today: dt.date) -> pd.DatetimeI
     return sessions_.market_sessions(name, first, pd.Timestamp(today))
 
 
-def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
-    """The real job: refuses first if the config is not the frozen one, before any download."""
-    config_hash = frozen.require(root)
+def build_job(root: Path, now: dt.datetime, download: bool, started: float | None = None, log: Log = stderr_log) -> Job:
+    """The real job: refuses first if the config is not the frozen one, before any download. `started` is
+    `time.monotonic` when the run started, for its duration; now if not given."""
+    started = time.monotonic() if started is None else started
+    with stage(log, "frozen check"):
+        config_hash = frozen.require(root)
     pc = load_paper_config(root)
     if pc.run.first is None:
         raise frozen.FrozenConfigError("[run] first_session in config/paper.toml is not set")
@@ -452,8 +509,10 @@ def build_job(root: Path, now: dt.datetime, download: bool) -> Job:
         config_hash=config_hash,
         git=experiments.git_state(root, ignore=tuple(str((reports / p).relative_to(root)) for p in (NOTES, DRIFT))),
         reproduce=lambda: reproduction(root, strategy),
-        snapshot=lambda: daily_snapshot(root, day, download),
+        snapshot=lambda: daily_snapshot(root, day, download, log),
         backup=lambda: backup_.sync(paper / LEDGER, paper / BACKUP, remote),
+        log=log,
+        started=started,
     )
 
 
@@ -462,14 +521,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-download", action="store_true", help="use the latest complete snapshot named no later than the run day instead of downloading")
     parser.add_argument("--now", help="run as of this time (ISO 8601 with an offset), for catch-up and checks")
     args = parser.parse_args(argv)
+    started = time.monotonic()
     now = dt.datetime.fromisoformat(args.now) if args.now else dt.datetime.now(dt.UTC)
     root = repo_root()
     paper = resolve_path(load_config("data", root)["paths"]["paper"], root)
     with locked(paper / LOCK):
         try:
-            result = run_job(build_job(root, now, not args.no_download))
+            result = run_job(build_job(root, now, not args.no_download, started))
         except Exception as err:                     # recorded for the drift report, then raised
-            experiments.append(paper / RUNS, [run_record(now, "failed", f"{type(err).__name__}: {err}")])
+            experiments.append(paper / RUNS, [run_record(now, "failed", f"{type(err).__name__}: {err}", started)])
             raise
     processed = [f"{d:%Y-%m-%d}" for d in result.processed]
     print(json.dumps({"status": result.status, "message": result.message, "processed": processed, "backup": result.backup}))

@@ -74,8 +74,11 @@ def download_prices(
     today: dt.date,
     pause: float,
     retries: int,
+    pin_hint: bool = True,
 ) -> Path:
-    """One snapshot of every ticker's bars before `today`, New York's date at the time of the download."""
+    """One snapshot of every ticker's bars before `today`, named for it: New York's date at the time of the
+    download, or the daily job's run day. `pin_hint` prints the setting that pins the snapshot for a build; the
+    daily job turns it off, since the forward run's pinned snapshot must not change."""
     writer = cache.SnapshotWriter(raw_root, source.name, today)
     no_data: list[str] = []
     failed: dict[str, str] = {}
@@ -116,8 +119,9 @@ def download_prices(
     }
     path = writer.commit(manifest)
     _log(f"prices: saved to {path}; no data {len(no_data)}, failed {len(failed)}")
-    _log(f"to build from it, set in [source] of config/data.toml: snapshot = \"{today}\", "
-         f"digest = \"{cache.read_manifest(path)['digest']}\"")
+    if pin_hint:
+        _log(f"to build from it, set in [source] of config/data.toml: snapshot = \"{today}\", "
+             f"digest = \"{cache.read_manifest(path)['digest']}\"")
     return path
 
 

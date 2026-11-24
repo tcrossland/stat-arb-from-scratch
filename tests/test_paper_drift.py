@@ -13,7 +13,7 @@ from runner_helpers import market_long, market_settings
 from statarb.config import OVERLAY_ENV, repo_root
 from statarb.data import cache
 from statarb.io import write_parquet
-from statarb.paper import drift, ledger
+from statarb.paper import drift, ledger, report
 from statarb.paper.config import TRAILING
 from statarb.paper.day import (
     backtest_path,
@@ -213,6 +213,22 @@ def test_run_summary_counts_statuses_and_failed_backups() -> None:
     s = drift.run_summary(runs)
     assert s["runs"] == 4 and s["by_status"] == {"done": 1, "nothing due": 1, "refused": 1, "failed": 1}
     assert [r["status"] for r in s["trouble"]] == ["refused", "failed"] and len(s["backup_failures"]) == 1
+
+
+def test_run_summary_states_the_run_time_and_peak_memory_of_the_runs_that_recorded_them() -> None:
+    runs = [
+        {"status": "done", "as_of": "a"},                                                   # logged before either was recorded
+        {"status": "done", "as_of": "b", "duration_seconds": 60.0, "peak_memory_mb": 3072.0},
+        {"status": "nothing due", "as_of": "c", "duration_seconds": 3.0, "peak_memory_mb": 200.0},
+        {"status": "done", "as_of": "d", "duration_seconds": 900.0, "peak_memory_mb": 2048.0},
+    ]
+    s = drift.run_summary(runs)
+    assert s["timed"] == 3 and s["median_seconds"] == 60.0 and s["longest"]["as_of"] == "d" and s["peak"]["as_of"] == "b"
+    assert report._cost_line(s) == (
+        "- Run time over the 3 runs that recorded it: median 1.0 min, longest 15.0 min (as of d). "
+        "Highest peak memory: 3.0 GiB (as of b)."
+    )
+    assert report._cost_line(drift.run_summary(runs[:1])) == "- Run time and peak memory: not recorded by any run yet."
 
 
 def _drift(run) -> drift.Drift:

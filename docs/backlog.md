@@ -12,13 +12,6 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ## Next
 
-### Progress log for the daily job
-
-- **Trigger:** the first deliberate pull into the job's clone, or sooner if a run's duration or stall needs diagnosing. It changes no frozen file or logged result, so it can merge to `main` during the run; the clone gets it only at that pull, which then needs a run that passes the reproduction check.
-- **Target:** the next deliberate pull into the job's clone.
-- **Why:** the daily job reports progress only while it downloads (`prices: i/N` every 50 tickers, then the saved path), and then nothing until its final JSON line; no line carries a time. Building the day's tables, the reproduction check, each session, the notes and the backup run silently, so a watcher cannot tell a slow stage from a hung one, and an unattended run's `daily.log` cannot say where the time went. The download also prints the build's hint to pin the new snapshot in `[source]` of `config/data.toml`, which for a forward-run snapshot is the one thing the fresh holdout forbids. Peak memory is recorded nowhere; `docs/requirements.md` needs it.
-- **Action:** in `statarb.paper.daily`, log each stage to stderr with a UTC timestamp and its duration: the frozen check, the download, the tables built, the reproduction check, each session processed, the backup. Let `download_prices` leave out the pinning hint when the daily job calls it. Record the run's duration and peak memory (`resource.getrusage`, children included) in its line of `data/paper/runs.jsonl`, add both to `docs/data-model.md`, and let the drift report's operations section show them. Tests on the synthetic job: the stages appear in order, and the hint does not.
-
 ### Tolerance for a rebuild from another snapshot
 
 - **Trigger:** a daily-job snapshot is four weeks past the pinned one of 2026-11-16, from about 2026-12-14, or the repository is about to go public, whichever comes first. [Decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md) says the tolerance is measured and stated before publication.
