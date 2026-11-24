@@ -81,6 +81,8 @@ The expectation, stated before any run: momentum probably does not clear the bar
 ## Backlog items this phase takes up
 
 - **"Other strategies on free daily data":** momentum, from its list. The item stays for the other candidates.
+- **"Splits and dividends for MarketParquet's symbols from Alpaca":** its trigger is this phase's cost model, which has no unadjusted prices on this universe without it. The revision takes it up first, or runs momentum gross and at a flat cost per dollar traded and says so (see "What phase 7 found").
+- **"Why the two sources' closes and volumes differ before 2023":** its trigger is this phase's decision record, since the one read of the years before 2016 rests on closes from years where the disagreement is unexplained.
 - **"Combining strategies":** its trigger, a second strategy evaluated alone, arrives at this phase's review. It is the natural phase 9 and is not started here.
 
 ## Deliverables
