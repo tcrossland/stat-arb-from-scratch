@@ -2,6 +2,10 @@
 
 Drafted on 2026-11-19, during the forward run and before phase 7. To be revised at the start of the phase with what phase 7 and the forward run's review find. "What would change this brief" below says which findings would replace it.
 
+## A momentum forward run, ahead of the phase
+
+Added on 2026-11-25. [Decision record 0010](../../decisions/0010-momentum-forward-run.md) starts a momentum forward run beside the reversal run, on the same sessions (2026-11-16 to 2027-01-13) and the same Alpaca snapshots, before the rest of this phase. It runs the two signals of scope step 2 through the decile sort on the frozen universe, not on the `listed` universe, and its two development backtests are trials of this phase. The [plan](../../plans/momentum-forward-run.md) gives its stages. The sections below are amended where they meet it; the rest of the phase still waits for the forward run's review.
+
 ## What phase 7 found, for the revision
 
 Added on 2026-11-22, after the [phase 7 review](../phase-07/review.md). The brief below is as drafted before phase 7 and is not yet revised: this lists what the revision has to take in. The numbers are in the review and its reports.
@@ -33,7 +37,7 @@ The expectation, stated before any run: momentum probably does not clear the bar
 
 ## Before the phase starts
 
-- **The forward run's review is written.** The backlog's "Other strategies on free daily data" puts the choice of the next strategy there, and a run that did not match its backtest comes first.
+- **The forward run's review is written.** The backlog's "Other strategies on free daily data" puts the choice of the next strategy there, and a run that did not match its backtest comes first. The momentum forward run of record 0010 is the exception: it starts before the review.
 - **Phase 7's review says the new universe can carry a strategy:** the sources agree, and the cost model has unadjusted prices or a stated substitute.
 - **A check that costs nothing:** read published returns of US large-cap momentum since 2000 from a source whose terms allow it, such as Jensen, Kelly and Pedersen (2023), terms not yet read. If the gross return there is near zero, see "What would change this brief".
 - **A decision record for the strategy,** before its first run, as the backlog requires. It fixes:
@@ -46,7 +50,7 @@ The expectation, stated before any run: momentum probably does not clear the bar
 
 - **Reversal's unread years, 2000 to 2015.** Every reversal configuration was chosen on 2016 to 2025 and none has seen these years. They are read once, as the phase 5 holdout was.
 - **Momentum, 2000 to 2026-11-13.** No year is unseen for momentum, since its record over this period is published. Its protection is a configuration fixed in advance and a small number of paths, not a holdout.
-- **No day from 2026-11-16 on,** as in phase 7, unless the forward run has ended and its review has released them.
+- **No day from 2026-11-16 on,** as in phase 7, unless the forward run has ended and its review has released them. The one exception is the momentum forward run's job (record 0010), which reads them as the reversal run's daily job does.
 - **Warm-up.** The first signal date follows from the longest window, so momentum's first book is about a year after the first bar.
 
 ## Scope
@@ -69,6 +73,7 @@ The expectation, stated before any run: momentum probably does not clear the bar
    - a bound on the difference in dividend yield between the legs, if returns are price returns;
    - which way survivorship cuts for each leg, as phase 7 measured it.
 6. **Momentum's correlation with reversal,** daily and by year, for the paths of step 3 against the reversal headline. Reported and not acted on: it is the input "Combining strategies" needs.
+7. **The momentum forward run** of record 0010, started ahead of the other steps: its results from 2026-11-16 and from its first session processed on time, its late sessions, and its daily correlation with the reversal run over the same sessions.
 
 ## Design points
 
@@ -87,7 +92,7 @@ The expectation, stated before any run: momentum probably does not clear the bar
 
 ## Deliverables
 
-1. The strategy's decision record.
+1. The strategy's decision record, and record 0010 for the forward run.
 2. The momentum signals in `statarb.signals`, registered by name, with their tests.
 3. The runner that reads reversal's unread years once, and the momentum runner, each logging to `reports/phase-08/experiments.jsonl`.
 4. `reports/phase-08/`: the report on reversal's unread years, the momentum report and their charts.
@@ -113,7 +118,7 @@ The expectation, stated before any run: momentum probably does not clear the bar
 
 ## Out of scope
 
-The combination with reversal. Low volatility and betting against beta. Any ML forecast of momentum. Industry momentum, which needs sectors. Intraday bars and futures. A forward run of momentum.
+The combination with reversal. Low volatility and betting against beta. Any ML forecast of momentum. Industry momentum, which needs sectors. Intraday bars and futures. A forward run of momentum on the `listed` universe, which would need MarketParquet's subscription for new sessions and a record under 0008.
 
 ## What would change this brief
 
