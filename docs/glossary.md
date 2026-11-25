@@ -11,7 +11,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | Symbol | Meaning | Phase |
 |---|---|---|
 | *t* | the trading day a decision is made on | all |
-| *n* | lookback: the days of residuals summed into the signal | 2 |
+| *n* | lookback: the days of residuals summed into the reversal signal | 2 |
 | *k* | holding period: the days each decile portfolio is held | 2 |
 | *b* | the AR(1) slope of the s-score's fit | 2 |
 | *s* | the time of a fill on the engine's grid of opens and closes | 3 |
@@ -125,13 +125,19 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Reversal (mean reversion).** The tendency of a large move to be partly undone over the following days.
 
-**Lookback (*n*).** The number of days of residuals summed into the signal.
+**Lookback (*n*).** The number of days of residuals, or of total returns in the raw-return control, summed into the reversal signal. Momentum's 252-day window is a different quantity and is not written *n*.
 
 **Decile portfolio (decile sort).** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted, half the gross on each side. Each leg holds the floor of 10% of the members with a signal.
 
 **Holding period (*k*) and slices.** Each day's decile portfolio is held for *k* days. The book is the average of the last *k* daily portfolios, so 1/*k* of it is replaced each day.
 
 **Raw-return control.** The same portfolio built from total returns instead of residuals, to show what the factor model adds.
+
+**Momentum.** The tendency of the stocks that rose most over the past year to go on outperforming those that fell most, for some months. Total-return momentum (Jegadeesh and Titman, 1993) scores a stock on *t* by its compounded total return over the 252 trading days that end 21 days before *t*. The sign is the opposite of reversal's: the high scores, which the decile sort buys, are the past year's winners. A stock needs a value on every day of the window, so it has no score until its 273rd day, nor on the 252 days whose window holds a missing one. A return of −100% scores −1 on every day whose window holds it and is otherwise complete. Registered as `momentum` (`statarb.signals.momentum`). Phase 8.
+
+**Skip month.** The 21 trading days up to and including *t*, *t* − 20 to *t*, which momentum's window leaves out. Their return is short-term reversal, which runs against momentum, so leaving them in would mix the two signals. A move in them does not change the score on *t*.
+
+**Residual momentum.** Momentum on the factor model's residuals (Blitz, Huij and Martens, 2011): the sum of a stock's residuals over the same 252 days ending 21 days before *t*, divided by their standard deviation over those days. Taking out the stock's factor exposures leaves less of the market's swings in the score, which the paper finds gives lower volatility and smaller crashes than total-return momentum. Registered as `residual_momentum`. Phase 8.
 
 **s-score.** How far a stock's cumulated residual is from its equilibrium, in units of its equilibrium standard deviation, from an Ornstein-Uhlenbeck process fitted over a trailing window (Avellaneda and Lee, 2010). A threshold rule opens a position when it is far from zero and closes it near zero, so a position is held until the residual reverts. A phase 2 variant.
 

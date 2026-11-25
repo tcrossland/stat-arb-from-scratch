@@ -32,12 +32,14 @@ COLUMNS = {
 
 
 # Parameters for each registered signal, chosen so every part of it runs: a multi-day,
-# volatility-scaled reversal and a centred s-score on a window short enough for the fixture.
+# volatility-scaled reversal, a centred s-score and momentum on windows short enough for the fixture.
 PARAMS = {
     "residual": {"lookback_days": 3, "vol_scaled": True, "vol_window_days": 60, "vol_min_observations": 45},
     "raw": {"lookback_days": 3, "vol_scaled": True, "vol_window_days": 60, "vol_min_observations": 45},
     "sscore": {"window_days": 30, "max_reversion_days": 30, "centre_means": True, "sector_etfs": MARKET_ETFS},
     "model": {"config": market_config(), "horizon": 3},
+    "momentum": {"window_days": 20, "skip_days": 5},
+    "residual_momentum": {"window_days": 20, "skip_days": 5},
 }
 
 

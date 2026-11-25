@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 from statarb.signals.base import Signal
+from statarb.signals.momentum import MomentumSignal
 from statarb.signals.reversal import ReversalSignal
 from statarb.signals.sscore import SScoreSignal
 
@@ -28,6 +29,8 @@ SIGNALS: dict[str, Callable[..., Signal]] = {
     "raw": lambda **p: ReversalSignal("raw", "raw", **p),
     "sscore": lambda **p: SScoreSignal(**p),
     "model": _model_forecast,     # the phase 5 walk-forward forecast, from config/models.toml
+    "momentum": lambda **p: MomentumSignal("momentum", "raw", **p),                     # phase 8
+    "residual_momentum": lambda **p: MomentumSignal("residual_momentum", "residual", **p),
 }
 
 # Signals ranked into decile books; the s-score has its own threshold rule.
