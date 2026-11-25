@@ -1,7 +1,7 @@
 # 0007: The forward run: its strategy, first session and schedule
 
 **Date:** 2026-11-17
-**Status:** accepted
+**Status:** accepted. Its item 4 is amended by [decision record 0010](0010-momentum-forward-run.md), which adds the momentum job to what reads the forward days.
 
 ## Context
 
