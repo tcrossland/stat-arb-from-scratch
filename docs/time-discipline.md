@@ -72,6 +72,8 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 5 | Model of the test block starting on *s*, and its grid point | those training rows only: each grid point fitted on the inner training rows and scored on the validation rows, the chosen point refitted on all of them | after the close of *s* |
 | 5 | Model forecast on *t* in that block | the block's model and the features on *t* | after the close of *t* |
 | 5 | Calibrated forecast on *t* | the forecast on *t*, and phase 3's slope from forecast-outcome pairs whose 5-day residual outcome is known by the close of *t* | after the close of *t* |
+| 8 | Total-return momentum on *t* | the total returns on the 252 trading days ending *t* − 21, every one of them present, compounded; scored from the stock's first residual on | after the close of *t* − 21, as the score on *t* |
+| 8 | Residual momentum on *t* | the residuals on the 252 trading days ending *t* − 21, every one of them present: their sum over their standard deviation over those days | after the close of *t* − 21, as the score on *t* |
 
 Notes for phase 0:
 
@@ -152,3 +154,10 @@ Notes for phase 7:
 - The survivorship measurement's `survivors` universe keeps the symbols without the delisted suffix, which is look-ahead on purpose: it is the bias being measured. `statarb.backtest.survivorship.survivors_universe` builds it, takes the suffix as an argument and is called nowhere else. For the other universes on the second source, `tests/test_survivorship.py` replaces every suffix with a label that means nothing and requires every path's target book to be the same weights on the same securities.
 - Model B on the second source is fitted month by month on the symbols chosen at that month's ranking or an earlier one (`pca_residuals_to_date`), so a residual on *t* rests on no ranking and no return after *t*; a test changes both and requires the earlier residuals to be unchanged. On the existing universe Model B is fitted on today's S&P 500 throughout, which is that universe's survivorship.
 - The delisting sensitivity adds a loss where the engine closed a stopped name, to names picked by their price path into the last bar. It is computed after the fact from each path's holdings and changes no position.
+
+Notes for phase 8:
+
+- Momentum's window ends 21 trading days before *t*, so the returns of *t* − 20 to *t*, the skip month, never enter the score on *t*. Their return is short-term reversal, which runs against momentum (`statarb.signals.momentum`). `tests/test_momentum.py` shocks each of those 21 days and requires the score on *t* to be unchanged, and shocks *t* − 21 and requires it to move.
+- The score on *t* is fixed at the close of *t* − 21, 21 sessions before the decision. That does not move the trade: it is the signal on *t*, and a book decided from it trades at the fill times of the rules above.
+- The window and the skip count rows of the market ETF's calendar (`Tables.dates`), not a stock's own bars. As with reversal, a score needs every day of its window present, so a stock with a missing bar has no score for the 252 days whose window spans it.
+- `tests/contract/test_signals.py` runs both signals through the look-ahead test with later values perturbed and with later rows removed, on a window and skip short enough for its synthetic market; `tests/test_momentum.py` runs both forms again at the default 252 and 21 days.
