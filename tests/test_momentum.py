@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from helpers import MARKET_CAL, MARKET_ETFS, synthetic_market
+from statarb.data import marketparquet as mp
 from statarb.signals.momentum import MomentumSignal, momentum_signal
 from statarb.signals.registry import make_signal
 from statarb.signals.tables import TABLES, build_tables
@@ -140,3 +141,22 @@ def test_default_momentum_has_no_look_ahead_when_later_rows_are_removed(name: st
     live = _frame(truncate_after(long, cutoff), name).reindex(columns=whole.columns)
     assert whole.notna().any().any()
     pd.testing.assert_frame_equal(whole, live, check_exact=True, check_freq=False)
+
+
+DEAD = [f"S{i:02d}" for i in (3, 8, 13, 21)]      # carry the suffix in every table
+
+
+def _suffixed(suffix: str) -> dict[str, pd.DataFrame]:
+    names = {t: f"{t}{suffix}" for t in DEAD}
+    return {name: frame.assign(ticker=frame["ticker"].replace(names)) for name, frame in _long().items()}
+
+
+@pytest.mark.parametrize("name", ["momentum", "residual_momentum"])
+def test_the_suffix_decides_no_momentum_score(name: str) -> None:
+    """Decision record 0008, point 8, as phase 7 checks it: with every suffix replaced by a label that
+    means nothing, each security has the same scores on the same days."""
+    plain = _frame(_suffixed(mp.SUFFIX), name)
+    other = _frame(_suffixed("~7"), name)
+    back = other.rename(columns=lambda t: t.replace("~7", mp.SUFFIX))
+    pd.testing.assert_frame_equal(plain, back[plain.columns], check_exact=True, check_freq=False)
+    assert plain.loc[:, plain.columns.str.endswith(mp.SUFFIX)].notna().any().all()   # the suffixed names are scored
