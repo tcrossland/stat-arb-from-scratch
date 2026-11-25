@@ -109,3 +109,17 @@ def test_a_clone_of_another_remote_is_refused(tmp_path, remote) -> None:
     result = backup.sync(root, clone, str(other))
     assert result.status == "failed" and backup.REMOTE_ENV in result.message
     assert str(other) not in result.message and str(clone) not in result.message
+
+
+def test_two_ledgers_share_one_clone_in_folders_of_their_own(tmp_path, remote) -> None:
+    """The momentum run's two paths (decision record 0010) back up to one repository."""
+    clone = tmp_path / "clone"
+    _write(tmp_path / "a", *DAYS[:2])
+    _write(tmp_path / "b", DAYS[0], content=b"other")
+    assert backup.sync(tmp_path / "a", clone, str(remote), "total-return", "X_REMOTE").status == "pushed"
+    assert backup.sync(tmp_path / "b", clone, str(remote), "residual", "X_REMOTE").status == "pushed"
+    files = _remote_files(remote)
+    assert {n.split("/")[0] for n in files} == {"total-return", "residual"} and len(files) == 3
+    assert files[f"residual/{ledger.path_for(tmp_path / 'b', DAYS[0]).name}"] == "other 2027-01-04"
+    assert backup.sync(tmp_path / "a", clone, str(remote), "total-return", "X_REMOTE").status == "up to date"
+    assert "X_REMOTE" in backup.sync(tmp_path / "a", clone, "", "total-return", "X_REMOTE").message
