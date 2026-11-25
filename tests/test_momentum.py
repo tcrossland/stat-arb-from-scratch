@@ -92,14 +92,15 @@ def test_a_total_loss_scores_minus_one_and_an_impossible_return_counts_as_missin
 def test_a_symbol_with_too_little_history_scores_nan(source: str) -> None:
     series = _series()
     series.iloc[:20, 1] = np.nan                              # S1 lists on row 20
-    series.iloc[30, 2] = np.nan                               # S2 misses a day
+    series.iloc[300, 2] = np.nan                              # S2 misses a day, after the warm-up
     out = momentum_signal(series, source, WINDOW, SKIP)
     warm = WINDOW + SKIP - 1                                  # the first row with a full window
     assert out.iloc[:warm].isna().all().all() and out.iloc[warm:]["S0"].notna().all()
     assert out["S1"].iloc[: 20 + warm].isna().all() and out["S1"].iloc[20 + warm :].notna().all()
     missing = out["S2"].isna()
-    assert missing.iloc[30 + SKIP : 30 + SKIP + WINDOW].all()  # every window over the missing day
-    assert not missing.iloc[30 + SKIP + WINDOW :].any()
+    held = slice(300 + SKIP, 300 + SKIP + WINDOW)             # the rows whose window holds row 300
+    assert missing.iloc[held].all()
+    assert not missing.iloc[warm : 300 + SKIP].any() and not missing.iloc[300 + SKIP + WINDOW :].any()
 
 
 def test_momentum_rejects_an_unsorted_series_and_bad_parameters() -> None:
