@@ -31,7 +31,7 @@ cd stat-arb-forward && uv sync --locked
 
 Keep the clone outside Desktop, Documents and Downloads, where macOS limits background access. The run's own files live in the clone's `data/paper/`: the ledger, the run log, the daily tables and the backup clone. Never delete that folder.
 
-Update the clone only deliberately (section 6), then run the job by hand and check that the reproduction check passes. A change that moves the frozen path's metrics or the frozen config makes the job refuse, and that is a new decision record, not an update.
+Update the clone only deliberately, and check after each update that the frozen path still reproduces (section 6). A change that moves the frozen path's metrics or the frozen config makes the job refuse, and that is a new decision record, not an update.
 
 ## 2. The backup repository
 
@@ -230,33 +230,35 @@ cron skips a time at which the host was off; the next day's run catches up. A sy
 
 ### Each week
 
-After the drift report, commit the week's daily notes and the report in one pull request. Make the branch in a separate worktree, so the job's clone stays on `main`. The job ignores the two folders when it records whether the tree is clean, so the notes it has not committed do not mark later runs as dirty. From the job's clone:
+After the drift report, commit the week's daily notes and the report in one pull request. Make the branch in a separate worktree, so the job's clone stays on `main`. The job ignores the two folders when it records whether the tree is clean, so the notes it has not committed do not mark later runs as dirty. Each command changes into the job's clone first, so it can run from any folder; from a development checkout, the same steps would branch from it and copy its notes instead.
 
 ```bash
-git fetch && git worktree add ../stat-arb-week -b docs/week-2026-11-23 origin/main
+cd /path/to/stat-arb-forward && git fetch && git worktree add ../stat-arb-week -b docs/week-2026-11-23 origin/main
 ```
 
 ```bash
-cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/
+cd /path/to/stat-arb-forward && cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/
 ```
 
 ```bash
-git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift && git -C ../stat-arb-week commit -m "docs(phase-06): add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
+cd /path/to/stat-arb-forward && git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift && git -C ../stat-arb-week commit -m "docs(phase-06): add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
 ```
 
-Open the pull request, then remove the worktree with `git worktree remove ../stat-arb-week`.
+Open the pull request, then remove the worktree with `cd /path/to/stat-arb-forward && git worktree remove ../stat-arb-week`.
 
-**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With neither job running, move the two folders aside, pull, and put back the notes `main` does not have yet:
+**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With neither job running, move the two folders aside, pull, and put back the notes `main` does not have yet. It is one command, so it can run from any folder: it changes into the clone first, and stops at the first step that fails. Run from a development checkout, the same steps would move that checkout's tracked notes instead. `mkdir` fails if `../stat-arb-aside` is left from an earlier pull; delete it first, once its notes match the clone's.
 
 ```bash
-mkdir -p ../stat-arb-aside && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/
+cd /path/to/stat-arb-forward && mkdir ../stat-arb-aside && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/ && git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/phase-06/
 ```
+
+Then check that the config still matches the frozen record and that the frozen path still reproduces. A run by hand with no session due skips the reproduction check, so run both checks on their own, offline and without keys, with the raw store that holds the pinned snapshot:
 
 ```bash
-git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/phase-06/
+cd /path/to/stat-arb-forward && uv run --offline --locked python -m statarb.paper.frozen && STATARB_RAW=/path/to/raw uv run --offline --locked python -m statarb.paper.reproduce
 ```
 
-Then run the job by hand and check that the reproduction check passes (section 1).
+Once both pass, delete `../stat-arb-aside`: the clone now holds every note in it.
 
 ### Exploring the ledger
 
