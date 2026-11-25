@@ -159,6 +159,14 @@ From step 3, every runner behaves the same way in four respects:
 
     It runs the phase 2 headline's settings over development on the existing universe and on three universes of the second source: today's S&P 500, every listed symbol still trading at the download, and every listed symbol of the day. Each runs on returns and on Model B's residuals, fitted month by month on the members to date; Model A runs where sectors exist. It needs step 5's Model B table too. It logs the seven paths on the second source, and Model B's residuals on the existing universe, to `reports/phase-07/experiments.jsonl` and writes `reports/phase-07/survivorship.md` with its chart. `--no-log` runs without logging.
 
+13. *(phase 8)* Check the momentum forward run's development backtest, on the snapshot pinned in `config/data.toml`:
+
+    ```bash
+    uv run python -m statarb.paper.momentum reproduce
+    ```
+
+    It builds the tables from the pinned snapshot into `data/paper-momentum/reference/`, runs each path of [decision record 0010](decisions/0010-momentum-forward-run.md) over development, cut at the day before the forward run's first session, and requires the metrics of its entry in `reports/phase-08/experiments.jsonl` exactly. The entries were logged once by `statarb.paper.momentum backtest`, which refuses a path already logged, so this check is how to rebuild them. On a snapshot you downloaded it reports the metrics that differ. [Running the daily job](daily-job.md) sets up the run itself.
+
 ## Checking your results
 
 Every backtest result from phase 2 is logged with its configuration and `config_id` in `reports/phase-NN/experiments.jsonl`, and each phase review links to the report that holds its numbers. What you can expect to match depends on your snapshot:

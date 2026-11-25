@@ -1,4 +1,5 @@
-"""The forward run's days are a fresh holdout (decision record 0007): no backtest reads them."""
+"""The forward run's days are a fresh holdout (decision record 0007): no backtest reads them. The momentum
+forward run (record 0010) shares its sessions, so its backtest stops on the same day."""
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import pytest
 from helpers import MARKET_CAL, MARKET_ETFS, synthetic_market
 from statarb.config import load_config, repo_root
 from statarb.io import write_parquet
+from statarb.paper import momentum
 from statarb.paper.config import Run, load_paper_config
 from statarb.signals.tables import TABLES, build_tables, cut_after, load_tables
 
@@ -44,3 +46,10 @@ def test_the_phase_5_holdout_ends_before_the_forward_run_starts() -> None:
         pytest.skip("the forward run's first session is not set")
     holdout_end = pd.Timestamp(load_config("models", repo_root())["period"]["holdout_end"])
     assert holdout_end < first
+
+
+def test_the_momentum_run_starts_with_the_reversal_run_and_its_backtest_stops_before_both() -> None:
+    reversal = load_paper_config(repo_root()).run
+    forward = momentum.load_momentum_config(repo_root())
+    assert forward.first == reversal.first == pd.Timestamp("2026-11-16")
+    assert forward.last_before == reversal.last_before == pd.Timestamp("2026-11-15")

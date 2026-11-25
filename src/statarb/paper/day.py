@@ -35,7 +35,8 @@ from statarb.backtest.engine import (
     daily_rates,
     run,
 )
-from statarb.backtest.sweep import targets
+from statarb.backtest.rules import DecileRule
+from statarb.backtest.sweep import start_index, targets
 from statarb.models.backend import Model
 from statarb.models.features import build_features
 from statarb.models.forecast import saved_forecast
@@ -61,8 +62,11 @@ from statarb.paper.ledger import Carry, DayMeta, DayTotals, day_frame
 from statarb.paper.loop import live_step
 from statarb.portfolio.optimiser import DayNote
 from statarb.portfolio.run import PortfolioLab
-from statarb.signals.base import Scores
+from statarb.signals.base import Scores, Signal
 from statarb.signals.calibration import expected_move
+from statarb.signals.registry import make_signal
+
+MOMENTUM_SIGNALS = ("momentum", "residual_momentum")    # decision record 0010
 
 
 class MissingSession(RuntimeError):
@@ -70,16 +74,43 @@ class MissingSession(RuntimeError):
 
 
 @dataclass(frozen=True)
+class MomentumRule:
+    """A momentum signal through the decile sort, held in overlapping slices: a path of decision record 0010.
+
+    It reads no calibration: the decile sort ranks the signal itself, so the
+    ledger's expected move and slope are NaN on its days.
+    """
+
+    signal: str                       # "momentum" or "residual_momentum" in statarb.signals.registry
+    window_days: int
+    skip_days: int
+    decile: float                     # share of ranked members in each leg
+    holding_days: int                 # slices the book is averaged over
+
+    def validate(self) -> None:
+        if self.signal not in MOMENTUM_SIGNALS:
+            raise ValueError(f"a momentum rule runs one of {MOMENTUM_SIGNALS}, not {self.signal!r}")
+        if not 0 < self.decile <= 0.5:
+            raise ValueError("the decile must be above 0 and at most 0.5")
+        if self.holding_days < 1:
+            raise ValueError("the holding period must be at least one day")
+
+    def make(self) -> Signal:
+        return make_signal(self.signal, window_days=self.window_days, skip_days=self.skip_days)
+
+
+@dataclass(frozen=True)
 class Strategy:
     """The frozen strategy: what `strategy_panels` needs besides the tables."""
 
     settings: Settings
-    forecast: str                     # a [[variants]] name of config/costs.toml, or "model H=<horizon>"
+    forecast: str                     # a [[variants]] name of config/costs.toml, "model H=<horizon>", or a momentum rule's signal
     rule: str                         # DECILE, ZONE or OPTIMISER
     kappa: float | None               # the optimiser's cost multiplier
-    slope_rule: str
+    slope_rule: str                   # empty for a momentum rule, which reads no slope
     book_size: float
     models: tuple[tuple[pd.Timestamp, Model], ...] = ()   # a model forecast's block models, by first test date
+    momentum: MomentumRule | None = None                  # set for the momentum run of decision record 0010
 
     @property
     def horizon(self) -> int | None:
@@ -91,10 +122,15 @@ class Strategy:
             raise ValueError(f"the daily job fills a decision the next day; fill {s.pc.run.fill!r} fills it the same day")
         if self.rule not in (DECILE, ZONE, OPTIMISER) or (self.rule == OPTIMISER) != (self.kappa is not None):
             raise ValueError(f"the daily job runs the decile sort, the no-trade zone or the optimiser at a multiplier, not {self.rule!r}")
-        if self.slope_rule not in SLOPE_RULES:
-            raise ValueError(f"unknown slope rule {self.slope_rule!r}")
         if not self.book_size > 0:
             raise ValueError("the book size must be positive")
+        if self.momentum is not None:
+            self.momentum.validate()
+            if self.rule != DECILE or self.forecast != self.momentum.signal or self.slope_rule or self.models:
+                raise ValueError("a momentum strategy is its signal through the decile sort, with no slope rule and no model files")
+            return
+        if self.slope_rule not in SLOPE_RULES:
+            raise ValueError(f"unknown slope rule {self.slope_rule!r}")
         H = self.horizon
         if H is None:
             if self.forecast not in s.mc.runs.variants:
@@ -112,6 +148,13 @@ def strategy_of(settings: Settings, forecast: str, rule_label: str, slope_rule: 
     """The strategy from a rule as the logs label it (`statarb.paper.config.parse_rule`)."""
     rule, kappa = parse_rule(rule_label)
     s = Strategy(settings, forecast, rule, kappa, slope_rule, float(book_size), tuple(models))
+    s.validate()
+    return s
+
+
+def momentum_strategy(settings: Settings, rule: MomentumRule, book_size: float) -> Strategy:
+    """A momentum path of decision record 0010 as a strategy the daily job can step."""
+    s = Strategy(settings, rule.signal, DECILE, None, "", float(book_size), momentum=rule)
     s.validate()
     return s
 
@@ -140,6 +183,8 @@ class Panels:
 def forecast_signal(plab: PortfolioLab, strategy: Strategy) -> np.ndarray:
     """The strategy's forecast on every date of the lab: the variant's signal or the saved models' forecast."""
     lab = plab.lab
+    if strategy.momentum is not None:
+        return strategy.momentum.make().scores(lab.tables).score
     if strategy.horizon is None:
         return scores_of(lab, plab.variants[strategy.forecast]).score
     tables = lab.tables
@@ -151,6 +196,8 @@ def panels_on(plab: PortfolioLab, start: int, strategy: Strategy) -> Panels:
     """The strategy on a lab already cut, starting flat on date position `start`."""
     tables = plab.lab.tables
     signal = forecast_signal(plab, strategy)
+    if strategy.momentum is not None:
+        return momentum_panels(plab, start, strategy.momentum, signal)
     slopes = slope_of(plab, signal, strategy.slope_rule)
     move = expected_move(signal, tables.members, slopes)
     started = starting_at(plab, start, {strategy.forecast: move})
@@ -161,6 +208,16 @@ def panels_on(plab: PortfolioLab, start: int, strategy: Strategy) -> Panels:
     else:
         decided = targets(rule_variant(started, strategy.forecast), Scores(signal), lab.tables, lab.cfg)
     return Panels(started, start, signal, slopes, padded, decided)
+
+
+def momentum_panels(plab: PortfolioLab, start: int, rule: MomentumRule, signal: np.ndarray) -> Panels:
+    """A momentum rule's panels: the decile sort on the signal itself, with no calibration, so no slope and no expected move."""
+    started = starting_at(plab, start, {})
+    tables = started.lab.tables
+    T = len(tables.dates)
+    move = np.hstack([np.full(signal.shape, np.nan), np.zeros((T, len(tables.hedges)))])
+    decided = DecileRule(rule.decile, rule.holding_days).targets(Scores(signal), tables.members, start_index(tables, started.lab.cfg), len(tables.hedges))
+    return Panels(started, start, signal, np.full(T, np.nan), move, decided)
 
 
 def strategy_panels(long: Mapping[str, pd.DataFrame], last: pd.Timestamp, first: pd.Timestamp, strategy: Strategy) -> Panels:

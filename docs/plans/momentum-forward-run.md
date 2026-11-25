@@ -1,6 +1,6 @@
 # Momentum forward run
 
-Status: in progress, 2026-11-25. Stage 1 merged (pull request 31); stage 2, the signals, in review (pull request 32); stage 3 next.
+Status: in progress, 2026-11-25. Stages 1 and 2 merged (pull requests 31 and 32); stage 3, the job, built and its backtest not yet logged.
 
 ## Purpose
 

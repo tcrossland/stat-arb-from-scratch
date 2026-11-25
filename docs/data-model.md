@@ -282,6 +282,16 @@ Its hash, computed as `config_id` is, is `[frozen] config_hash` and the `config_
 
 `reports/phase-06/drift/YYYY-MM-DD.md` and a chart of the same name, one per run of `statarb.paper.drift`, named after the last ledger day it covers. Each covers the run from its first session: the live measures against the frozen path over development, each ledger day's measures, the changes between consecutive daily snapshots, the decisions rebuilt from the latest snapshot, and the run log's failures, run times and peak memory. A rerun with no new ledger day rewrites the same files. The dirty flag in the ledger and the run log ignores both directories, so an uncommitted note or report does not mark the next day dirty.
 
+### The momentum forward run
+
+Decision record 0010's run (`statarb.paper.momentum`) keeps the same records for each of its two paths, `total-return` and `residual`, named in `config/momentum_forward.toml`:
+
+- `data/paper-momentum/<path>/ledger/` and `data/paper-momentum/<path>/runs.jsonl`, with the columns and fields above. `expected_move` is NaN for stocks and zero for the hedge ETFs, and `slope` is NaN, since the decile sort reads neither.
+- `data/paper-momentum/processed/<snapshot>/` and `data/paper-momentum/reference/<snapshot>/`, the tables above built from the same snapshots as the reversal run's, in a directory of their own so neither job prunes the other's.
+- `data/paper-momentum/backup/`, a clone of the private repository in `STATARB_MOMENTUM_BACKUP_REMOTE`, with each path's ledger in a folder of the path's name.
+- `reports/phase-08/forward/frozen-<path>.json`, committed, written once after the path's backtest is logged: `strategy`, the `config` of its `momentum forward path` log entry less `kind`, `first_date`, `last_date` and `start`, plus `price_source`; `files`, as in the reversal run's record; and `momentum`, `config/momentum_forward.toml` without the hashes. Its hash is the path's `config_hash` there and in every ledger day.
+- `reports/phase-08/forward/daily/<path>/YYYY-MM-DD.md`, committed, a note per ledger day as above with no calibration slope. The dirty flag of either run ignores both runs' notes.
+
 ## Joins
 
 - `prices`, `actions`, `returns`, `residuals` and `residuals_pca` join on `date` and `ticker`. Never rely on index alignment.
@@ -319,3 +329,7 @@ Phase 6's choice runner (`statarb.paper.choice`) adds two more kinds, each with 
 
 - `choice path`, one per forecast, rule, slope rule and book size, on development dates. The trailing paths repeat phase 5's and must give its metrics. `slope_rule` is in `PATH_KEYS` but left out of the trial id when it is `trailing`, so a trailing path keeps its phase 5 id. `metrics` add `identical_to`: the name and book of the trailing path whose daily results this path equals, which then is not a trial; null otherwise. The decile sort does not read the slope, so it runs with the trailing slope only.
 - `diagnostic path`, the decile sort and the no-trade zone of each forecast with the trailing slope, from the first calibrated date through the holdout's last day, for the slope chart. Nothing is chosen from them, so `statarb.backtest.trials` never counts them (`NOT_TRIALS`).
+
+Decision record 0010's momentum forward run (`statarb.paper.momentum backtest`) adds one kind to `reports/phase-08/experiments.jsonl`, logged once from a clean tree:
+
+- `momentum forward path`, one per path: phase 3's position and cost keys with `book_size`, `no_trade_zone` false and `residuals` null (Model A), plus phase 5's `forecast` and `rule`, and no optimiser, model or slope. `signal` and `forecast` are the momentum signal's name, `source` `raw` or `residual`, `lookback_days` the window, `skip_days` the days left out before the decision, `rule` the decile sort, and `start` and `first_date` the first date with a book, `last_date` the day before the forward run's first session. `skip_days` is in `PATH_KEYS` and absent from every earlier entry, so those keep their ids. Each path is a trial.
