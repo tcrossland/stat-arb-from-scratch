@@ -73,6 +73,21 @@ def test_the_window_is_window_days_long(source: str) -> None:
     np.testing.assert_allclose(momentum_signal(_shocked(series, first - 1), source, WINDOW, SKIP).iloc[t], base, rtol=1e-12)
 
 
+def test_a_total_loss_scores_minus_one_and_an_impossible_return_counts_as_missing() -> None:
+    series = _series()
+    series.iloc[300, 1] = -1.0                                # S1 loses everything on row 300
+    series.iloc[300, 2] = -1.5                                # S2 has a return no share can have
+    with np.errstate(all="raise"):                            # no log of zero or of a negative number
+        out = momentum_signal(series, "raw", WINDOW, SKIP)
+    held = slice(300 + SKIP, 300 + SKIP + WINDOW)             # the rows whose window holds row 300
+    assert (out["S1"].iloc[held] == -1.0).all() and out["S2"].iloc[held].isna().all()
+    clean = momentum_signal(series.drop(columns=["S1", "S2"]), "raw", WINDOW, SKIP)
+    pd.testing.assert_series_equal(out["S0"], clean["S0"])
+    for name in ("S1", "S2"):                                 # before and after those windows, scored as usual
+        rest = out[name].drop(out.index[held]).iloc[WINDOW + SKIP - 1 :]
+        assert rest.notna().all() and (rest > -1.0).all()
+
+
 @pytest.mark.parametrize("source", SOURCES)
 def test_a_symbol_with_too_little_history_scores_nan(source: str) -> None:
     series = _series()

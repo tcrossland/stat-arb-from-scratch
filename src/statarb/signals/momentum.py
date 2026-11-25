@@ -35,6 +35,10 @@ def momentum_signal(series: pd.DataFrame, source: str, window: int = 252, skip: 
     unless all `window` of them are present. On total returns (`raw`) it is the
     compounded return over those rows; on residuals it is their sum over their
     standard deviation.
+
+    A return of -100% makes the compounded return -1 for every window that holds
+    it, the worst there is. A return below -100% is not a return a share can
+    have, and counts as a missing day.
     """
     if source not in SOURCES:
         raise ValueError(f"momentum source must be one of {sorted(SOURCES)}")
@@ -44,7 +48,12 @@ def momentum_signal(series: pd.DataFrame, source: str, window: int = 252, skip: 
         raise ValueError("the series must be sorted by date")
     lagged = series.shift(skip)                              # row t holds the value of row t - skip
     if source == "raw":
-        return np.expm1(np.log1p(lagged).rolling(window, min_periods=window).sum())
+        ret = lagged.where(lagged >= -1.0)
+        lost = ret.eq(-1.0)
+        # log1p(-1) is -inf, which a rolling sum turns into NaN: sum the other days, then mark the loss.
+        growth = np.expm1(np.log1p(ret.mask(lost, 0.0)).rolling(window, min_periods=window).sum())
+        losses = lost.astype(float).where(ret.notna()).rolling(window, min_periods=window).sum()
+        return growth.mask(losses > 0, -1.0)
     rolling = lagged.rolling(window, min_periods=window)
     return rolling.sum() / rolling.std()
 
