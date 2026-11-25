@@ -11,7 +11,9 @@ phase 5 model forecast the walk-forward that made it (`model`), and for a
 partial-adjustment path its trade-rate rule (`partial_adjustment`), and for a
 path on another universe than the one phase 0 built its name (`universe`, null
 for that one, so every earlier entry keeps its id) and the engine's rule for
-names whose bars stop where it is on (`close_after`, null where it is off). The count
+names whose bars stop where it is on (`close_after`, null where it is off), and for a
+momentum path the days its window ends before the decision (`skip_days`, null for
+every other signal). The count
 reads the experiment logs of the repository (`reports/phase-NN/experiments.jsonl`)
 up to a given phase, so a configuration tried in any phase counts against the
 best result of every later one, a later phase's trials leave an earlier
@@ -40,7 +42,7 @@ from statarb.backtest.experiments import config_id, read
 # a phase 2 entry and a phase 3 entry for the same path share an id.
 PATH_KEYS = (
     "signal", "source", "lookback_days", "vol_scaled", "holding_days", "fill", "decile", "start", "sscore", "no_trade", "residuals", "optimiser",
-    "model", "partial_adjustment", "slope_rule", "universe", "close_after",
+    "model", "partial_adjustment", "slope_rule", "universe", "close_after", "skip_days",
 )
 
 # The slope rule every phase before phase 6 used, left out of a path's id.
