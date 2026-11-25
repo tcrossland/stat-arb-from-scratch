@@ -11,7 +11,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 | Symbol | Meaning | Phase |
 |---|---|---|
 | *t* | the trading day a decision is made on | all |
-| *n* | lookback: the days of residuals summed into the signal | 2 |
+| *n* | lookback: the days of residuals summed into the reversal signal | 2 |
 | *k* | holding period: the days each decile portfolio is held | 2 |
 | *b* | the AR(1) slope of the s-score's fit | 2 |
 | *s* | the time of a fill on the engine's grid of opens and closes | 3 |
@@ -125,7 +125,7 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Reversal (mean reversion).** The tendency of a large move to be partly undone over the following days.
 
-**Lookback (*n*).** The number of days of residuals summed into the signal.
+**Lookback (*n*).** The number of days of residuals, or of total returns in the raw-return control, summed into the reversal signal. Momentum's 252-day window is a different quantity and is not written *n*.
 
 **Decile portfolio (decile sort).** Long the 10% of universe members with the highest signal and short the 10% with the lowest, equally weighted, half the gross on each side. Each leg holds the floor of 10% of the members with a signal.
 
