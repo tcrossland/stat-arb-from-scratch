@@ -40,6 +40,7 @@ The architecture and data model documents are empty until the first module lands
 ## How we work
 
 - File-first. Read the current phase brief before writing code, and do not start work that belongs to a later phase: record it in `docs/backlog.md` with a trigger instead.
+- When a task is one step of a phase, read the brief's Acceptance criteria and Deliverables before writing code, and say at the start which items bear on the step and which the task leaves out.
 - Decisions that change scope, data source or methodology go in `docs/decisions/NNNN-title.md` (short ADR: context, decision, consequences), with a line in the index.
 - Keep the reference docs in the table above current in the same change as the code.
 - Each number lives in one place: the phase review, or the generated report the review quotes. The README, the overview and every other page link to it rather than copy it, so a rerun that moves a number changes one file.
