@@ -128,6 +128,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.signals.tables` | 2 | The phase 0 and 1 tables as dates by tickers panels, the tables a signal may declare, the s-score's factor inputs, the stocks known on each day, and (from phase 5) the long tables cut at a date as a run on that day would load them. |
 | `statarb.signals.base` | 2 | The `Signal` protocol, and the scores and hedge ratios a signal returns. |
 | `statarb.signals.reversal` | 2 | Cross-sectional reversal on residuals or on total returns, optionally scaled by volatility, for the stocks known on the day. |
+| `statarb.signals.momentum` | 8 | Cross-sectional momentum on total returns or on residuals, over a window that ends a skip month before the day, the residual form scaled by its standard deviation over the window, for the stocks known on the day. |
 | `statarb.signals.sscore` | 2 | Avellaneda and Lee's s-score from a 60-day in-sample regression and an AR(1) fit, over the stocks known on the day. |
 | `statarb.signals.registry` | 2 | Every signal by the name config chooses it by; the look-ahead contract runs over it. |
 | `statarb.signals.calibration` | 3 | A signal in return units: the expected move over the next *k* days, from a trailing pooled regression on pairs whose outcome is known. |
@@ -190,7 +191,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `ConstituentSource` | `WikipediaConstituents` | fixed in phase 0 |
 | `FactorModel` | `EtfFactorModel` (Model A), `PcaFactorModel` (Model B) | `--model` of `statarb.factors.build`; each writes its own table |
 | `RiskModel` | `EtfRisk` (Model A), `PcaRisk` (Model B) | `[risk] model` of `config/portfolio.toml` for the headline; each path names its own |
-| `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`), `ForecastSignal` (`model`, phase 5) | name, in `[[signals]]`, `[headline]` and `[sscore]` of `config/backtest.toml`, through `statarb.signals.registry`; the model forecast by the phase 5 runner, from `config/models.toml` |
+| `Signal` | `ReversalSignal` on residuals (`residual`) and on total returns (`raw`), `SScoreSignal` (`sscore`), `ForecastSignal` (`model`, phase 5), `MomentumSignal` on total returns (`momentum`) and on residuals (`residual_momentum`, phase 8) | name, in `[[signals]]`, `[headline]` and `[sscore]` of `config/backtest.toml`, through `statarb.signals.registry`; the model forecast by the phase 5 runner, from `config/models.toml` |
 | `PortfolioRule` | `DecileRule`, `ThresholdRule` | the variant: decile signals take the decile rule, the s-score its thresholds |
 | `CostModel` | `FlatCost`, `TradingCost` | phase 2: the cost levels in `[costs]` of `config/backtest.toml`; phase 3: `[spread]`, `[impact]` and `[commission]` of `config/costs.toml` |
 | `Policy` (engine) | none, the default; `NoTradeZone`; `Optimiser` and `DecileSort`; `PartialAdjustment` (phase 5) | phase 3: each decile configuration runs with and without the zone; phase 4: each path is a decile sort or an optimiser setting; phase 5: `[runs] rules` of `config/models.toml` |
@@ -242,8 +243,8 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 
 | Library | Licence | Enters through | Used for |
 |---|---|---|---|
-| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables` and `backtest.engine`; `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | long-format tables, and the wide panels the backtest pivots them into |
-| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore`; `backtest.costs`, `backtest.spreads`, `signals.calibration`, `testing.prices`; `factors.pca`, `factors.compare`, `portfolio.optimiser`, `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
+| pandas | BSD-3-Clause | every `statarb.data` and `statarb.factors` module; `signals.tables`, `signals.momentum` and `backtest.engine`; `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | long-format tables, and the wide panels the backtest pivots them into |
+| NumPy | BSD-3-Clause, with bundled 0BSD, MIT, Zlib and CC0-1.0 parts | `canonical`, `testing.lookahead`, `factors.rolling`, `factors.model`; `backtest.engine`, `backtest.rules`, `signals.sscore`, `signals.momentum`; `backtest.costs`, `backtest.spreads`, `signals.calibration`, `testing.prices`; `factors.pca`, `factors.compare`, `portfolio.optimiser`, `portfolio.risk`, `portfolio.run`, `portfolio.report`; every `statarb.models` module but `config` | array arithmetic, seeded noise, the rolling regression, and the engine and s-score on dates by tickers arrays |
 | pyarrow | Apache-2.0 | `statarb.io` | parquet |
 | lxml | BSD-3-Clause | `statarb.data.wikipedia`, through `pandas.read_html` | parsing the constituent table |
 | matplotlib | Matplotlib License, based on the PSF licence | `statarb.factors.report`; `statarb.backtest.report`, `statarb.backtest.cost_report`; `statarb.factors.compare`, `statarb.portfolio.report`, `statarb.models.report` | charts, saved with no date or software metadata |
