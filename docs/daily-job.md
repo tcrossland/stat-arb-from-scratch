@@ -236,26 +236,26 @@ cron skips a time at which the host was off; the next day's run catches up. A sy
 
 ### Each week
 
-After the drift report, commit the week's daily notes and the report in one pull request. Make the branch in a separate worktree, so the job's clone stays on `main`. The job ignores the two folders when it records whether the tree is clean, so the notes it has not committed do not mark later runs as dirty. Each command changes into the job's clone first, so it can run from any folder; from a development checkout, the same steps would branch from it and copy its notes instead.
+After the drift report, commit the week's daily notes of both runs and the report in one pull request: the reversal run's notes and drift report in `reports/phase-06/`, and the momentum run's notes in `reports/phase-08/forward/daily/` ([decision record 0010](decisions/0010-momentum-forward-run.md), item 9). Make the branch in a separate worktree, so the job's clone stays on `main`. Both jobs ignore the three folders when they record whether the tree is clean, so the notes not yet committed do not mark later runs as dirty. Each command changes into the job's clone first, so it can run from any folder; from a development checkout, the same steps would branch from it and copy its notes instead.
 
 ```bash
 cd /path/to/stat-arb-forward && git fetch && git worktree add ../stat-arb-week -b docs/week-2026-11-23 origin/main
 ```
 
 ```bash
-cd /path/to/stat-arb-forward && cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/
+cd /path/to/stat-arb-forward && cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/ && cp -R reports/phase-08/forward/daily ../stat-arb-week/reports/phase-08/forward/
 ```
 
 ```bash
-cd /path/to/stat-arb-forward && git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift && git -C ../stat-arb-week commit -m "docs(phase-06): add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
+cd /path/to/stat-arb-forward && git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift reports/phase-08/forward/daily && git -C ../stat-arb-week commit -m "docs: add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
 ```
 
 Open the pull request, then remove the worktree with `cd /path/to/stat-arb-forward && git worktree remove ../stat-arb-week`.
 
-**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With neither job running, move the two folders aside, pull, and put back the notes `main` does not have yet. It is one command, so it can run from any folder: it changes into the clone first, and stops at the first step that fails. Run from a development checkout, the same steps would move that checkout's tracked notes instead. `mkdir` fails if `../stat-arb-aside` is left from an earlier pull; delete it first, once its notes match the clone's.
+**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With no job running, neither the daily job, the drift report nor the momentum job, move the three folders aside, pull, and put back the notes `main` does not have yet. Only the momentum run's `daily` folder moves: the frozen records beside it in `reports/phase-08/forward/` are tracked. It is one command, so it can run from any folder: it changes into the clone first, and stops at the first step that fails. Run from a development checkout, the same steps would move that checkout's tracked notes instead. `mkdir` fails if `../stat-arb-aside` is left from an earlier pull; delete it first, once its notes match the clone's.
 
 ```bash
-cd /path/to/stat-arb-forward && mkdir ../stat-arb-aside && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/ && git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/phase-06/
+cd /path/to/stat-arb-forward && mkdir ../stat-arb-aside && mkdir -p ../stat-arb-aside/phase-06 ../stat-arb-aside/phase-08/forward && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/phase-06/ && mv reports/phase-08/forward/daily ../stat-arb-aside/phase-08/forward/ && git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/
 ```
 
 Then check that the config still matches the frozen record and that the frozen path still reproduces. A run by hand with no session due skips the reproduction check, so run both checks on their own, offline and without keys, with the raw store that holds the pinned snapshot:
