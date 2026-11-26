@@ -1,6 +1,6 @@
 # Momentum forward run
 
-Status: in progress, 2026-11-25. Stages 1 and 2 merged (pull requests 31 and 32); stage 3, the job, built, and its backtest logged and frozen on 2026-11-26; stage 4 next.
+Status: done, 2026-11-26. Stages 1 to 3 merged (pull requests 31 to 33). Stage 4 on 2026-11-26: the sessions from 2026-11-16 to 2026-11-25 caught up, each from the snapshot the reversal ledger records for it, and the daily schedule started. The run ends with the session of 2027-01-13.
 
 ## Purpose
 
