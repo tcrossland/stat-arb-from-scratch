@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 import shutil
 import subprocess
 from zoneinfo import ZoneInfo
@@ -176,12 +177,21 @@ def test_the_development_backtest_reads_no_day_after_the_cut_and_starts_at_the_f
     assert momentum.development_paths(cut_after(long, cut), settings, cfg) == paths      # the later days are never read
 
 
+def test_the_repository_matches_its_momentum_frozen_records() -> None:
+    assert momentum.check(repo_root()) == []
+    for spec in momentum.load_momentum_config(repo_root()).runs:
+        assert momentum.frozen_entry(repo_root(), spec)["config_id"]
+
+
 # --- the backtest log and the frozen records, on a copy of the config -----------------------------------
 
 
 @pytest.fixture
 def root(tmp_path):
+    """A copy of the repository's config with no record frozen yet, and no log."""
     shutil.copytree(repo_root() / "config", tmp_path / "config")
+    path = tmp_path / "config" / f"{momentum.NAME}.toml"
+    path.write_text(re.sub(r'^config_hash = "[0-9a-f]*"$', 'config_hash = ""', path.read_text(), flags=re.MULTILINE))
     return tmp_path
 
 

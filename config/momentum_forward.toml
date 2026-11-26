@@ -26,9 +26,9 @@ paper = "data/paper-momentum"
 [[runs]]
 name = "total-return"
 signal = "momentum"
-config_hash = ""
+config_hash = "273b3ac1a2ad67b3"
 
 [[runs]]
 name = "residual"
 signal = "residual_momentum"
-config_hash = ""
+config_hash = "e901f3350a5861a7"
