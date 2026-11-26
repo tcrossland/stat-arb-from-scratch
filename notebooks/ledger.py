@@ -1,9 +1,10 @@
-"""Ledger explorer: the forward run's ledger, locally. See docs/plans/ledger-explorer.md.
+"""Ledger explorer: the forward runs' ledgers, locally. See docs/plans/ledger-explorer.md.
 
-    uv run --group explore marimo run notebooks/ledger.py -- --root <checkout>
+    uv run --group explore marimo run notebooks/ledger.py -- --root <checkout> --ledger <name>
 
-`--root` is the checkout whose ledger to read, by default this one. The views are in `statarb.paper.views`; this file
-only lays them out, with its theme in `ledger.css` beside it. It runs on the local machine only: decision record
+`--root` is the checkout whose ledgers to read, by default this one. `--ledger` is the ledger to open first: `reversal`,
+the default, or a momentum path by its name in config/momentum_forward.toml; a selector on the page switches between
+them. The views are in `statarb.paper.views`; this file only lays them out, with its theme in `ledger.css` beside it. It runs on the local machine only: decision record
 0003 forbids redistributing the data the ledger derives from, so nothing it shows is committed or published.
 """
 
@@ -15,7 +16,9 @@ app = marimo.App(width="medium", app_title="Ledger explorer", css_file="ledger.c
 
 @app.cell
 def _():
+    import base64
     import datetime as dt
+    import io
     from html import escape
     from pathlib import Path
 
@@ -28,11 +31,11 @@ def _():
     from statarb.data.schema import TICKER
     from statarb.paper import views
 
-    return FuncFormatter, Path, TICKER, dt, escape, mo, pd, plt, repo_root, views
+    return FuncFormatter, Path, TICKER, base64, dt, escape, io, mo, pd, plt, repo_root, views
 
 
 @app.cell
-def _(FuncFormatter, mo, plt):
+def _(FuncFormatter, base64, escape, io, mo, plt):
     # Chart style. Long and short, and the lines of one chart, take fixed colours in a fixed order; text stays in
     # ink, never in a series colour. The palette is chosen for the page's theme, not flipped.
     _dark = mo.app_meta().theme == "dark"
@@ -112,18 +115,48 @@ def _(FuncFormatter, mo, plt):
         """A bar width in day steps that stays thin: at most 24 pixels at the size the page shows the chart."""
         return min(0.6, 24 * days / (width * 100))
 
-    return INK, SERIES, WIDE, bar_width, canvas, compact, day_axis, legend, money, money_axis, percent_axis, signed, title, zero
+    LEAST = 720                                                   # pixels: the narrowest a WIDE chart is drawn
+
+    def chart(fig, alt: str, least: int | None = None):
+        """The figure as an image at its own size, 100 pixels an inch, shrinking to fit the page. With `least` it
+        shrinks no further than `least` pixels, in a box that scrolls sideways, so its text stays legible on a phone."""
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=200, facecolor=fig.get_facecolor(), metadata={"Software": None})
+        plt.close(fig)
+        width = round(fig.get_figwidth() * 100)
+        src = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        floor = f"min-width:{min(least, width)}px;" if least else ""
+        hint = '<p class="lx-scroll-hint">Scroll sideways for the whole chart.</p>' if least else ""
+        return mo.Html(f'<div class="lx-chart"><img src="{src}" alt="{escape(alt)}" style="width:{width}px;{floor}"></div>{hint}')
+
+    return INK, LEAST, SERIES, WIDE, bar_width, canvas, chart, compact, day_axis, legend, money, money_axis, percent_axis, signed, title, zero
 
 
 @app.cell
-def _(Path, mo, repo_root, views):
+def _(Path, escape, mo, repo_root, views):
+    # The ledger to open: the reversal run's, or a momentum path by the name config/momentum_forward.toml gives it.
     root = Path(mo.cli_args().get("root") or repo_root()).resolve()
-    loaded = views.load(root)
+    _names = views.ledgers(root)
+    _labels = {("Reversal" if n == views.REVERSAL else f"Momentum: {n}"): n for n in _names}
+    _asked = mo.cli_args().get("ledger") or views.REVERSAL
+    mo.stop(_asked not in _names, mo.callout(mo.md(f"No ledger `{_asked}` under `{root}`. The ledgers are "
+                                                   + ", ".join(f"`{n}`" for n in _names) + "."), kind="danger"))
+    which = mo.ui.dropdown(_labels, value=next(k for k, v in _labels.items() if v == _asked), label="Ledger")
+    mo.hstack([mo.Html('<div class="lx-header"><h1>Ledger explorer</h1></div>'), which], justify="space-between", align="center", wrap=True)
+    return root, which
+
+
+@app.cell
+def _(mo, root, views, which):
+    loaded = views.load(root, which.value)
     frame, sectors = loaded.frame, loaded.sectors
     all_days = views.days(frame)
-    mo.stop(not all_days, mo.callout(mo.md(f"No ledger days under `{root}`."), kind="warn"))
+    mo.stop(not all_days, mo.callout(mo.md(f"No ledger days in `{loaded.folder}`."), kind="warn"))
     book_size = float(frame["book_size"].iloc[0])
-    return all_days, book_size, frame, loaded, root, sectors
+    # The decile sort of the momentum paths ranks its signal itself: no slope, and expected moves that are NaN for
+    # stocks and zero for the hedges. Those columns are left out rather than shown blank or as zeros.
+    moves = views.calibrated(frame)
+    return all_days, book_size, frame, loaded, moves, sectors
 
 
 @app.cell
@@ -203,7 +236,7 @@ def _(escape, mo, pd):
 
 
 @app.cell
-def _(all_days, dt, escape, frame, loaded, mo, money, plural, root, signed, tiles, views):
+def _(all_days, dt, escape, frame, loaded, mo, money, plural, signed, tiles, views):
     _last = views.exposure(frame).iloc[-1]
     _net = views.pnl(frame)["net_usd"].sum()
     _problems = len(loaded.problems)
@@ -213,9 +246,8 @@ def _(all_days, dt, escape, frame, loaded, mo, money, plural, root, signed, tile
     _state = "" if _due is None else ", up to date" if not len(_due) else f", {plural(len(_due), 'session')} due"
     mo.vstack([
         mo.Html(
-            '<div class="lx-header"><h1>Ledger explorer</h1>'
             f'<p class="lx-sub">{all_days[0]:%Y-%m-%d} to {all_days[-1]:%Y-%m-%d} · sectors from snapshot '
-            f"{escape(str(loaded.snapshot))} · <code>{escape(str(root))}</code></p></div>"
+            f"{escape(str(loaded.snapshot))} · <code>{escape(str(loaded.folder))}</code></p>"
         ),
         tiles(
             ("Last ledger day", f"{all_days[-1]:%Y-%m-%d}", f"day {len(all_days)} of the run{_state}", _due is not None and len(_due) > 1),
@@ -255,7 +287,8 @@ def _(frame, since, until, views):
 
 
 @app.cell
-def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, plural, sectors, show, signed, tiles, title, views, zero):
+def _(SERIES, canvas, chart, day, frame, heading, legend, mo, moves, percent_axis, plural, sectors, show, signed, tiles, title, views,
+      zero):
     _held = views.book(frame, sectors, day.value)
     _sectors = views.sector_exposure(_held)
     _exp = views.exposure(frame).loc[day.value]
@@ -277,9 +310,11 @@ def _(SERIES, canvas, day, frame, heading, legend, mo, percent_axis, plural, sec
             ("Long", f"{_exp['long']:.1%}", plural(int(_exp["names_long"]), "name")),
             ("Short", f"{_exp['short']:.1%}".replace("-", "−"), plural(int(_exp["names_short"]), "name")),
         ),
-        mo.hstack([_fig, show(_sectors, index=True)], widths=[1.1, 1], align="start", gap=1.5),
+        # The chart keeps its own width and the table takes the rest, side by side where both fit, else stacked.
+        mo.Html('<div class="lx-pair">' + chart(_fig, "Long and short weight by sector").text
+                + f"<div>{show(_sectors, index=True).text}</div></div>"),
         heading(f"Positions, largest first ({len(_held)})"),
-        show(_held),
+        show(_held if moves else _held.drop(columns="prior_expected_move")),
     ])
     return (book_tab,)
 
@@ -302,8 +337,8 @@ def _(TICKER, heading, in_window, mo, money, plural, show, tiles, views, window)
 
 
 @app.cell
-def _(INK, SERIES, WIDE, bar_width, book_size, canvas, compact, day_axis, frame, heading, in_window, legend, mo, money, money_axis,
-      percent_axis, plural, show, tiles, title, views, window, zero):
+def _(INK, LEAST, SERIES, WIDE, bar_width, book_size, canvas, chart, compact, day_axis, frame, heading, in_window, legend, mo, money,
+      money_axis, percent_axis, plural, show, tiles, title, views, window, zero):
     _pnl = views.pnl(in_window)
     _exp = views.exposure(frame).loc[_pnl.index]
     _x, _dates = list(range(len(_pnl))), list(_pnl.index)
@@ -343,7 +378,7 @@ def _(INK, SERIES, WIDE, bar_width, book_size, canvas, compact, day_axis, frame,
             ("Borrow", money(_pnl["borrow_usd"].sum()), "on shorts carried in"),
             ("Turnover", f"{_pnl['turnover'].mean():.1%}", "of capital a day, mean"),
         ),
-        _fig,
+        chart(_fig, "Net P&L, exposure and turnover by day", LEAST),
         heading("By day"),
         show(_pnl, index=True),
     ])
@@ -351,7 +386,7 @@ def _(INK, SERIES, WIDE, bar_width, book_size, canvas, compact, day_axis, frame,
 
 
 @app.cell
-def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sectors, show, since, title, until, views, zero):
+def _(LEAST, SERIES, WIDE, by, canvas, chart, heading, in_window, mo, money_axis, note, sectors, show, since, title, until, views, zero):
     _table = views.attribution(in_window, sectors, by.value)
     _top = _table.head(15)
     _rows = list(range(len(_top)))[::-1]
@@ -363,10 +398,10 @@ def _(SERIES, WIDE, by, canvas, heading, in_window, mo, money_axis, note, sector
     title(_ax, f"P&L net of borrow by {by.value}, dollars" + (f": the {len(_top)} largest of {len(_table)}" if len(_table) > len(_top) else ""))
     _fig.tight_layout()
     attribution_tab = mo.vstack([
-        mo.hstack([since, until, by], justify="start", gap=0.75),   # flat: a nested row would push `by` to the far side
+        mo.hstack([since, until, by], justify="start", gap=0.75, wrap=True),   # flat: a nested row would push `by` to the far side
         note("P&L and borrow belong to the holding carried into each day. Trading costs are charged by day, not by name, "
              "so they are in the P&L tab and not here."),
-        *([_fig, heading(f"By {by.value}"), show(_table, index=True)] if len(_table)
+        *([chart(_fig, f"P&L net of borrow by {by.value}", LEAST), heading(f"By {by.value}"), show(_table, index=True)] if len(_table)
           else [note("Nothing was carried in over this window, so there is nothing to attribute yet.")]),
     ])
     return (attribution_tab,)
@@ -392,7 +427,8 @@ def _(frame, heading, mo, note, plural, show, tiles, views):
 
 
 @app.cell
-def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note, percent_axis, show, signed, ticker, tiles, title, views, zero):
+def _(LEAST, SERIES, WIDE, book_size, canvas, chart, day_axis, frame, heading, mo, money, moves, note, percent_axis, show, signed, ticker,
+      tiles, title, views, zero):
     if ticker.value is None:
         ticker_tab = mo.vstack([ticker, note("Pick a ticker to see its holding, trades and P&L day by day.")])
     else:
@@ -418,30 +454,44 @@ def _(SERIES, WIDE, book_size, canvas, day_axis, frame, heading, mo, money, note
                 ("P&L to date", money(_h["pnl"].sum() * book_size, signed=True), "before borrow and costs"),
                 ("Borrow to date", money(_h["borrow"].sum() * book_size), "on days carried short"),
             ),
-            _fig,
+            chart(_fig, f"{ticker.value}: holding after each open", LEAST),
             heading("By day"),
-            show(_h.drop(columns="target") if _h["target"].isna().all() else _h),   # no target is recorded under the optimiser
+            # No target is recorded under the optimiser, and no expected move under the decile sort.
+            show(_h.drop(columns=[c for c, gone in (("target", _h["target"].isna().all()), ("expected_move", not moves)) if gone])),
         ])
     return (ticker_tab,)
 
 
 @app.cell
-def _(all_days, frame, heading, mo, note, show, views):
+def _(all_days, frame, heading, mo, moves, note, show, views):
     _next = views.next_open(frame)
-    _solved_later = bool(_next["target"].isna().all())             # the optimiser: no target is recorded
-    _shown = _next.drop(columns="target") if _solved_later else _next
-    _move = _shown["expected_move"]
-    _up, _down = _shown.loc[_move > 0], _shown.loc[_move < 0].iloc[::-1]
-    _neither = _shown.loc[~(_move > 0) & ~(_move < 0)]             # held with no move recorded, or a move of zero
+    _decided = f"The decision made at the close of {all_days[-1]:%Y-%m-%d}, for the next open. "
+    if moves:
+        _solved_later = bool(_next["target"].isna().all())         # the optimiser: no target is recorded
+        _shown = _next.drop(columns="target") if _solved_later else _next
+        _move = _shown["expected_move"]
+        _parts = [
+            (f"Expected to rise, largest first ({(_move > 0).sum()})", _shown.loc[_move > 0]),
+            (f"Expected to fall, largest first ({(_move < 0).sum()})", _shown.loc[_move < 0].iloc[::-1]),
+            (f"No expected move ({(~(_move > 0) & ~(_move < 0)).sum()})", _shown.loc[~(_move > 0) & ~(_move < 0)]),   # or a zero
+        ]
+        _text = _decided + ("The optimiser solves on these expected moves at that open, so the ledger records no target and "
+                            "its trades appear only in the next ledger day." if _solved_later else "Target is the book the rule set for that open.")
+    else:
+        _shown = _next.drop(columns="expected_move")
+        _target = _shown["target"]
+        _parts = [
+            (f"Long at the next open, largest first ({(_target > 0).sum()})", _shown.loc[_target > 0]),
+            (f"Short at the next open, largest first ({(_target < 0).sum()})", _shown.loc[_target < 0].iloc[::-1]),
+            (f"Closed at the next open ({(_target == 0).sum()})", _shown.loc[_target == 0]),
+        ]
+        _text = _decided + ("The decile sort ranks the signal itself, so the ledger records no expected move. Target is the "
+                            "book the sort set for that open.")
     next_tab = mo.vstack([
-        note(f"The decision made at the close of {all_days[-1]:%Y-%m-%d}, for the next open. "
-             + ("The optimiser solves on these expected moves at that open, so the ledger records no target and its trades "
-                "appear only in the next ledger day." if _solved_later else "Target is the book the rule set for that open.")),
-        mo.hstack([
-            mo.vstack([heading(f"Expected to rise, largest first ({len(_up)})"), show(_up)]),
-            mo.vstack([heading(f"Expected to fall, largest first ({len(_down)})"), show(_down)]),
-        ], widths="equal", align="start", gap=1.5),
-        *([heading(f"No expected move ({len(_neither)})"), show(_neither)] if len(_neither) else []),
+        note(_text),
+        # Side by side where both fit, else stacked: an `hstack` of equal widths never wraps, and overlapped on a phone.
+        mo.Html('<div class="lx-pair">' + "".join(f"<div>{mo.vstack([heading(h), show(t)]).text}</div>" for h, t in _parts[:2]) + "</div>"),
+        *([heading(_parts[2][0]), show(_parts[2][1])] if len(_parts[2][1]) else []),
     ])
     return (next_tab,)
 
@@ -454,9 +504,14 @@ def _(frame, heading, mo, note, show, views):
         git_commit=_health["git_commit"].str[:7], config_hash=_health["config_hash"].str[:8],
         git_dirty=_health["git_dirty"].map({False: "clean", True: "dirty"}),
     ).iloc[::-1]
+    # The decile sort records neither a solver status nor a slope: those columns go rather than show blanks.
+    _empty = [c for c in ("status", "slope") if _health[c].isna().all() or (_health[c] == "").all()]
+    _health = _health.drop(columns=_empty)
+    _recorded = {(): "how the optimiser finished, the calibration slope, ", ("slope",): "how the optimiser finished, ",
+                 ("status",): "the calibration slope, "}.get(tuple(_empty), "")
     health_tab = mo.vstack([
         note("One row per ledger day, latest first: the names on the grid, the names carried in and those of them with no "
-             "return, how the optimiser finished, the calibration slope, and the code, snapshot and config the day ran on."),
+             f"return, {_recorded}and the code, snapshot and config the day ran on."),
         heading("Run health"),
         show(_health, index=True),
     ])

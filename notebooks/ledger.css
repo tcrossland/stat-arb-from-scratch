@@ -199,3 +199,55 @@ select[data-testid="marimo-plugin-dropdown"]:hover,
 [part="table-footer"] span.italic {
   display: none;
 }
+
+/* Charts (`chart` in notebooks/ledger.py): an image at its own width in pixels that shrinks to fit the page. A wide
+   chart has a floor on its width so its text stays legible, and scrolls sideways in its box below it; the hint
+   under it shows only where the floor can be wider than the page. */
+.lx-chart {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.lx-chart img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.lx-scroll-hint {
+  display: none;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  margin: 0.2rem 0 0;
+}
+
+@media (max-width: 48rem) {
+  .lx-scroll-hint {
+    display: block;
+  }
+}
+
+/* A chart beside its table where both fit, the table taking the room left; stacked where they do not. */
+.lx-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.lx-pair > * {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.lx-pair > .lx-chart {
+  flex: 0 1 auto;
+}
+
+/* The tab bar. marimo keeps it on one line, two rows high at most, and scrolls it sideways with nothing to show
+   that it does, so on a phone the last tabs were out of sight. It wraps onto as many rows as it needs instead. */
+[role="tablist"] {
+  flex-wrap: wrap;
+  max-height: none;
+  overflow-x: visible;
+}
