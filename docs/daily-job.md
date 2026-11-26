@@ -324,7 +324,7 @@ cd /path/to/stat-arb-forward && uv run --offline --locked python -m statarb.pape
 
 **Schedule it after the daily job,** so the session is in the reversal ledger when it looks: every day at 13:45, as for the daily job in section 5. For launchd, `local.stat-arb-forward.momentum.plist` is the daily job's with `momentum` in place of `daily` in the label, the arguments and the log's path under `data/paper-momentum/`, and `Minute` 45. With cron, `45 11 * * *`.
 
-**Catching up past sessions** needs one run. It processes every session the reversal ledger holds, in order, each from its recorded snapshot, building the tables of each snapshot in turn; the raw store keeps every snapshot. Run it by hand before loading the schedule, so the first scheduled run finds only the latest session due:
+**Catching up past sessions** needs one run. It processes every session the reversal ledger holds, in order, each from its recorded snapshot, building the tables of each snapshot in turn; the raw store keeps every snapshot. Run it by hand after that day's daily job has finished, so the reversal ledger holds yesterday's session, and before loading the schedule, so the first scheduled run finds only the latest session due. Started earlier, it processes every recorded session, waits up to an hour for yesterday's, and then exits 1 as `incomplete`.
 
 ```bash
 ~/bin/stat-arb-job momentum
