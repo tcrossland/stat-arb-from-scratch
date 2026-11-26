@@ -35,7 +35,7 @@ import pandas as pd
 
 from statarb.config import load_config, raw_store, repo_root
 from statarb.data import cache, marketparquet
-from statarb.data.schema import exchange_today
+from statarb.data.schema import exchange_calendar, exchange_today
 
 
 def _log(message: str) -> None:
@@ -44,10 +44,8 @@ def _log(message: str) -> None:
 
 def last_session(calendar: str, day: dt.date) -> dt.date | None:
     """The calendar's last session on or before `day`, looking back two weeks; None when it has none there."""
-    import exchange_calendars
-
     end = pd.Timestamp(day)
-    sessions = exchange_calendars.get_calendar(calendar, start=end - pd.Timedelta(days=14), end=end).sessions
+    sessions = exchange_calendar(calendar, start=end - pd.Timedelta(days=14), end=end).sessions
     return sessions[-1].date() if len(sessions) else None
 
 

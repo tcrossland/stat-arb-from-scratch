@@ -26,27 +26,18 @@ else in the project.
 from __future__ import annotations
 
 import datetime as dt
-import warnings
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from statarb.data.schema import EXCHANGE_TZ, exchange_today
+from statarb.data.schema import EXCHANGE_TZ, exchange_calendar, exchange_today
 
 MIDNIGHT = dt.time(0, 0)
-# exchange-calendars 4.13.3 builds a calendar with `.values` on a tz-aware Series (exchange_calendar.py:405),
-# which pandas 3.1 deprecates for pandas 4. Ignored around that call only, so the same use elsewhere still warns.
-CALENDAR_VALUES = "Series.values returning an ndarray that drops timezone information"
 
 
 def market_sessions(calendar: str, first: pd.Timestamp, last: pd.Timestamp) -> pd.DatetimeIndex:
     """The calendar's sessions from `first` to `last`, inclusive."""
-    import exchange_calendars
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message=CALENDAR_VALUES, category=pd.errors.Pandas4Warning)
-        built = exchange_calendars.get_calendar(calendar)
-    sessions = built.sessions_in_range(pd.Timestamp(first), pd.Timestamp(last))
+    sessions = exchange_calendar(calendar).sessions_in_range(pd.Timestamp(first), pd.Timestamp(last))
     return pd.DatetimeIndex(sessions.tz_localize(None) if sessions.tz is not None else sessions).astype("datetime64[ns]")
 
 

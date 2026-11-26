@@ -8,6 +8,8 @@ trading date.
 from __future__ import annotations
 
 import datetime as dt
+import warnings
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -55,6 +57,21 @@ def exchange_today(now: dt.datetime | None = None) -> dt.date:
     if now.tzinfo is None:
         raise ValueError("now must be time zone aware")
     return now.astimezone(ZoneInfo(EXCHANGE_TZ)).date()
+
+
+# exchange-calendars 4.13.3 builds a calendar with `.values` on tz-aware Series (exchange_calendar.py:405 to 408),
+# which pandas 3.1 deprecates for pandas 4 (gerrymanoim/exchange_calendars#652). Ignored around the build only,
+# so the same use elsewhere still warns.
+CALENDAR_VALUES = "Series.values returning an ndarray that drops timezone information"
+
+
+def exchange_calendar(name: str, **kwargs: Any) -> Any:
+    """exchange-calendars' calendar `name` (`get_calendar`), built without the pandas 4 warning above."""
+    import exchange_calendars
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=CALENDAR_VALUES, category=pd.errors.Pandas4Warning)
+        return exchange_calendars.get_calendar(name, **kwargs)
 
 
 def normalise_bars(frame: pd.DataFrame) -> pd.DataFrame:

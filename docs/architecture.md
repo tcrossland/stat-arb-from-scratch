@@ -97,7 +97,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | `statarb.testing.lookahead` | 0 | The look-ahead checks: perturb data after a cut-off, or (from phase 5) remove the rows after it with `statarb.signals.tables`, and assert outputs up to it are unchanged. |
 | `statarb.testing.prices` | 3 | Simulated daily prices with a known spread, reversal and opening noise, for the spread estimators' tests and the phase 3 report. |
 | `statarb.data` | 0 | The data build. |
-| `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names and the exchange's date (`exchange_today`). |
+| `statarb.data.schema` | 0 | Column names, the bar schema, GICS sector names, the exchange's date (`exchange_today`) and its calendar from exchange-calendars (`exchange_calendar`). |
 | `statarb.data.sources` | 0 | The `PriceSource` and `ConstituentSource` protocols and the price bases a source can declare. |
 | `statarb.data.cache` | 0 | Raw snapshots: written once, complete when `manifest.json` with every file's hash and the digest is written last, then read-only; verified against the pinned digest. |
 | `statarb.data.snapshot` | 0 | Reads a price snapshot as bars by ticker, applying a raw snapshot's rules; it refuses a snapshot of day files, which `statarb.data.marketparquet` reads. |
@@ -255,7 +255,7 @@ Only `--download` touches the network. A rebuild reads the pinned snapshots and 
 | cvxpy 1.9.3 | Apache-2.0 | `statarb.portfolio.optimiser` | stating the day's convex problem and handing it to the solver |
 | Clarabel 0.11.1 | Apache-2.0 | `statarb.portfolio.optimiser`, through cvxpy, named in `[optimiser] solver` | the interior-point solver for the second-order cone problem |
 | LightGBM 4.7.0 | MIT | `statarb.models.lgbm`, named in `[model] library` of `config/models.toml` | the gradient-boosted trees of the walk-forward forecast, saved in its native text format, with gain and TreeSHAP contributions (`pred_contrib`) |
-| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml`; from phase 7 `statarb.data.marketparquet_build` and `statarb.data.marketparquet_quality`, named in `[dates] calendar` of `config/marketparquet.toml` | the New York Stock Exchange's sessions, holidays included |
+| exchange-calendars 4.13.3 | Apache-2.0 | `statarb.data.schema.exchange_calendar`, for `statarb.paper.sessions`, named in `[run] calendar` of `config/paper.toml`; from phase 7 `statarb.data.marketparquet_build` and `statarb.data.marketparquet_quality`, named in `[dates] calendar` of `config/marketparquet.toml` | the New York Stock Exchange's sessions, holidays included |
 | DuckDB 2.0.0 | MIT | `notebooks/ledger.sql`, read by the DuckDB command line; the Python package, in the `explore` dependency group, only by `tests/test_ledger_sql.py` | the ledger explorer's views in SQL, for the command line |
 | marimo 0.25.2 | Apache-2.0 | `notebooks/ledger.py`, in the `explore` dependency group | the ledger explorer: a local app over `statarb.paper.views`, served on 127.0.0.1 |
 
