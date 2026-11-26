@@ -232,6 +232,8 @@ cron skips a time at which the host was off; the next day's run catches up. A sy
 - **Each processed session** writes a note to `reports/phase-06/daily/`.
 - **The weekly drift report** reads the run log and the ledger, and writes to `reports/phase-06/drift/`.
 
+In Claude Code, the project's `daily-check` skill ([`.claude/skills/daily-check/SKILL.md`](../.claude/skills/daily-check/SKILL.md)) reads these files on a macOS host. It reports whether each scheduled job has run, what it did and what changed since the run before. It only reads.
+
 **The first run.** Start the first run that downloads by hand, `~/bin/stat-arb-job daily`, and check it end to end: the download, the tables built into `data/paper/processed/`, the reproduction check, the ledger day, the note and the backup. Then record its time, memory and disk in [`requirements.md`](requirements.md); its line in the run log has the time and memory.
 
 ### Each week
