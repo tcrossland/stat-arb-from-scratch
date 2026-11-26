@@ -32,7 +32,9 @@ The DuckDB command line (`brew install duckdb`, MIT, read from its LICENSE file)
 STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
 ```
 
-Each file carries its own `date` column, so the views read with hive partitioning off. This began as ad hoc queries with nothing in the repository; the queries that recurred became the views, and the SQL was added beside the Python once both existed. The two are held together by `tests/test_ledger_sql.py`, which runs every SQL view against the Python view of the same name on the synthetic ledger.
+`STATARB_LEDGER=<name>` opens a momentum path's ledger instead of the reversal run's. DuckDB cannot read TOML, so the SQL assumes each run's default `[paths] paper`, `data/paper` and `data/paper-momentum`, and the test holds those to the config files.
+
+Each file carries its own `date` column, so the views read with hive partitioning off. This began as ad hoc queries with nothing in the repository; the queries that recurred became the views, and the SQL was added beside the Python once both existed. The two are held together by `tests/test_ledger_sql.py`, which runs every SQL view against the Python view of the same name on the synthetic ledger, as the reversal run records it and as a momentum path does.
 
 ### 2. Views in `src/statarb/paper/`, and an app over them
 

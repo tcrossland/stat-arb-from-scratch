@@ -288,6 +288,12 @@ It serves on 127.0.0.1 and opens a browser tab: the book after any day's open, t
 STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
 ```
 
+That opens the reversal run's ledger. `STATARB_LEDGER` opens a momentum path by its name in `config/momentum_forward.toml` instead:
+
+```bash
+STATARB_LEDGER_ROOT=../stat-arb-forward STATARB_LEDGER=residual duckdb -init notebooks/ledger.sql
+```
+
 It lists its views on start (`FROM guide;` shows them again) and writes nothing: the database is in memory. If it waits five seconds on start and reports a timeout reading the terminal's background colour, the terminal does not answer DuckDB's query for it: add `-dark-mode` or `-light-mode` to the command. Some queries to start from:
 
 ```sql
@@ -297,7 +303,7 @@ SELECT sector, sum(net_usd) AS net FROM earned GROUP BY ALL ORDER BY abs(net) DE
 FROM history('SPY');                               -- one name, day by day
 ```
 
-`tests/test_ledger_sql.py` holds each SQL view to the Python view of the same name, so the two cannot drift apart.
+`tests/test_ledger_sql.py` holds each SQL view to the Python view of the same name, on a reversal and a momentum ledger, so the two cannot drift apart. It also checks that the ledger folders the SQL assumes are those the config files give, since SQL cannot read them.
 
 ### When a run refuses
 
