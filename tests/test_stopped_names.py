@@ -108,7 +108,7 @@ def test_every_logged_path_keeps_its_id() -> None:
     entries = [e for path in logs(reports, "phase-06") for e in experiments.read(path)]
     assert len(entries) > 1000
     assert all(path_id(e["config"]) == earlier_path_id(e["config"]) for e in entries)
-    assert set(PATH_KEYS) - set(EARLIER_KEYS) == {"universe", "close_after"}
+    assert set(PATH_KEYS) - set(EARLIER_KEYS) == {"universe", "close_after", "skip_days"}   # skip_days: decision record 0010
 
 
 def test_another_universe_and_the_stop_rule_are_other_paths() -> None:

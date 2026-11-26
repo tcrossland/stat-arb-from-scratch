@@ -30,7 +30,7 @@ import pyarrow.parquet as pq
 from statarb.config import load_config, raw_store, repo_root
 from statarb.data import cache, marketparquet
 from statarb.data.quality import _table
-from statarb.data.schema import DATE, TICKER
+from statarb.data.schema import DATE, TICKER, exchange_calendar
 
 PRICES = ["open", "high", "low", "close"]
 # Sessions a symbol is absent between two of its bars, as the report groups them.
@@ -276,10 +276,8 @@ def quality_report(
 
 def calendar_sessions(calendar: str, start: dt.date, end: dt.date) -> list[dt.date]:
     """The calendar's sessions in [start, end)."""
-    import exchange_calendars
-
     last = end - dt.timedelta(days=1)
-    found = exchange_calendars.get_calendar(calendar, start=pd.Timestamp(start), end=pd.Timestamp(last)).sessions
+    found = exchange_calendar(calendar, start=pd.Timestamp(start), end=pd.Timestamp(last)).sessions
     return [day.date() for day in found if start <= day.date() < end]
 
 

@@ -4,7 +4,7 @@ Drafted on 2026-11-19, during the forward run and before phase 7. To be revised 
 
 ## A momentum forward run, ahead of the phase
 
-Added on 2026-11-25. [Decision record 0010](../../decisions/0010-momentum-forward-run.md) starts a momentum forward run beside the reversal run, on the same sessions (2026-11-16 to 2027-01-13) and the same Alpaca snapshots, before the rest of this phase. It runs the two signals of scope step 2 through the decile sort on the frozen universe, not on the `listed` universe, and its two development backtests are trials of this phase. The [plan](../../plans/momentum-forward-run.md) gives its stages. The sections below are amended where they meet it; the rest of the phase still waits for the forward run's review.
+Added on 2026-11-25. [Decision record 0010](../../decisions/0010-momentum-forward-run.md) starts a momentum forward run beside the reversal run, on the same sessions (2026-11-16 to 2027-01-13) and the same Alpaca snapshots, before the rest of this phase. It runs the two signals of scope step 2 through the decile sort on the frozen universe, not on the `listed` universe, and its two development backtests are trials of this phase. Its residual momentum is on Model A's residuals, which the daily tables build, not on Model B's as step 2 has it for the rest of the phase. A score there needs every day of its 252-day window, as reversal's does; on the `listed` universe the strategy's decision record sets the rule. The [plan](../../plans/momentum-forward-run.md) gives its stages. The sections below are amended where they meet it; the rest of the phase still waits for the forward run's review.
 
 ## What phase 7 found, for the revision
 

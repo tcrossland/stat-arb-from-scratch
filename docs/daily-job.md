@@ -5,7 +5,7 @@ The forward run trades the strategy frozen by [decision record 0007](decisions/0
 - **The daily job,** `statarb.paper.daily`, downloads the day's snapshot and processes every due session into the ledger. It also writes a daily note and backs the ledger up.
 - **The weekly drift report,** `statarb.paper.drift`, compares the run with its backtest.
 
-Neither places an order anywhere.
+A third job, the momentum forward run of [decision record 0010](decisions/0010-momentum-forward-run.md), steps two momentum strategies through the same sessions, each from the snapshot the daily job read for it (section 7). None places an order anywhere.
 
 ## What the host needs
 
@@ -98,24 +98,30 @@ The drift report downloads nothing and needs no keys.
 
 ```sh
 #!/bin/sh
-# The forward run's jobs: stat-arb-job daily|drift [options]
+# The forward run's jobs: stat-arb-job daily|drift|momentum [options]
 set -eu
 case "${1:-}" in
-    daily|drift) job=$1; shift ;;
-    *) echo "usage: stat-arb-job daily|drift [options]" >&2; exit 2 ;;
+    daily|drift|momentum) job=$1; shift ;;
+    *) echo "usage: stat-arb-job daily|drift|momentum [options]" >&2; exit 2 ;;
 esac
 cd /path/to/stat-arb-forward
 export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
 export STATARB_RAW="/path/to/raw"
 export STATARB_BACKUP_REMOTE="git@statarb-ledger:<owner>/<repository>.git"
+export STATARB_MOMENTUM_BACKUP_REMOTE="git@statarb-momentum-ledger:<owner>/<momentum repository>.git"
 if [ "$job" = daily ]; then
     # macOS. On Linux, replace these three lines with: set -a; . ~/.config/stat-arb/alpaca.env; set +a
     APCA_API_KEY_ID=$(security find-generic-password -s alpaca-paper-key-id -w)
     APCA_API_SECRET_KEY=$(security find-generic-password -s alpaca-paper-secret -w)
     export APCA_API_KEY_ID APCA_API_SECRET_KEY
 fi
+if [ "$job" = momentum ]; then
+    exec /path/to/uv run python -m statarb.paper.momentum daily "$@"
+fi
 exec /path/to/uv run python -m "statarb.paper.$job" "$@"
 ```
+
+The momentum job downloads nothing, so it needs no Alpaca keys; `STATARB_MOMENTUM_BACKUP_REMOTE` is its backup's address (section 7).
 
 If a key cannot be read, for instance from a login keychain locked after sleep, the script stops before the job starts. The run log then has no line for that run; the scheduler's log has the error, and the next run retries.
 
@@ -301,3 +307,27 @@ Its line in the run log says why:
 - **a session the snapshot lacks** stops the run there, and the next run retries it.
 
 A solver failure is not a refusal: the book is held, as in the backtest, and the ledger and the note record it.
+
+## 7. The momentum forward run
+
+[Decision record 0010](decisions/0010-momentum-forward-run.md) runs two momentum strategies, total-return and residual momentum through the decile sort, over the same sessions as the reversal run, from 2026-11-16. `statarb.paper.momentum daily` steps each with the daily job's own code, from the same clone, with its own lock, so it never blocks the reversal job or is blocked by it. Its settings are in `config/momentum_forward.toml`, and its files under `data/paper-momentum/`: a ledger and run log per path in `data/paper-momentum/<path>/`, its tables and its backup clone. Its notes go to `reports/phase-08/forward/daily/<path>/`. The reversal job's dirty flag ignores them, and its own ignores the reversal job's.
+
+**It never downloads, and follows the reversal ledger.** Each ledger day of the reversal run names the snapshot it was built from. The momentum job reads each due session from that snapshot in the raw store, so the two runs read the same bars for every session, late ones included. A session the reversal run has not yet recorded is waited for once, for up to an hour, checking every 30 seconds, in case the daily job is still running. After that the run stops there as `incomplete`, exits 1, and the next run retries. So does a session whose snapshot is missing from the raw store or incomplete. It refuses to start if `[paths] paper` of `config/momentum_forward.toml` overlaps the reversal run's folder, or if `STATARB_MOMENTUM_BACKUP_REMOTE` is the reversal run's backup address.
+
+**Before any session** it checks each path's frozen record (`reports/phase-08/forward/frozen-<path>.json`) and rebuilds each path's backtest on reference tables from the pinned snapshot, requiring the metrics of its logged entry exactly. To run those checks by hand in the clone:
+
+```bash
+cd /path/to/stat-arb-forward && uv run --offline --locked python -m statarb.paper.momentum frozen && uv run --offline --locked python -m statarb.paper.momentum reproduce
+```
+
+**The backup** goes to a second private repository, with each path's ledger in a folder of the path's name. Set it up as in section 2 with its own key, since GitHub takes a deploy key for one repository only: `~/.ssh/statarb-momentum-ledger`, the host alias `statarb-momentum-ledger`, and the address in `STATARB_MOMENTUM_BACKUP_REMOTE`. Its clone is `data/paper-momentum/backup/`.
+
+**Schedule it after the daily job,** so the session is in the reversal ledger when it looks: every day at 13:45, as for the daily job in section 5. For launchd, `local.stat-arb-forward.momentum.plist` is the daily job's with `momentum` in place of `daily` in the label, the arguments and the log's path under `data/paper-momentum/`, and `Minute` 45. With cron, `45 11 * * *`.
+
+**Catching up past sessions** needs one run. It processes every session the reversal ledger holds, in order, each from its recorded snapshot, building the tables of each snapshot in turn; the raw store keeps every snapshot. Run it by hand after that day's daily job has finished, so the reversal ledger holds yesterday's session, and before loading the schedule, so the first scheduled run finds only the latest session due. Started earlier, it processes every recorded session, waits up to an hour for yesterday's, and then exits 1 as `incomplete`.
+
+```bash
+~/bin/stat-arb-job momentum
+```
+
+Both paths' ledger days then name the same snapshot as the reversal ledger's day, which `snapshot` in each ledger shows. A path's `duration_seconds` in its run log counts from the start of the run, so the second path's includes the first's.

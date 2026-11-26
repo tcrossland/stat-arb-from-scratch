@@ -54,9 +54,9 @@ class BackupResult:
         return f"{self.status}: {self.message}"
 
 
-def remote(environ: Mapping[str, str] = os.environ) -> str:
-    """The backup repository's git remote, from `REMOTE_ENV`; empty means not configured."""
-    return environ.get(REMOTE_ENV, "").strip()
+def remote(environ: Mapping[str, str] = os.environ, name: str = REMOTE_ENV) -> str:
+    """The backup repository's git remote, from the variable `name` (`REMOTE_ENV` by default); empty means not configured."""
+    return environ.get(name, "").strip()
 
 
 def _env() -> dict[str, str]:
@@ -77,7 +77,7 @@ def _ref(clone: Path, ref: str) -> str | None:
         return None
 
 
-def _clone(remote: str, clone: Path) -> None:
+def _clone(remote: str, clone: Path, variable: str = REMOTE_ENV) -> None:
     """Clone the remote if there is no clone yet, on `BRANCH` whatever the remote's default branch is."""
     if not (clone / ".git").exists():
         clone.parent.mkdir(parents=True, exist_ok=True)
@@ -88,12 +88,12 @@ def _clone(remote: str, clone: Path) -> None:
             git(clone, "symbolic-ref", "HEAD", f"refs/heads/{BRANCH}")
     origin = git(clone, "remote", "get-url", "origin")
     if origin != remote:
-        raise ValueError(f"the backup clone pushes to another remote than {REMOTE_ENV}: delete it to clone the new one")
+        raise ValueError(f"the backup clone pushes to another remote than {variable}: delete it to clone the new one")
 
 
-def _copy(ledger_root: Path, clone: Path) -> list[str]:
-    """Copy every ledger day whose bytes differ into the clone; the names copied."""
-    target = clone / FOLDER
+def _copy(ledger_root: Path, clone: Path, folder: str = FOLDER) -> list[str]:
+    """Copy every ledger day whose bytes differ into `folder` of the clone; the names copied."""
+    target = clone / folder
     target.mkdir(exist_ok=True)
     copied = []
     for day in ledger.dates(ledger_root):
@@ -105,17 +105,23 @@ def _copy(ledger_root: Path, clone: Path) -> list[str]:
     return copied
 
 
-def sync(ledger_root: Path, clone: Path, remote: str) -> BackupResult:
-    """Copy, commit and push the ledger. Failures are returned, not raised."""
+def sync(ledger_root: Path, clone: Path, remote: str, folder: str = FOLDER, variable: str = REMOTE_ENV) -> BackupResult:
+    """Copy, commit and push the ledger into `folder` of the clone. Failures are returned, not raised.
+
+    Two ledgers can share one repository and one clone in folders of their own,
+    as the momentum run's two paths do (`statarb.paper.momentum`); `variable`
+    names the setting the remote came from, for the messages.
+    """
     if not remote:
-        return BackupResult("not configured", f"{REMOTE_ENV} is not set")
+        return BackupResult("not configured", f"{variable} is not set")
     try:
-        _clone(remote, clone)
-        copied = _copy(ledger_root, clone)
+        _clone(remote, clone, variable)
+        copied = _copy(ledger_root, clone, folder)
         if copied:
-            git(clone, "add", "--", FOLDER)
+            git(clone, "add", "--", folder)
             last = ledger.dates(ledger_root)[-1]
-            git(clone, "commit", "--quiet", "-m", f"Ledger through {last:%Y-%m-%d}", "-m", f"{len(copied)} file(s) added or changed.")
+            subject = f"Ledger through {last:%Y-%m-%d}" if folder == FOLDER else f"{folder}: ledger through {last:%Y-%m-%d}"
+            git(clone, "commit", "--quiet", "-m", subject, "-m", f"{len(copied)} file(s) added or changed.")
         head = _ref(clone, "HEAD")
         if head is None or head == _ref(clone, f"refs/remotes/origin/{BRANCH}"):
             return BackupResult("up to date", "nothing new to push" if head else "the ledger is empty")

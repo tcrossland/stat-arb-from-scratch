@@ -1,7 +1,7 @@
 # 0010: A momentum forward run beside the reversal run
 
 **Date:** 2026-11-25
-**Status:** accepted
+**Status:** accepted, with an amendment of 2026-11-26 to item 6
 
 ## Context
 
@@ -45,3 +45,7 @@ Three facts constrain it:
 - The phase 8 review reports the run's results both ways, lists its late sessions, and gives the daily correlation with the reversal run.
 - A drift report for momentum is deferred. Its trigger is the first weekly pull request that carries momentum's notes.
 - MarketParquet's subscription for new sessions, and a forward run on that source, stay a separate decision under record 0008.
+
+## Amendment, 2026-11-26: which snapshot the job reads
+
+Item 6 has the job read the snapshot named for the run day, and item 4 has a late session read the snapshot the reversal ledger records for it. The job, as built before its first run, follows item 4 for every session: each due session is read from the snapshot the reversal ledger records for it, and a session that ledger has not recorded is not processed. For a session processed on time the two snapshots are the same one. Item 6 is otherwise unchanged: the job never downloads, and it runs after the reversal job. The [plan](../plans/momentum-forward-run.md), step 3, gives the reason: under item 6's wording, a session missed on its run day could later be read from bars the reversal run did not see.

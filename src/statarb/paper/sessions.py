@@ -30,16 +30,14 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from statarb.data.schema import EXCHANGE_TZ, exchange_today
+from statarb.data.schema import EXCHANGE_TZ, exchange_calendar, exchange_today
 
 MIDNIGHT = dt.time(0, 0)
 
 
 def market_sessions(calendar: str, first: pd.Timestamp, last: pd.Timestamp) -> pd.DatetimeIndex:
     """The calendar's sessions from `first` to `last`, inclusive."""
-    import exchange_calendars
-
-    sessions = exchange_calendars.get_calendar(calendar).sessions_in_range(pd.Timestamp(first), pd.Timestamp(last))
+    sessions = exchange_calendar(calendar).sessions_in_range(pd.Timestamp(first), pd.Timestamp(last))
     return pd.DatetimeIndex(sessions.tz_localize(None) if sessions.tz is not None else sessions).astype("datetime64[ns]")
 
 

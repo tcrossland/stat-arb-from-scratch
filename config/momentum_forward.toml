@@ -1,0 +1,34 @@
+# The momentum forward run, beside the reversal run of config/paper.toml. See
+# docs/decisions/0010-momentum-forward-run.md. Loaded by statarb.paper.momentum, which
+# rejects unknown or missing keys. The reversal run's frozen record does not hold this file;
+# each momentum path's frozen record does (reports/phase-08/forward/frozen-<name>.json).
+
+[run]
+# Decision record 0010 items 3 and 6: the reversal run's sessions, processed from 06:00
+# New York on the day after each, as config/paper.toml [run] has it.
+first_session = 2026-11-16
+calendar = "XNYS"
+run_time = 06:00:00
+# Item 2: the papers' window and skip, the reversal run's decile and book.
+book_size = 5000000
+window_days = 252
+skip_days = 21
+decile = 0.1
+holding_days = 21
+
+[paths]
+# Ledgers, run logs, tables and the backup clone, under data/ like data/paper. The backup
+# repository's address is a setting of the host, read from STATARB_MOMENTUM_BACKUP_REMOTE.
+paper = "data/paper-momentum"
+
+# One ledger each. `name` names its folders; `config_hash` is its frozen record's hash, empty
+# until `uv run python -m statarb.paper.momentum frozen --write` prints it.
+[[runs]]
+name = "total-return"
+signal = "momentum"
+config_hash = "273b3ac1a2ad67b3"
+
+[[runs]]
+name = "residual"
+signal = "residual_momentum"
+config_hash = "e901f3350a5861a7"

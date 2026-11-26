@@ -1,6 +1,6 @@
 # Momentum forward run
 
-Status: in progress, 2026-11-25. Stage 1 merged (pull request 31); stage 2, the signals, in review (pull request 32); stage 3 next.
+Status: in progress, 2026-11-25. Stages 1 and 2 merged (pull requests 31 and 32); stage 3, the job, built, and its backtest logged and frozen on 2026-11-26; stage 4 next.
 
 ## Purpose
 
@@ -29,7 +29,8 @@ A second forward run, cross-sectional momentum, beside the reversal run of [deci
    - Beyond the step: phase 7's delisted-suffix test on both signals, and their rows and notes in `docs/time-discipline.md`.
 3. **The second strategy** in the paper package, the backtest runner cut at 2026-11-15 and its two logged paths, the frozen records, the job, and `tests/test_forward_holdout.py` extended. Reference docs current in the same change. Done when reversal's frozen check still gives `254f4de9d1902403`, its reproduction still gives `b56df718a846aa4f`, and the job's tests on synthetic fixtures cover catch-up, a missing snapshot and a refused config.
    - Load the job's and the backtest's tables from the same first date: rolling sums carry rounding of about 1e-16 from rows that have left the window, and the reproduction check is exact.
-4. **The start.** The owner creates the backup repository and its key; the clone is pulled the deliberate way and checked; each past run day is processed in order with `--now` from its snapshot; the owner loads the 13:45 agent. Done when both ledgers hold the same sessions, each momentum day's snapshot matches reversal's, and reversal's next daily check passes.
+   - Built 2026-11-26. The job reads each session from the snapshot the reversal ledger records for it, rather than the snapshot named for the run day: the two are the same for a session processed on time, and for a late one this is record 0010 item 4, enforced. So one run catches up every past session, and a session the reversal run has not processed is never processed.
+4. **The start.** The owner creates the backup repository and its key; the clone is pulled the deliberate way and checked; one run by hand processes every past session, each from the snapshot the reversal ledger records for it; the owner then loads the 13:45 agent. Done when both ledgers hold the same sessions, each momentum day's snapshot matches reversal's, and reversal's next daily check passes.
 
 ## Out of scope
 
