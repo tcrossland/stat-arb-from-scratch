@@ -142,7 +142,13 @@ class Reproduction:
 @dataclass(frozen=True)
 class Job:
     """Everything a run needs. `reproduce` and `snapshot` are called only when a session is due; `backup` on every
-    run whose ledger is intact."""
+    run whose ledger is intact.
+
+    `snapshot_for`, when set, replaces `snapshot`: it gives each due session its
+    own snapshot, or the reason it cannot be processed yet, which stops the run
+    there as `incomplete`. The momentum forward run uses it to read each session
+    from the snapshot the reversal run's ledger records for it.
+    """
 
     now: dt.datetime
     first: pd.Timestamp
@@ -159,6 +165,7 @@ class Job:
     backup: Callable[[], backup_.BackupResult]
     log: Log = quiet
     started: float = field(default_factory=time.monotonic)    # `time.monotonic` when the run started, for its duration
+    snapshot_for: Callable[[pd.Timestamp], Snapshot | str] | None = None
 
 
 @dataclass(frozen=True)
@@ -201,10 +208,17 @@ def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
         check = job.reproduce()
     if check.problems:
         return RunResult("refused", f"the frozen path no longer gives the metrics of log entry {check.entry}", due, problems=check.problems)
-    snap = job.snapshot()
+    snap = job.snapshot() if job.snapshot_for is None else None
     carry = ledger.carry_of(ledger.read_day(job.ledger_root, done[-1])) if done else ledger.Carry.flat(())
     processed = []
     for date in due:
+        if job.snapshot_for is not None:
+            found = job.snapshot_for(date)
+            if isinstance(found, str):
+                message = f"stopped at {date:%Y-%m-%d}: {found}; the next run retries it"
+                return RunResult("incomplete", message, due, tuple(processed), *_named(snap), reproduced=check.entry)
+            snap = found
+        assert snap is not None
         try:
             inputs = session_inputs(snap.tables, date, job.first, job.strategy)
         except MissingSession as err:
@@ -217,7 +231,11 @@ def _process(job: Job, done: list[pd.Timestamp], backed_up: str) -> RunResult:
             ledger.write_day(job.ledger_root, frame)
         carry = ledger.carry_of(frame)
         processed.append(date)
-    return RunResult("done", f"processed {len(processed)} session(s)", due, tuple(processed), snap.name, snap.taken, reproduced=check.entry)
+    return RunResult("done", f"processed {len(processed)} session(s)", due, tuple(processed), *_named(snap), reproduced=check.entry)
+
+
+def _named(snap: Snapshot | None) -> tuple[str | None, str | None]:
+    return (None, None) if snap is None else (snap.name, snap.taken)
 
 
 def previous_backup(runs_log: Path) -> str:

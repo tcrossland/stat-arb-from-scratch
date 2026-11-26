@@ -286,7 +286,7 @@ Its hash, computed as `config_id` is, is `[frozen] config_hash` and the `config_
 
 Decision record 0010's run (`statarb.paper.momentum`) keeps the same records for each of its two paths, `total-return` and `residual`, named in `config/momentum_forward.toml`:
 
-- `data/paper-momentum/<path>/ledger/` and `data/paper-momentum/<path>/runs.jsonl`, with the columns and fields above. `expected_move` is NaN for stocks and zero for the hedge ETFs, and `slope` is NaN, since the decile sort reads neither.
+- `data/paper-momentum/<path>/ledger/` and `data/paper-momentum/<path>/runs.jsonl`, with the columns and fields above. `expected_move` is NaN for stocks and zero for the hedge ETFs, and `slope` is NaN, since the decile sort reads neither. `snapshot` is the one the reversal ledger records for the same session.
 - `data/paper-momentum/processed/<snapshot>/` and `data/paper-momentum/reference/<snapshot>/`, the tables above built from the same snapshots as the reversal run's, in a directory of their own so neither job prunes the other's.
 - `data/paper-momentum/backup/`, a clone of the private repository in `STATARB_MOMENTUM_BACKUP_REMOTE`, with each path's ledger in a folder of the path's name.
 - `reports/phase-08/forward/frozen-<path>.json`, committed, written once after the path's backtest is logged: `strategy`, the `config` of its `momentum forward path` log entry less `kind`, `first_date`, `last_date` and `start`, plus `price_source`; `files`, as in the reversal run's record; and `momentum`, `config/momentum_forward.toml` without the hashes. Its hash is the path's `config_hash` there and in every ledger day.

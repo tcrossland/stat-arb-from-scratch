@@ -24,12 +24,15 @@ differ only in the strategy.
   record holds (`statarb.paper.frozen.file_contents`); and this run's config
   file less the hashes. Written once to reports/phase-08/forward/frozen-<name>.json,
   after the path is logged; its hash goes in the path's `config_hash`.
-- **Daily job.** Never downloads. It waits up to `WAIT` for the complete
-  snapshot named for the run day, which the reversal job takes, and builds its
-  own tables from it. Without one it reads the latest earlier snapshot, which
-  lacks the due session's bar, so the run stops as `incomplete` and the next run
-  retries. Before any session it checks the frozen records and rebuilds each
-  path's backtest on reference tables, requiring its logged metrics exactly.
+- **Daily job.** Never downloads. Each due session is read from the snapshot
+  the reversal run's ledger records for it, with tables built here, so the two
+  runs read the same bars for every session, late ones included, and one run
+  catches up every past session. A session the reversal run has not recorded is
+  waited for once, up to `WAIT`, and then stops the run as `incomplete`; the
+  next run retries it. Before any session it checks the frozen records and
+  rebuilds each path's backtest on reference tables, requiring its logged
+  metrics exactly. It refuses a data folder that overlaps the reversal run's or
+  the reversal run's backup remote.
 """
 
 from __future__ import annotations
@@ -61,10 +64,10 @@ from statarb.config import (
 )
 from statarb.data import cache
 from statarb.data.schema import exchange_today
+from statarb.io import read_parquet
 from statarb.models.run import Settings, build_period_lab, load_settings
 from statarb.paper import backup as backup_
-from statarb.paper import daily, frozen, reproduce
-from statarb.paper import sessions as sessions_
+from statarb.paper import daily, frozen, ledger, reproduce
 from statarb.paper.config import DECILE
 from statarb.paper.day import (
     MomentumRule,
@@ -245,11 +248,11 @@ def log_backtest(root: Path, long: Mapping[str, pd.DataFrame], now: dt.datetime)
         raise RuntimeError("the tree has uncommitted changes: the logged backtest runs from a clean tree")
     cfg, s = load_momentum_config(root), load_settings(root)
     path = frozen.reports_dir(root) / LOG
-    logged = {e["config_id"] for e in experiments.read(path)}
-    entries = [experiments.entry(c, m, s.cfg.run.seed, state, now) for c, m in development_paths(long, s, cfg)]
-    already = [e["config"]["name"] for e in entries if e["config_id"] in logged]
+    logged = {e["config"]["signal"] for e in experiments.read(path) if e["config"].get("kind") == KIND}
+    already = [spec.name for spec in cfg.runs if spec.signal in logged]        # by signal, before any run: dates may move
     if already:
         raise RuntimeError(f"already logged in {LOG}: {', '.join(already)}; decision record 0010 logs each path once")
+    entries = [experiments.entry(c, m, s.cfg.run.seed, state, now) for c, m in development_paths(long, s, cfg)]
     experiments.append(path, entries)
     return entries
 
@@ -386,14 +389,60 @@ def wait_for(ready: Callable[[], bool], wait: float, poll: float, clock: Callabl
     return True
 
 
-def run_day_snapshot(root: Path, cfg: MomentumConfig, day: dt.date, log: daily.Log, wait: float = WAIT, poll: float = POLL) -> daily.Snapshot:
-    """The reversal job's snapshot for the run day once it is complete, with tables built here; never a download."""
-    data_cfg = load_config("data", root)
-    named = cache.snapshot_dir(raw_store(data_cfg["paths"]["raw"], root), data_cfg["source"]["name"], day)
-    with daily.stage(log, f"waiting for the snapshot named {day}"):
-        if not wait_for(lambda: cache.is_complete(named), wait, poll):
-            log(f"no complete snapshot named {day}: the latest earlier one is read, and a session it lacks is left for the next run")
-    return daily.daily_snapshot(root, day, False, log, paper_dir(root, cfg) / PROCESSED)
+def reversal_ledger(root: Path) -> Path:
+    """The reversal run's ledger (`[paths] paper` of config/data.toml), whose days name the snapshot each was built from."""
+    return resolve_path(load_config("data", root)["paths"]["paper"], root) / daily.LEDGER
+
+
+def recorded_snapshot(reversal: Path, date: pd.Timestamp) -> str | None:
+    """The snapshot the reversal ledger records for a session, or None before the reversal run has processed it."""
+    path = ledger.path_for(reversal, date)
+    return str(read_parquet(path)["snapshot"].iloc[0]) if path.exists() else None
+
+
+def session_snapshots(root: Path, cfg: MomentumConfig, log: daily.Log, wait: float = WAIT, poll: float = POLL) -> Callable[[pd.Timestamp], daily.Snapshot | str]:
+    """Each session's snapshot: the one the reversal ledger records for it, with tables built here; never a download.
+
+    A session the reversal run has not recorded is waited for once, up to `wait`
+    seconds, in case its job is still running; after that, and for every path,
+    it stops the run, and the next run retries it. The tables of the snapshot in
+    use are kept, so the paths share them; a catch-up across several snapshots
+    builds each again for the second path.
+    """
+    data_cfg, reversal = load_config("data", root), reversal_ledger(root)
+    raw = raw_store(data_cfg["paths"]["raw"], root)
+    built: dict[str, daily.Snapshot] = {}
+    waited: set[pd.Timestamp] = set()
+
+    def for_session(date: pd.Timestamp) -> daily.Snapshot | str:
+        if recorded_snapshot(reversal, date) is None and date not in waited:
+            waited.add(date)
+            with daily.stage(log, f"waiting for the reversal run to record {date:%Y-%m-%d}"):
+                wait_for(lambda: ledger.path_for(reversal, date).exists(), wait, poll)
+        name = recorded_snapshot(reversal, date)
+        if name is None:
+            return "the reversal run has not recorded it"
+        if name not in built:
+            if not cache.is_complete(cache.snapshot_dir(raw, data_cfg["source"]["name"], dt.date.fromisoformat(name))):
+                return f"the reversal run read snapshot {name}, which the raw store does not hold complete"
+            built.clear()
+            built[name] = daily.daily_snapshot(root, dt.date.fromisoformat(name), False, log, paper_dir(root, cfg) / PROCESSED)
+        return built[name]
+
+    return for_session
+
+
+def no_run_day_snapshot() -> daily.Snapshot:
+    raise AssertionError("the momentum job reads each session's snapshot through `snapshot_for`")
+
+
+def check_separate(root: Path, cfg: MomentumConfig, remote: str) -> None:
+    """Refuse settings that would let this job touch the reversal run's files or backup."""
+    ours, theirs = paper_dir(root, cfg).resolve(), resolve_path(load_config("data", root)["paths"]["paper"], root).resolve()
+    if ours == theirs or ours.is_relative_to(theirs) or theirs.is_relative_to(ours):
+        raise ValueError(f"[paths] paper of config/{NAME}.toml overlaps the reversal run's {theirs}: its lock and tables must be apart")
+    if remote and remote == backup_.remote():
+        raise ValueError(f"{REMOTE_ENV} is the reversal run's backup remote ({backup_.REMOTE_ENV}): each run backs up to its own repository")
 
 
 def build_jobs(root: Path, now: dt.datetime, started: float, log: daily.Log = daily.stderr_log) -> list[tuple[PathSpec, daily.Job]]:
@@ -402,11 +451,11 @@ def build_jobs(root: Path, now: dt.datetime, started: float, log: daily.Log = da
         require(root)
     cfg, s = load_momentum_config(root), load_settings(root)
     base, reports = paper_dir(root, cfg), frozen.reports_dir(root)
-    day = sessions_.run_day(now, cfg.run.run_time)
     sessions = daily.calendar_for(cfg.run.calendar, cfg.first, exchange_today(now))
-    snapshot = once(lambda: run_day_snapshot(root, cfg, day, log))
+    snapshot_for = session_snapshots(root, cfg, log)
     reference = once(lambda: reference_tables(root, cfg, log))
     remote = backup_.remote(name=REMOTE_ENV)
+    check_separate(root, cfg, remote)
     git = daily.job_git_state(root, reports)
     jobs = []
     for spec in cfg.runs:
@@ -421,7 +470,8 @@ def build_jobs(root: Path, now: dt.datetime, started: float, log: daily.Log = da
         jobs.append((spec, daily.Job(
             now=now, first=cfg.first, sessions=sessions, run_time=cfg.run.run_time, strategy=strategy,
             ledger_root=folder / LEDGER, notes_root=reports / NOTES / spec.name, runs_log=folder / RUNS,
-            config_hash=spec.config_hash, git=git, reproduce=reproduction, snapshot=snapshot, backup=backup, log=log, started=started,
+            config_hash=spec.config_hash, git=git, reproduce=reproduction, snapshot=no_run_day_snapshot, backup=backup, log=log,
+            started=started, snapshot_for=snapshot_for,
         )))
     return jobs
 
@@ -431,11 +481,21 @@ def run_daily(root: Path, now: dt.datetime, started: float) -> list[tuple[str, d
     base = paper_dir(root, cfg)
     with daily.locked(base / LOCK):
         try:
-            return [(spec.name, daily.run_job(job)) for spec, job in build_jobs(root, now, started)]
-        except Exception as err:                     # recorded for every path, then raised
+            jobs = build_jobs(root, now, started)
+        except Exception as err:                     # before any path ran: recorded for every path, then raised
             for spec in cfg.runs:
                 experiments.append(base / spec.name / RUNS, [daily.run_record(now, "failed", f"{type(err).__name__}: {err}", started)])
             raise
+        results, failure = [], None
+        for spec, job in jobs:                       # a path that fails is recorded on its own, and the next still runs
+            try:
+                results.append((spec.name, daily.run_job(job)))
+            except Exception as err:  # noqa: BLE001 - re-raised after the other path has run
+                experiments.append(job.runs_log, [daily.run_record(now, "failed", f"{type(err).__name__}: {err}", started)])
+                failure = failure or err
+        if failure is not None:
+            raise failure
+        return results
 
 
 # Entry point -------------------------------------------------------------------------------------------

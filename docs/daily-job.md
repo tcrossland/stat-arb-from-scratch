@@ -5,7 +5,7 @@ The forward run trades the strategy frozen by [decision record 0007](decisions/0
 - **The daily job,** `statarb.paper.daily`, downloads the day's snapshot and processes every due session into the ledger. It also writes a daily note and backs the ledger up.
 - **The weekly drift report,** `statarb.paper.drift`, compares the run with its backtest.
 
-A third job, the momentum forward run of [decision record 0010](decisions/0010-momentum-forward-run.md), steps two momentum strategies through the same sessions from the daily job's snapshots (section 7). None places an order anywhere.
+A third job, the momentum forward run of [decision record 0010](decisions/0010-momentum-forward-run.md), steps two momentum strategies through the same sessions, each from the snapshot the daily job read for it (section 7). None places an order anywhere.
 
 ## What the host needs
 
@@ -312,7 +312,7 @@ A solver failure is not a refusal: the book is held, as in the backtest, and the
 
 [Decision record 0010](decisions/0010-momentum-forward-run.md) runs two momentum strategies, total-return and residual momentum through the decile sort, over the same sessions as the reversal run, from 2026-11-16. `statarb.paper.momentum daily` steps each with the daily job's own code, from the same clone, with its own lock, so it never blocks the reversal job or is blocked by it. Its settings are in `config/momentum_forward.toml`, and its files under `data/paper-momentum/`: a ledger and run log per path in `data/paper-momentum/<path>/`, its tables and its backup clone. Its notes go to `reports/phase-08/forward/daily/<path>/`. The reversal job's dirty flag ignores them, and its own ignores the reversal job's.
 
-**It never downloads.** It reads the snapshot in the raw store named for the run day, the one the reversal job takes, so the two runs read the same bars. When that snapshot is not there or not yet complete it waits for up to an hour, checking every 30 seconds, and then reads the latest earlier one, which lacks the due session's bar: the run stops as `incomplete`, exits 1, and the next run retries.
+**It never downloads, and follows the reversal ledger.** Each ledger day of the reversal run names the snapshot it was built from. The momentum job reads each due session from that snapshot in the raw store, so the two runs read the same bars for every session, late ones included. A session the reversal run has not yet recorded is waited for once, for up to an hour, checking every 30 seconds, in case the daily job is still running. After that the run stops there as `incomplete`, exits 1, and the next run retries. So does a session whose snapshot is missing from the raw store or incomplete. It refuses to start if `[paths] paper` of `config/momentum_forward.toml` overlaps the reversal run's folder, or if `STATARB_MOMENTUM_BACKUP_REMOTE` is the reversal run's backup address.
 
 **Before any session** it checks each path's frozen record (`reports/phase-08/forward/frozen-<path>.json`) and rebuilds each path's backtest on reference tables from the pinned snapshot, requiring the metrics of its logged entry exactly. To run those checks by hand in the clone:
 
@@ -322,12 +322,12 @@ cd /path/to/stat-arb-forward && uv run --offline --locked python -m statarb.pape
 
 **The backup** goes to a second private repository, with each path's ledger in a folder of the path's name. Set it up as in section 2 with its own key, since GitHub takes a deploy key for one repository only: `~/.ssh/statarb-momentum-ledger`, the host alias `statarb-momentum-ledger`, and the address in `STATARB_MOMENTUM_BACKUP_REMOTE`. Its clone is `data/paper-momentum/backup/`.
 
-**Schedule it after the daily job,** so the snapshot is there when it looks: every day at 13:45, as for the daily job in section 5. For launchd, `local.stat-arb-forward.momentum.plist` is the daily job's with `momentum` in place of `daily` in the label, the arguments and the log's path under `data/paper-momentum/`, and `Minute` 45. With cron, `45 11 * * *`.
+**Schedule it after the daily job,** so the session is in the reversal ledger when it looks: every day at 13:45, as for the daily job in section 5. For launchd, `local.stat-arb-forward.momentum.plist` is the daily job's with `momentum` in place of `daily` in the label, the arguments and the log's path under `data/paper-momentum/`, and `Minute` 45. With cron, `45 11 * * *`.
 
-**Catching up past sessions.** A run processes every due session from the one snapshot named for its run day. To process each past session from the snapshot the reversal job used for it, run once per past run day, in order, as of that day's scheduled time, for example:
+**Catching up past sessions** needs one run. It processes every session the reversal ledger holds, in order, each from its recorded snapshot, building the tables of each snapshot in turn; the raw store keeps every snapshot. Run it by hand before loading the schedule, so the first scheduled run finds only the latest session due:
 
 ```bash
-~/bin/stat-arb-job momentum --now 2026-11-18T13:45+01:00
+~/bin/stat-arb-job momentum
 ```
 
-Each ledger day records the snapshot it was built from, so the two runs' ledgers can be checked against each other day by day.
+Both paths' ledger days then name the same snapshot as the reversal ledger's day, which `snapshot` in each ledger shows. A path's `duration_seconds` in its run log counts from the start of the run, so the second path's includes the first's.

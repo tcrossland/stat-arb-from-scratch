@@ -120,7 +120,8 @@ def sync(ledger_root: Path, clone: Path, remote: str, folder: str = FOLDER, vari
         if copied:
             git(clone, "add", "--", folder)
             last = ledger.dates(ledger_root)[-1]
-            git(clone, "commit", "--quiet", "-m", f"Ledger through {last:%Y-%m-%d}", "-m", f"{len(copied)} file(s) added or changed.")
+            subject = f"Ledger through {last:%Y-%m-%d}" if folder == FOLDER else f"{folder}: ledger through {last:%Y-%m-%d}"
+            git(clone, "commit", "--quiet", "-m", subject, "-m", f"{len(copied)} file(s) added or changed.")
         head = _ref(clone, "HEAD")
         if head is None or head == _ref(clone, f"refs/remotes/origin/{BRANCH}"):
             return BackupResult("up to date", "nothing new to push" if head else "the ledger is empty")

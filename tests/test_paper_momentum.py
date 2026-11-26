@@ -3,11 +3,13 @@ synthetic market and a copy of the repository's config."""
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 import re
 import shutil
 import subprocess
+import tomllib
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -20,6 +22,7 @@ from statarb.backtest import experiments
 from statarb.backtest.rules import DecileRule
 from statarb.backtest.trials import path_id
 from statarb.config import load_config, repo_root
+from statarb.io import write_parquet
 from statarb.models.run import build_period_lab
 from statarb.paper import daily, frozen, ledger, momentum
 from statarb.paper.config import DECILE, load_paper_config
@@ -141,9 +144,6 @@ def test_the_config_is_record_0010s_and_shares_the_reversal_runs_sessions() -> N
     ],
 )
 def test_a_bad_config_is_refused(old, new, error) -> None:
-    data = load_config(momentum.NAME, repo_root())
-    import tomllib
-
     text = (repo_root() / "config" / f"{momentum.NAME}.toml").read_text()
     assert text.count(old) == 1
     data = tomllib.loads(text.replace(old, new))
@@ -301,6 +301,11 @@ def test_the_backtest_is_logged_once_and_only_from_a_clean_tree(root, settings, 
     assert experiments.read(frozen.reports_dir(root) / momentum.LOG) == entries
     with pytest.raises(RuntimeError, match="already logged"):
         momentum.log_backtest(root, long, now)
+    moved = dataclasses.replace(cfg, run=dataclasses.replace(cfg.run, first_session=MARKET_CAL[261].date()))
+    monkeypatch.setattr(momentum, "load_momentum_config", lambda _root: moved)
+    monkeypatch.setattr(momentum, "development_paths", lambda *_: pytest.fail("ran before refusing"))
+    with pytest.raises(RuntimeError, match="already logged"):              # other dates are the same path
+        momentum.log_backtest(root, long, now)
     assert len(experiments.read(frozen.reports_dir(root) / momentum.LOG)) == 2
 
 
@@ -323,6 +328,20 @@ def test_a_catch_up_run_steps_a_momentum_ledger(tmp_path, settings, long) -> Non
     assert result.status == "done" and list(result.processed) == list(sessions[:5])
     assert ledger.check(tmp_path / "ledger") == []
     assert all(p.read_text().startswith("# Paper trading, momentum:") for p in (tmp_path / "notes").iterdir())
+    # The same run with each session's snapshot given by the hook: two snapshots, and a stop at the fifth session.
+    recorded = {d: ("2026-01-01" if i < 2 else "2026-01-02") for i, d in enumerate(sessions[:4])}
+    hooked = dataclasses.replace(
+        job, ledger_root=tmp_path / "hooked", notes_root=tmp_path / "hooked-notes", runs_log=tmp_path / "hooked.jsonl",
+        snapshot=lambda: pytest.fail("the hook replaces the run day's snapshot"),
+        snapshot_for=lambda d: daily.Snapshot(recorded[d], long) if d in recorded else "the reversal run has not recorded it",
+    )
+    stopped = daily.run_job(hooked)
+    assert stopped.status == "incomplete" and list(stopped.processed) == list(sessions[:4]) and stopped.snapshot == "2026-01-02"
+    assert f"stopped at {sessions[4]:%Y-%m-%d}: the reversal run has not recorded it" in stopped.message
+    assert [str(ledger.read_day(tmp_path / "hooked", d)["snapshot"].iloc[0]) for d in sessions[:4]] == list(recorded.values())
+    for d in sessions[:4]:
+        pd.testing.assert_frame_equal(ledger.read_day(tmp_path / "hooked", d).drop(columns="snapshot"),
+                                      ledger.read_day(tmp_path / "ledger", d).drop(columns="snapshot"))
 
 
 def test_the_job_waits_for_the_snapshot_and_gives_up_at_the_deadline() -> None:
@@ -365,21 +384,133 @@ def test_the_jobs_leave_each_others_notes_out_of_git_dirty(tmp_path) -> None:
     assert daily.job_git_state(tmp_path, reports)["git_dirty"] is True
 
 
-def test_a_run_reads_the_reversal_jobs_snapshot_and_never_downloads(root, tmp_path, monkeypatch) -> None:
+def _reversal_day(root, date: pd.Timestamp, snapshot: str) -> None:
+    frame = pd.DataFrame({"date": [date], "ticker": ["S00"], "snapshot": [snapshot]})
+    write_parquet(frame, ledger.path_for(momentum.reversal_ledger(root), date), ["ticker"])
+
+
+def _complete(raw, root, name: str) -> None:
+    named = raw / load_config("data", root)["source"]["name"] / name
+    named.mkdir(parents=True)
+    (named / "manifest.json").write_text("{}")
+
+
+def test_each_session_is_read_from_the_snapshot_the_reversal_ledger_records(root, tmp_path, monkeypatch) -> None:
     raw = tmp_path / "raw"
     monkeypatch.setenv("STATARB_RAW", str(raw))
-    calls, lines = [], []
-    monkeypatch.setattr(daily, "daily_snapshot", lambda *args: calls.append(args) or "snapshot")
-    cfg, day = momentum.load_momentum_config(root), dt.date(2026, 11, 18)
-    assert momentum.run_day_snapshot(root, cfg, day, lines.append, wait=0, poll=0) == "snapshot"
-    assert any("no complete snapshot named 2026-11-18" in line for line in lines)      # missing: logged, and read anyway
-    named = raw / load_config("data", root)["source"]["name"] / day.isoformat()
-    named.mkdir(parents=True)
-    assert momentum.run_day_snapshot(root, cfg, day, lines.clear() or lines.append, wait=0, poll=0) == "snapshot"
-    assert any("no complete snapshot" in line for line in lines)                      # a snapshot still being written
-    (named / "manifest.json").write_text("{}")
-    lines.clear()
-    momentum.run_day_snapshot(root, cfg, day, lines.append, wait=0, poll=0)
-    assert not any("no complete snapshot" in line for line in lines)
-    for _root, called_day, download, _log, processed in calls:
-        assert (called_day, download, processed) == (day, False, momentum.paper_dir(root, cfg) / "processed")
+    built = []
+    monkeypatch.setattr(daily, "daily_snapshot", lambda r, day, download, log, processed: built.append((day, download, processed)) or daily.Snapshot(str(day), {}))
+    cfg = momentum.load_momentum_config(root)
+    days = pd.DatetimeIndex(["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"])
+    for d, name in zip(days[:3], ("2026-11-18", "2026-11-18", "2026-11-19"), strict=True):
+        _reversal_day(root, d, name)
+    _complete(raw, root, "2026-11-18")
+    waits = []
+    monkeypatch.setattr(momentum, "wait_for", lambda ready, wait, poll: waits.append(ready()) or ready())
+    for_session = momentum.session_snapshots(root, cfg, daily.quiet)
+    assert for_session(days[0]).name == for_session(days[1]).name == "2026-11-18"
+    assert built == [(dt.date(2026, 11, 18), False, momentum.paper_dir(root, cfg) / "processed")]          # built once, never downloaded
+    assert for_session(days[2]) == "the reversal run read snapshot 2026-11-19, which the raw store does not hold complete"
+    _complete(raw, root, "2026-11-19")
+    assert for_session(days[2]).name == "2026-11-19"
+    assert waits == []                                                    # recorded sessions are never waited for
+    assert for_session(days[3]) == for_session(days[3]) == "the reversal run has not recorded it"
+    assert waits == [False]                                               # waited for once, not again for the second path
+    assert for_session(days[0]).name == "2026-11-18" and len(built) == 3  # the tables in use are kept, the earlier rebuilt
+
+
+def _job_settings(settings, long) -> momentum.MomentumConfig:
+    first = max(_first(settings, long, momentum_strategy(settings, rule, 500_000)) for rule in (TOTAL, RESIDUAL))
+    return momentum.MomentumConfig(
+        momentum.RunSettings(MARKET_CAL[first].date(), "XNYS", dt.time(6, 0), 500_000, 40, 5, 0.1, 5),
+        momentum.Paths("data/paper-momentum"),
+        (momentum.PathSpec("total-return", "momentum", "aaaa"), momentum.PathSpec("residual", "residual_momentum", "bbbb")),
+    )
+
+
+@pytest.fixture
+def job_root(root, settings, long, monkeypatch):
+    """`run_daily` on the synthetic market: the config, records and reproduction stubbed, the rest as the job runs it."""
+    cfg = _job_settings(settings, long)
+    monkeypatch.setattr(momentum, "load_momentum_config", lambda _root: cfg)
+    monkeypatch.setattr(momentum, "load_settings", lambda _root: settings)
+    monkeypatch.setattr(momentum, "require", lambda _root: None)
+    monkeypatch.setattr(momentum, "frozen_entry", lambda _root, spec: {"config_id": f"entry-{spec.name}"})
+    monkeypatch.setattr(momentum, "reference_tables", lambda *_: {})
+    monkeypatch.setattr(momentum.reproduce, "check", lambda *_: [])
+    monkeypatch.setattr(daily, "job_git_state", lambda *_: {"git_commit": "c0ffee", "git_dirty": False})
+    calls = []
+    monkeypatch.setattr(momentum, "session_snapshots", lambda *_: lambda d: calls.append(d) or daily.Snapshot("2026-01-01", long))
+    monkeypatch.delenv(momentum.REMOTE_ENV, raising=False)
+    monkeypatch.delenv(daily.backup_.REMOTE_ENV, raising=False)
+    return root, cfg, calls
+
+
+def _now_after(cfg, sessions_ahead: int) -> dt.datetime:
+    """The morning after the exchange's session `sessions_ahead` of the run, so that many and one more are due."""
+    sessions = daily.calendar_for(cfg.run.calendar, cfg.first, MARKET_CAL[-1].date())
+    day = (sessions[sessions_ahead] + pd.Timedelta(days=1)).date()
+    return dt.datetime(day.year, day.month, day.day, 7, 0, tzinfo=NY)
+
+
+def _statuses(root, cfg, name: str) -> list[str]:
+    return [r["status"] for r in experiments.read(momentum.paper_dir(root, cfg) / name / "runs.jsonl")]
+
+
+def test_the_job_steps_each_path_in_folders_of_its_own(job_root) -> None:
+    root, cfg, calls = job_root
+    results = momentum.run_daily(root, _now_after(cfg, 2), 0.0)
+    assert [(name, r.status, len(r.processed)) for name, r in results] == [("total-return", "done", 3), ("residual", "done", 3)]
+    for spec in cfg.runs:
+        folder = momentum.paper_dir(root, cfg) / spec.name
+        assert len(ledger.dates(folder / "ledger")) == 3 and ledger.check(folder / "ledger") == []
+        assert {str(ledger.read_day(folder / "ledger", d)["config_hash"].iloc[0]) for d in ledger.dates(folder / "ledger")} == {spec.config_hash}
+        notes = frozen.reports_dir(root) / momentum.NOTES / spec.name
+        assert len(list(notes.iterdir())) == 3
+        record = experiments.read(folder / "runs.jsonl")[-1]
+        assert record["reproduced"] == f"entry-{spec.name}" and record["backup"].startswith("not configured")
+    assert len(calls) == 6                                                 # each path asks for each session's snapshot
+
+
+def test_a_run_with_nothing_due_reads_no_snapshot(job_root) -> None:
+    root, cfg, calls = job_root
+    early = dt.datetime.combine(cfg.run.first_session, dt.time(12, 0), tzinfo=NY)
+    assert [r.status for _, r in momentum.run_daily(root, early, 0.0)] == ["nothing due", "nothing due"]
+    assert calls == []
+
+
+def test_a_path_that_fails_is_recorded_alone_and_the_other_still_runs(job_root, monkeypatch) -> None:
+    root, cfg, _ = job_root
+
+    def check(_tables, strategy, _entry):
+        if strategy.forecast == "momentum":
+            raise OSError("disk full")
+        return []
+
+    monkeypatch.setattr(momentum.reproduce, "check", check)
+    with pytest.raises(OSError, match="disk full"):
+        momentum.run_daily(root, _now_after(cfg, 1), 0.0)
+    assert _statuses(root, cfg, "total-return") == ["failed"]
+    assert _statuses(root, cfg, "residual") == ["done"]
+
+
+def test_a_failure_before_any_path_runs_is_recorded_for_both(job_root, monkeypatch) -> None:
+    root, cfg, _ = job_root
+    monkeypatch.setattr(momentum, "require", lambda _root: (_ for _ in ()).throw(frozen.FrozenConfigError("changed")))
+    with pytest.raises(frozen.FrozenConfigError):
+        momentum.run_daily(root, _now_after(cfg, 1), 0.0)
+    assert _statuses(root, cfg, "total-return") == _statuses(root, cfg, "residual") == ["failed"]
+
+
+def test_refuses_the_reversal_runs_folder_or_backup(job_root, monkeypatch) -> None:
+    root, cfg, _ = job_root
+    monkeypatch.setenv(daily.backup_.REMOTE_ENV, "git@host:owner/ledger.git")
+    monkeypatch.setenv(momentum.REMOTE_ENV, "git@host:owner/ledger.git")
+    with pytest.raises(ValueError, match="reversal run's backup remote"):
+        momentum.run_daily(root, _now_after(cfg, 1), 0.0)
+    monkeypatch.setenv(momentum.REMOTE_ENV, "git@host:owner/momentum.git")
+    for inside in ("data/paper", "data/paper/momentum", "data"):
+        overlapping = dataclasses.replace(cfg, paths=momentum.Paths(inside))
+        with pytest.raises(ValueError, match="overlaps the reversal run's"):
+            momentum.check_separate(root, overlapping, "")
+    momentum.check_separate(root, cfg, "git@host:owner/momentum.git")
