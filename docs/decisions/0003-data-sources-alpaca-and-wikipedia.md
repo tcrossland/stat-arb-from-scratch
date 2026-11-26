@@ -1,7 +1,7 @@
 # 0003: Data sources: Alpaca for prices, Wikipedia for the candidate list
 
 **Date:** 2026-11-16
-**Status:** accepted
+**Status:** accepted, with an amendment of 2026-11-26 on the rebuild tolerance
 
 ## Context
 
@@ -44,7 +44,7 @@ For the candidate list, the Wikipedia page "List of S&P 500 companies" has the c
 ## Consequences
 
 - A reader needs a free Alpaca account to download; the tests need neither keys nor network.
-- A reader's own snapshot, taken later, will differ slightly from the one behind the published results, because Alpaca revises old data. How closely results match is measured and stated before publication.
+- A reader's own snapshot, taken later, will differ slightly from the one behind the published results, because Alpaca revises old data. How closely results match is measured and stated before publication. Amended on 2026-11-26: see the amendment below.
 - No delisted names, so survivorship bias remains as decision record 0001 and the phase 0 brief describe.
 - Wikipedia is editable by anyone. Pinning the revision ID makes the candidate list reproducible.
 - Before the Wikipedia adapter's first download, phase 0 reads the User-Agent policy, the Robot policy and the API etiquette page from their own pages, and records anything that changes the adapter here. Done on 2026-11-16: see the amendment below.
@@ -74,3 +74,10 @@ What they ask of a client, and what `statarb.data.wikipedia` does:
 - it meets every rule above for API clients.
 
 If Wikimedia asks for a different route, or a cached interface comes to serve a pinned revision, the adapter changes and this record is amended.
+
+## Amendment, 2026-11-26: the rebuild tolerance after publication
+
+The repository has been public since it was created on 2026-11-16, so the tolerance the consequences ask for could not be measured before publication: it needs a snapshot taken weeks after the pinned one, and the cache then held snapshots a day apart.
+
+- **Until it is measured,** the README and [reproducing the results](../reproduce.md#checking-your-results) say that a rebuild from a reader's own snapshot matches closely, not exactly, and that how closely is not yet measured.
+- **It is measured** from a daily-job snapshot at least four weeks past the pinned one, from about 2026-12-14, as the backlog's "Tolerance for a rebuild from another snapshot" sets out, and the result is stated in the reproduction guide in place of that note.

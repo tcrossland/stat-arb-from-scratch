@@ -20,11 +20,11 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** the reversal run's drift report rebuilds each ledger day from a later snapshot and checks it against the frozen path and the revision of past bars. The momentum run has no such check, so a mismatch between its ledger and its backtest would show only at the phase 8 review.
 - **Action:** run `statarb.paper.drift` for each momentum path, or generalise it as the paper package was for the momentum job, with its own report folder under `reports/phase-08/forward/`, on Sundays after the reversal run's report.
 
-### Before the repository goes public
+### From about 2026-12-14
 
 #### Tolerance for a rebuild from another snapshot
 
-- **Trigger:** a daily-job snapshot is four weeks past the pinned one of 2026-11-16, from about 2026-12-14, or the repository is about to go public, whichever comes first. [Decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md) says the tolerance is measured and stated before publication.
+- **Trigger:** a daily-job snapshot is four weeks past the pinned one of 2026-11-16, from about 2026-12-14. [Decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md) asked for the tolerance before publication; the repository has been public from the start, and the record's [amendment](decisions/0003-data-sources-alpaca-and-wikipedia.md#amendment-2026-11-26-the-rebuild-tolerance-after-publication) moves it to then.
 - **Why:** the published results reproduce exactly only from the snapshot behind them, which is not redistributed. A reader who downloads their own gets Alpaca's later revisions to old data, so their numbers match closely, not exactly, and [reproducing the results](reproduce.md#checking-your-results) says the tolerance is not yet measured. The cache holds snapshots taken a day apart, too close to show what revisions do over weeks. Without a measured tolerance, a reader cannot tell a revision from an error in their rebuild. From phase 7 the same holds for MarketParquet's archive, which is corrected more often and carries no version ([phase 7 review](phases/phase-07/review.md#what-carries-forward)).
 - **Action:** select a daily-job snapshot at least four weeks after the pinned one in a config overlay (`STATARB_CONFIG_OVERLAY`), not in `[source]` of `config/data.toml`, which the frozen records of both forward runs hold. Run every runner that accepts another snapshot on it with the same code (phase 0 to the phase 5 development run; the holdout and choice runners stop by design), checking that each stops at its own last date and reads no forward day. Then compare each logged metric with the pinned snapshot's by `config_id`. State the largest difference per metric in "Checking your results" in `docs/reproduce.md`, in place of the note that it is not yet measured. Check the drift report's revision count against the same comparison.
 
@@ -147,12 +147,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 
 ### Documentation site
 
-- **Trigger:** when the repository goes public.
-- **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation. A Pages site from a private personal repository would be public.
+- **Trigger:** the cross-phase summary lands, since it is the first report that needs navigation across phases.
+- **Why:** GitHub renders the current markdown well. A site pays off once reports from several phases need cross-phase comparison and navigation.
 - **Action:** write a decision record that evaluates Zensical, its licence read from its own metadata first. It is pre-1.0, so pin it, and build with `zensical build --strict` so a broken link fails CI. It should render committed reports without executing code in CI, since `data/` is git-ignored. Until then, keep `reports/` as GitHub-friendly markdown with relative links.
 
 ### An independent short-term reversal series
 
-- **Trigger:** when the repository goes public. Moved from the phase 6 review, since no phase needs it and it is the check a reader would ask for.
+- **Trigger:** a published series with terms that allow automated use is found, as the [README](../README.md#reuse-it) asks readers, or the forward run's review, whichever comes first. Moved from the phase 6 review, since no phase needs it and it is the check a reader would ask for.
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
