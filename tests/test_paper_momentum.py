@@ -509,8 +509,11 @@ def test_refuses_the_reversal_runs_folder_or_backup(job_root, monkeypatch) -> No
     with pytest.raises(ValueError, match="reversal run's backup remote"):
         momentum.run_daily(root, _now_after(cfg, 1), 0.0)
     monkeypatch.setenv(momentum.REMOTE_ENV, "git@host:owner/momentum.git")
+    assert not (momentum.paper_dir(root, cfg) / "daily.lock").exists()
     for inside in ("data/paper", "data/paper/momentum", "data"):
         overlapping = dataclasses.replace(cfg, paths=momentum.Paths(inside))
+        monkeypatch.setattr(momentum, "load_momentum_config", lambda _root, c=overlapping: c)
         with pytest.raises(ValueError, match="overlaps the reversal run's"):
-            momentum.check_separate(root, overlapping, "")
+            momentum.run_daily(root, _now_after(cfg, 1), 0.0)
+        assert not (root / "data" / "paper").exists()                     # refused before taking a lock or writing a log
     momentum.check_separate(root, cfg, "git@host:owner/momentum.git")

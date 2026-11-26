@@ -455,7 +455,6 @@ def build_jobs(root: Path, now: dt.datetime, started: float, log: daily.Log = da
     snapshot_for = session_snapshots(root, cfg, log)
     reference = once(lambda: reference_tables(root, cfg, log))
     remote = backup_.remote(name=REMOTE_ENV)
-    check_separate(root, cfg, remote)
     git = daily.job_git_state(root, reports)
     jobs = []
     for spec in cfg.runs:
@@ -478,6 +477,7 @@ def build_jobs(root: Path, now: dt.datetime, started: float, log: daily.Log = da
 
 def run_daily(root: Path, now: dt.datetime, started: float) -> list[tuple[str, daily.RunResult]]:
     cfg = load_momentum_config(root)
+    check_separate(root, cfg, backup_.remote(name=REMOTE_ENV))     # before the lock: a shared folder would share it
     base = paper_dir(root, cfg)
     with daily.locked(base / LOCK):
         try:
