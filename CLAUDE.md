@@ -16,7 +16,7 @@ A research project: build a simplified, daily-frequency version of a cross-secti
 |---|---|---|
 | `docs/phases/phase-NN/` | each phase's `brief.md` and `review.md` | a phase starts or ends |
 | `docs/decisions/` | decision records (ADRs), indexed in its `README.md` | scope, data source or methodology changes |
-| `docs/backlog.md` | deferred work, each item with a trigger, why and action, grouped Next and Later, each Next item with a target | work belongs to a later phase |
+| `docs/backlog.md` | deferred work, each item with a trigger, why and action, grouped Next and Later, Next under a heading for the event each item should land by | work belongs to a later phase |
 | `docs/plans/` | a plan for each piece of work large enough to need one, with a status line: purpose, constraints, design, steps | work needs a plan before it is built, or planned work is built or dropped |
 | `docs/architecture.md` | packages, runners, config files, what each reads and writes, external libraries | a module, runner, config file or library is added or renamed |
 | `docs/data-model.md` | stored tables, columns, keys and join rules | a stored table is added or changed |
