@@ -126,3 +126,11 @@ def test_the_run_section_is_set_by_the_forward_runs_decision() -> None:
     assert cfg.run.first == pd.Timestamp("2026-11-16")   # decision record 0007
     assert cfg.frozen.is_set
     assert cfg.run.calendar == "XNYS" and cfg.run.run_time == SIX
+
+
+def test_only_the_calendar_build_is_spared_pandas_4s_warning() -> None:
+    """The filter around `get_calendar` must not hide the same deprecation in our own code."""
+    sessions.market_sessions("XNYS", pd.Timestamp("2026-11-16"), pd.Timestamp("2026-11-20"))
+    aware = pd.Series(pd.date_range("2026-11-16", periods=2, tz="America/New_York"))
+    with pytest.warns(pd.errors.Pandas4Warning, match=sessions.CALENDAR_VALUES):
+        _ = aware.values
