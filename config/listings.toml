@@ -1,0 +1,365 @@
+# The listing exchange of each ticker, for the auction measurement (docs/plans/auction-closes.md,
+# decision record 0011). Loaded by statarb.data.listings. Measurement only: no build or frozen record
+# reads this file.
+#
+# [current]: each ticker's exchange when this file was read, 2026-11-27. Stocks from SEC EDGAR's
+# company_tickers_exchange.json (https://www.sec.gov/files/company_tickers_exchange.json, served with
+# Last-Modified 2026-11-23), which names "NYSE" for every NYSE-group exchange; a stock it files as
+# "NYSE" is entered under nyse, and the report's listing check tells NYSE from NYSE Arca and NYSE
+# American. "CBOE" there is Cboe BZX. The ETFs from their prospectuses on EDGAR, which give NYSE Arca
+# as the listing exchange: SPY, https://www.sec.gov/Archives/edgar/data/884394/000119312526022316/d77353d485bpos.htm
+# (and the 2016 prospectus, https://www.sec.gov/Archives/edgar/data/884394/000119312516433722/d74633d485bpos.htm);
+# the eleven Select Sector SPDR funds, https://www.sec.gov/Archives/edgar/data/1064641/000119312526027312/d15107d485bpos.htm
+# (and 2016, https://www.sec.gov/Archives/edgar/data/1064641/000119312516442131/d118232d485bpos.htm;
+# XLC's launch, https://www.sec.gov/Archives/edgar/data/1064641/000119312518194115/d802298d485bpos.htm).
+# The SEC's website policy allows the information to be copied and redistributed, with a citation.
+#
+# [[transfer]]: each move between exchanges since 2016, walked back from the current exchange, with
+# the first session on the new exchange and the issuer's filing or press release. Each was checked
+# on 2026-11-27 against its source and against the issuer's Form 25 withdrawing from the old exchange.
+# Not listed: moves before 2016 (CSX moved to Nasdaq on 2015-12-22), moves of a predecessor whose
+# history the bar snapshot does not hold (SKYD's bars start on 2025-08-07), Chesapeake's suspension
+# from NYSE in 2020 (EXE's bars start on 2021-02-10 under config/listing_starts.toml), and dual
+# listings that left the primary listing unchanged.
+#
+# [[left_out]]: tickers the report leaves out, each with its reason. None yet.
+
+[current]
+nyse = [
+  "A", "ABBV", "ABT", "ACN", "ADM", "AEE", "AES", "AFL", "AIG", "AIZ", "AJG", "ALB", "ALL", "ALLE",
+  "AMCR", "AME", "AMP", "AMT", "ANET", "AON", "AOS", "APD", "APH", "APO", "APTV", "ARE", "ARES",
+  "ATO", "AVY", "AWK", "AXP", "AZO", "BA", "BAC", "BALL", "BAX", "BBY", "BDX", "BE", "BEN", "BF.B",
+  "BG", "BLK", "BMY", "BNY", "BR", "BRK.B", "BRO", "BSX", "BX", "BXP", "C", "CAH", "CARR", "CAT",
+  "CB", "CBRE", "CCI", "CCL", "CF", "CFG", "CHD", "CI", "CIEN", "CL", "CLX", "CMG", "CMI", "CMS",
+  "CNC", "CNP", "COF", "COHR", "COP", "COR", "CPAY", "CPT", "CRH", "CRL", "CRM", "CVNA", "CVS", "CVX",
+  "D", "DAL", "DD", "DE", "DECK", "DELL", "DG", "DGX", "DHI", "DHR", "DIS", "DLR", "DOC", "DOV",
+  "DOW", "DRI", "DTE", "DUK", "DVA", "DVN", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EME",
+  "EMR", "EOG", "EQT", "ES", "ESS", "ETN", "ETR", "EW", "EXPD", "EXR", "F", "FCX", "FDS", "FDX",
+  "FDXF", "FE", "FERG", "FICO", "FIS", "FITB", "FIX", "FRT", "FTV", "GD", "GDDY", "GE", "GEV", "GIS",
+  "GL", "GLW", "GNRC", "GPC", "GPN", "GRMN", "GS", "GWW", "HAL", "HCA", "HD", "HIG", "HII", "HPE",
+  "HPQ", "HRL", "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IEX", "IFF", "INVH", "IP", "IQV", "IR",
+  "IRM", "IT", "ITW", "IVZ", "J", "JBL", "JCI", "JNJ", "JPM", "KEY", "KEYS", "KHC", "KIM", "KKR",
+  "KMI", "KO", "KR", "L", "LDOS", "LEN", "LH", "LHX", "LII", "LLY", "LMT", "LOW", "LUV", "LVS", "LYB",
+  "LYV", "MA", "MAA", "MAS", "MCD", "MCK", "MCO", "MDT", "MET", "MGM", "MKC", "MLM", "MMM", "MO",
+  "MOS", "MPC", "MRK", "MRSH", "MS", "MSCI", "MSI", "MTB", "MTD", "NCLH", "NEE", "NEM", "NI", "NKE",
+  "NOC", "NOW", "NRG", "NSC", "NUE", "NVR", "O", "OKE", "OMC", "ORCL", "OTIS", "OXY", "P", "PCG",
+  "PEG", "PFE", "PG", "PGR", "PH", "PHM", "PKG", "PLD", "PM", "PNC", "PNR", "PNW", "PPG", "PPL",
+  "PRU", "PSA", "PSX", "PWR", "Q", "RCL", "RDDT", "RF", "RJF", "RL", "RMD", "ROK", "ROL", "RSG",
+  "RTX", "RVTY", "SCHW", "SHW", "SJM", "SKYD", "SLB", "SNA", "SO", "SOLV", "SPG", "SPGI", "SRE",
+  "STE", "STT", "STZ", "SW", "SWK", "SYF", "SYK", "SYY", "T", "TDG", "TDY", "TEL", "TFC", "TGT",
+  "TJX", "TKO", "TMO", "TPL", "TPR", "TRGP", "TRV", "TSN", "TT", "TWLO", "TXT", "TYL", "UBER", "UDR",
+  "UHS", "UNH", "UNP", "UPS", "URI", "USB", "V", "VEEV", "VICI", "VLO", "VLTO", "VMC", "VMRK", "VRT",
+  "VST", "VTR", "VYLR", "VZ", "WAB", "WAT", "WEC", "WELL", "WFC", "WM", "WMB", "WRB", "WSM", "WST",
+  "WY", "XOM", "XYL", "XYZ", "YUM", "ZBH", "ZTS"
+]
+nasdaq = [
+  "AAPL", "ABNB", "ACGL", "ADBE", "ADI", "ADP", "ADSK", "AEP", "AKAM", "ALGN", "AMAT", "AMD", "AMGN",
+  "AMZN", "APA", "APP", "AVGO", "AXON", "BIIB", "BKNG", "BKR", "CASY", "CDNS", "CDW", "CEG", "CHRW",
+  "CHTR", "CINF", "CMCSA", "CME", "COIN", "COO", "COST", "CPRT", "CRWD", "CSCO", "CSGP", "CSX",
+  "CTAS", "CTSH", "DASH", "DDOG", "DLTR", "DPZ", "DXCM", "EBAY", "ECHO", "EQIX", "ERIE", "EVRG",
+  "EXC", "EXE", "EXPE", "FANG", "FAST", "FFIV", "FISV", "FLEX", "FOX", "FOXA", "FSLR", "FTNT", "GEHC",
+  "GEN", "GILD", "GM", "GOOG", "GOOGL", "HAS", "HBAN", "HLT", "HON", "HONA", "HOOD", "HSIC", "HST",
+  "IBKR", "IDXX", "ILMN", "INCY", "INTC", "INTU", "ISRG", "JBHT", "JKHY", "KDP", "KLAC", "KMB", "LIN",
+  "LITE", "LNT", "LRCX", "LULU", "MAR", "MCHP", "MDLZ", "META", "MNST", "MPWR", "MRNA", "MRVL",
+  "MSFT", "MU", "NDAQ", "NDSN", "NFLX", "NTAP", "NTRS", "NVDA", "NWS", "NWSA", "NXPI", "ODFL", "OKTA",
+  "ON", "ORLY", "PANW", "PAYX", "PCAR", "PEP", "PFG", "PLTR", "PODD", "PTC", "PYPL", "QCOM", "REG",
+  "REGN", "ROP", "ROST", "SBAC", "SBUX", "SMCI", "SNDK", "SNPS", "STLD", "STX", "SWKS", "TECH", "TER",
+  "TMUS", "TRMB", "TROW", "TSCO", "TSLA", "TTWO", "TXN", "UAL", "ULTA", "VRSK", "VRSN", "VRTX",
+  "VTRS", "WDAY", "WDC", "WMT", "WTW", "WYNN", "XEL", "ZBRA"
+]
+arca = [
+  "SPY", "XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY"
+]
+bzx = [
+  "CBOE"
+]
+
+[[transfer]]
+ticker = "WTW"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2016-01-05
+note = "as Willis Group Holdings, from WSH on NYSE to WLTW on Nasdaq"
+source = "https://www.sec.gov/Archives/edgar/data/1140536/000119312516420642/d113564d8k.htm"
+
+[[transfer]]
+ticker = "WDAY"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2017-09-20
+source = "https://newsroom.workday.com/2017-09-01-Workday-to-Transfer-Stock-Listing-to-NASDAQ"
+
+[[transfer]]
+ticker = "PFG"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2017-12-18
+source = "https://www.sec.gov/Archives/edgar/data/0001126328/000112632817000296/pfg8-krepressrelease113017.htm"
+
+[[transfer]]
+ticker = "NCLH"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2017-12-19
+source = "https://www.sec.gov/Archives/edgar/data/0001513761/000117184317007496/f8k_120717.htm"
+
+[[transfer]]
+ticker = "PEP"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2017-12-20
+source = "https://www.sec.gov/Archives/edgar/data/0000077476/000095010317012290/dp83934_8k.htm"
+
+[[transfer]]
+ticker = "XEL"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2018-01-02
+source = "https://www.sec.gov/Archives/edgar/data/0000072903/000007290317000072/nysetonasdaq12-19x2017.htm"
+
+[[transfer]]
+ticker = "UAL"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2018-09-07
+note = "then United Continental Holdings"
+source = "https://www.sec.gov/Archives/edgar/data/0000100517/000110465918053536/a18-21159_18k.htm"
+
+[[transfer]]
+ticker = "CBOE"
+from_exchange = "nasdaq"
+to_exchange = "bzx"
+first_day = 2018-09-17
+note = "listed on Cboe BZX as well before the move; the Nasdaq listing ended after the close on 2018-09-14"
+source = "https://www.sec.gov/Archives/edgar/data/0001374310/000155837018006247/ex-99d1.htm"
+
+[[transfer]]
+ticker = "IBKR"
+from_exchange = "nasdaq"
+to_exchange = "iex"
+first_day = 2018-10-05
+source = "https://www.sec.gov/Archives/edgar/data/0001381197/000138119718000046/ibkr-20180911x8k.htm"
+
+[[transfer]]
+ticker = "REG"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2018-11-13
+note = "the 10-K for 2018, Item 1, confirms the first session"
+source = "https://www.sec.gov/Archives/edgar/data/910606/000091060619000006/reg10-k123118.htm"
+
+[[transfer]]
+ticker = "TER"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2018-11-27
+source = "https://www.sec.gov/Archives/edgar/data/0000097210/000119312518326841/d656986d8k.htm"
+
+[[transfer]]
+ticker = "LNT"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2018-12-31
+source = "https://www.sec.gov/Archives/edgar/data/0000352541/000035254118000093/lnt121820188-kexh991.htm"
+
+[[transfer]]
+ticker = "EXC"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2019-09-25
+source = "https://www.sec.gov/Archives/edgar/data/1109357/000162828019011701/exc201909138k.htm"
+
+[[transfer]]
+ticker = "IBKR"
+from_exchange = "iex"
+to_exchange = "nasdaq"
+first_day = 2019-10-07
+source = "https://www.sec.gov/Archives/edgar/data/1381197/000138119719000065/ibkr-20190922x8k.htm"
+
+[[transfer]]
+ticker = "APA"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2020-06-09
+note = "Apache was listed on NYSE, the Chicago Stock Exchange and Nasdaq and kept Nasdaq; the filing gives no date. Its Forms 25 withdrawing from NYSE and Chicago were filed on 2020-06-08 (https://www.sec.gov/Archives/edgar/data/6769/000119312520163490/d931141d25.htm), so the first session listed on Nasdaq alone is taken as 2020-06-09"
+source = "https://www.sec.gov/Archives/edgar/data/6769/000119312520153182/d934017d8k.htm"
+
+[[transfer]]
+ticker = "KDP"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2020-09-21
+source = "https://www.sec.gov/Archives/edgar/data/1418135/000141813520000024/kdp-20200904.htm"
+
+[[transfer]]
+ticker = "AEP"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2020-10-01
+source = "https://www.sec.gov/Archives/edgar/data/4904/000000490420000069/nasdaq09-20208kex991.htm"
+
+[[transfer]]
+ticker = "HST"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2020-11-02
+source = "https://www.sec.gov/Archives/edgar/data/1070750/000156459020046699/hst-ex991_6.htm"
+
+[[transfer]]
+ticker = "HON"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2021-05-11
+source = "https://www.sec.gov/Archives/edgar/data/773840/000077384021000036/exhibit9914302021.htm"
+
+[[transfer]]
+ticker = "PANW"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2021-10-25
+note = "the filing says on or about"
+source = "https://www.sec.gov/Archives/edgar/data/1327567/000119312521296438/d215865d8k.htm"
+
+[[transfer]]
+ticker = "BKR"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2021-12-07
+source = "https://www.sec.gov/Archives/edgar/data/1701605/000095010321016670/dp160581_ex9901.htm"
+
+[[transfer]]
+ticker = "GRMN"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2021-12-07
+source = "https://www.sec.gov/Archives/edgar/data/1121788/000095017021004855/grmn-ex99_1.htm"
+
+[[transfer]]
+ticker = "EVRG"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2022-12-28
+source = "https://www.sec.gov/Archives/edgar/data/1711269/000119312522305429/d367671dex991.htm"
+
+[[transfer]]
+ticker = "COHR"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2023-02-23
+source = "https://www.sec.gov/Archives/edgar/data/820318/000119312523027571/d444935d8k.htm"
+
+[[transfer]]
+ticker = "FISV"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2023-06-07
+note = "as FI on NYSE"
+source = "https://www.sec.gov/Archives/edgar/data/798354/000119312523154199/d470900dex991.htm"
+
+[[transfer]]
+ticker = "ROP"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2023-07-06
+source = "https://www.sec.gov/Archives/edgar/data/882835/000119312523171841/d505407d8k.htm"
+
+[[transfer]]
+ticker = "COO"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2023-09-26
+source = "https://www.sec.gov/Archives/edgar/data/711404/000071140423000047/pr-coopercompaniestransfer.htm"
+
+[[transfer]]
+ticker = "DASH"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2023-09-27
+source = "https://www.sec.gov/Archives/edgar/data/1792789/000162828023032295/exhibit991.htm"
+
+[[transfer]]
+ticker = "LIN"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2023-11-07
+source = "https://www.sec.gov/Archives/edgar/data/1707925/000165495423013397/lin_8k.htm"
+
+[[transfer]]
+ticker = "EXPD"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2023-11-21
+source = "https://www.sec.gov/Archives/edgar/data/746515/000095017023062159/expd-ex99_1.htm"
+
+[[transfer]]
+ticker = "PLTR"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2024-11-26
+source = "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000219/pltr-20241114.htm"
+
+[[transfer]]
+ticker = "DPZ"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2025-01-02
+source = "https://www.sec.gov/Archives/edgar/data/1286681/000119312524276364/d898525dex991.htm"
+
+[[transfer]]
+ticker = "KMB"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2025-05-30
+source = "https://www.sec.gov/Archives/edgar/data/55785/000005578525000051/pre-20250519.htm"
+
+[[transfer]]
+ticker = "FISV"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2025-11-11
+note = "back to Nasdaq as FISV; the filing says on or about"
+source = "https://www.sec.gov/Archives/edgar/data/798354/000119312525254670/d17957d8k.htm"
+
+[[transfer]]
+ticker = "WMT"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2025-12-09
+source = "https://www.sec.gov/Archives/edgar/data/104169/000010416925000177/pressrelease-transfertonas.htm"
+
+[[transfer]]
+ticker = "FITB"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2026-06-12
+source = "https://www.sec.gov/Archives/edgar/data/0000035527/000119312526255417/d157060d8k.htm"
+
+[[transfer]]
+ticker = "KHC"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2026-09-14
+source = "https://www.sec.gov/Archives/edgar/data/0001637459/000163745926000057/khc-20260824.htm"
+
+[[transfer]]
+ticker = "SKYD"
+from_exchange = "nasdaq"
+to_exchange = "nyse"
+first_day = 2026-10-06
+note = "Paramount Skydance class B, PSKY on Nasdaq; the filing says on or about"
+source = "https://www.sec.gov/Archives/edgar/data/2041610/000110465926113076/tm2626659d3_8k.htm"
+
+[[transfer]]
+ticker = "HLT"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2026-11-05
+source = "https://www.sec.gov/Archives/edgar/data/0001585689/000158568926000045/hlt-20261020.htm"
+
+[[transfer]]
+ticker = "GM"
+from_exchange = "nyse"
+to_exchange = "nasdaq"
+first_day = 2026-11-17
+note = "after the sample's last date, so GM is on NYSE throughout it"
+source = "https://www.sec.gov/Archives/edgar/data/1467858/000119312526432602/d53522d8k.htm"

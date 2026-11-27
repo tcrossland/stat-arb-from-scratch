@@ -81,6 +81,10 @@ One symbol per quantity across the project. A phase that introduces a symbol add
 
 **Total return.** The day's return including any dividend going ex that day.
 
+**Listing exchange.** The exchange a security is listed on, whose opening and closing auctions set its official open and close. Other exchanges trade it too and print their own auctions. `config/listings.toml` gives each ticker's, with its transfers since 2016.
+
+**Auction print, closing cross, official close.** An auction print is one exchange's report of an auction: price, size, time and a condition code. Condition `6` marks an exchange's closing trade (its closing cross) and `O` its opening trade; `M` marks its official close and `Q` its official open. Every exchange can print each of them, so a print is the listing exchange's only by its exchange code. A daily bar's close is the last eligible trade of the day and need not be the listing exchange's cross.
+
 **Sector ETF.** An exchange-traded fund holding the stocks of one sector; the eleven SPDR sector funds stand for the sectors, and SPY for the market.
 
 ## Factor model and residuals

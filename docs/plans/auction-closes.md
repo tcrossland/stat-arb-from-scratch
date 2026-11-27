@@ -1,6 +1,6 @@
 # Closes from the listing exchange's auctions
 
-Status: proposed, 2026-11-27. The measurement half of the backlog item "Closes from the listing exchange's closing auctions". Adopting auction prices waits for the forward run's review.
+Status: steps 1 to 4 built, 2026-11-27; step 5, the first download and report, is next. The measurement half of the backlog item "Closes from the listing exchange's closing auctions". Adopting auction prices waits for the forward run's review.
 
 ## Purpose
 
@@ -73,6 +73,7 @@ The backlog's next half reruns the headline paths on auction prices under a conf
 2. **The download:** `statarb.data.auctions`, `config/auctions.toml` and the `--download` path of the runner. Tests on synthetic responses: the request parameters, pagination with a day split across pages, a record after the last date dropped and counted, a last date on or after `first_session` refused, the snapshot's layout and manifest, and every request going to `data.alpaca.markets` alone. Done when the tests pass and nothing touched the network.
 3. **The listings:** decision record 0011 and its line in the index; `config/listings.toml` with every pinned bar snapshot ticker's current exchange and each transfer since 2016 with its primary source; `statarb.data.listings` with tests of the intervals and the refusals.
 4. **The counts:** `statarb.data.auction_counts` and the report runner, with tests on synthetic fixtures: each of the four comparisons, the tolerance, stocks and ETFs apart, a ticker with a transfer, the condition check, the listing check, and a report with no price in it. Then the reference docs: architecture, data model (the raw snapshot), time discipline (an auction price is known at its auction), glossary, requirements and the documentation index. Done when ruff, `uv run pytest -m "not slow"` and the full suite pass, committed on the branch.
+   - Built 2026-11-27. The runner is `statarb.data.auction_report`; the snapshot keeps the prints under `prints/` and Alpaca's code tables under `meta/`. A ticker the data contradicts and no source settles goes under `[[left_out]]` in `config/listings.toml` with its reason.
 5. **The owner's runs:** the download, outside 13:00 to 14:30 CET; the snapshot pinned in `config/auctions.toml` and committed; then the report from a clean tree. Any ticker the listing check flags gets a sourced transfer or is left out before the report is committed.
 
 The overlay reruns, and the backlog's "Why the two sources' closes and volumes differ before 2023", come after step 5 and are not part of this plan.
