@@ -36,5 +36,5 @@ Each phase in order: its brief, then its build commits, then its review. The tag
 - [`data-model.md`](data-model.md): the stored tables, their columns, keys and join rules.
 - [`requirements.md`](requirements.md): the time, memory and disk each runner needs.
 - [`../config/`](../config/): the configuration, commented, one TOML file per area.
-- [`backlog.md`](backlog.md): deferred work, each item with the trigger that brings it back. Next lists what is due soon, under a heading for the event each item should land by, in order; Later holds the rest.
+- [`backlog.md`](backlog.md): deferred work, each item with the trigger that brings it back. Now, when there is one, links the plan being built; Next lists what is due soon, under a heading for the event each item should land by, in order; Later holds the rest.
 - [`plans/`](plans/): plans for work large enough to need one, such as the [ledger explorer](plans/ledger-explorer.md).
