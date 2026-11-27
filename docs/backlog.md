@@ -1,13 +1,13 @@
 # Backlog
 
-Deferred work, variants and open questions that do not belong in the current phase brief.
+Deferred work, variants and open questions: anything not being built now.
 
 ## Rules
 
-- Every item names a trigger (the phase or event at which it should be revisited), why it matters, and the action to take then.
-- Each phase review walks this list. An item is either moved into the next phase brief, turned into a decision record in `docs/decisions/` if it changes scope, data source or methodology, or deleted. The review says which.
-- Work for the current phase goes in its brief, not here.
-- Items are in two groups. Next holds the items planned to land by the next phase tag, under a heading for the event, review or tag they should land by, earliest first, and in the order to take them up within each heading. An item's own target says only what its heading does not. Later holds the rest, untargeted and ungrouped, each still revisited at its trigger.
+- Every item names a trigger (the event, date or review at which it should be revisited), why it matters, and the action to take then.
+- Work being built lives in its phase brief or its plan in `docs/plans/`, not here. A Now section, above Next, names the plan being built and links to it; it is removed when the plan's status says done.
+- Next holds the items planned soon, under a heading for the event, date, review or tag they should land by, earliest first, and in the order to take them up within each heading. An item's own target says only what its heading does not. Later holds the rest, untargeted and ungrouped.
+- The list is walked at each phase review, and whenever a trigger arrives or the backlog is triaged. An item leaves by being taken up in a brief or a plan, turned into a decision record if it changes scope, data source or methodology, retriggered, or deleted. The review, or the commit that changes the backlog, says which.
 - An item's title is fixed once written: reviews and decision records refer to items by title.
 
 ## Now
@@ -69,6 +69,12 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** the forward run's review, or sooner if a conclusion turns on the spread assumption. Moved from the forward run's decision record by [decision record 0007](decisions/0007-forward-run.md): the run tests whether the live pipeline matches its backtest, which needs the spread assumption the backtest used.
 - **Why:** decision record 0005 charges an assumed spread because the daily-price estimators measure the strategy's own reversal. The assumption is the same for every stock and day, so it misprices the smaller names and stressed years.
 - **Action:** find a public source of measured effective spreads per stock (for example the execution-quality reports US market centres publish under SEC Rule 605), read its terms, and write a decision record before using it. Compare it with the assumption and the bracket by size group and year.
+
+#### One-line errors in the other runners
+
+- **Trigger:** the forward run's review.
+- **Why:** `statarb.data.marketparquet_build` ends an expected failure with one line and exit code 1, while `statarb.data.build` and the other runners raise through `main` with a traceback. `statarb.data.build` runs in the daily job, so it is not changed while the forward runs last.
+- **Action:** give each runner the same split: named, expected failures as one line and exit code 1, anything else a traceback.
 
 ### `phase-08`
 
@@ -143,6 +149,24 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Why:** phase 5's report shows the IC by year and the features' importance, but not how the IC moves through time, how the forecast depends on its strongest feature, or how the walk-forward tuning behaved. The tuning is visible only in the log, which hides whether the chosen grid point flips between blocks on small differences in validation IC, and whether the number of trees collapses in blocks where validation IC is near zero, when the model is close to a constant forecast. Day-level features (`market_vol` and `dispersion`, the same for every stock on a day) cannot reorder stocks on their own, since the target is ranked within each day, so the gain they take is either interaction or fitting each day's mean, which changes no position.
 - **Action:** chart the rolling 252-day IC at 1 and 5 days across development and the holdout with the boundary marked; the SHAP dependence of the forecast on the one-day residual sum coloured by the volume ratio; and the walk-forward blocks for each horizon, one column per block, with every grid point's validation IC, the chosen one marked, and the trees chosen on a log scale. Every block's grid is in `reports/phase-05/experiments.jsonl`, so the charts need no retraining. Separately, measure how much of the day-level features' gain is interaction, by comparing validation IC with and without them over every block, on development data only; that comparison adds trials.
 
+### Time-series foundation models
+
+- **Trigger:** a fresh holdout is declared and a phase returns to forecasting.
+- **Why:** open-weight models pretrained on market data (for example Kronos, Chronos-2 and TimesFM 2.5) forecast price series without training. Two problems here: a model pretrained on data overlapping the backtest has seen its outcomes, which no walk-forward split removes, and the models forecast one series at a time where the strategy ranks residuals across stocks. Published zero-shot results on equities are weak.
+- **Action:** evaluate only on data after the model's publication and inside a fresh holdout, never on the backtest period. Use each model's forecast of a stock's residual series as a feature, or as a forecast through the phase 5 calibration and rules, and compare its IC with the baseline and the phase 5 models on the same days. A model qualifies only if its weights' licence, read from the official model card, is permissive (Kronos is reported MIT, Chronos-2 and TimesFM 2.5 Apache-2.0, none yet read; TimesFM 3's weights are reported non-commercial), its training cut-off is documented, it runs on CPU, and it installs from prebuilt wheels on the pinned Python. Every model and variant is a trial.
+
+### Wider validation and feature set
+
+- **Trigger:** a later phase returns to the ML model.
+- **Why:** phase 5 judged each configuration on one walk-forward path, and its features are a short hand-chosen list (`[features]` in `config/models.toml`). Combinatorial purged cross-validation gives a distribution of out-of-sample results instead of one path, and published daily feature sets such as Qlib's Alpha158 show what a wider set looks like.
+- **Action:** on development data only, compare the phase 5 walk-forward with combinatorial purged splits using the same purge and embargo, and report the spread of IC and net Sharpe across paths. Add features computable from the stored tables, each passing the row-removal look-ahead test. Read Qlib (licence not yet read) and skfolio (reported BSD-3-Clause, not yet read) as references; adding either as a dependency needs a decision record, with the licences of their dependencies checked too.
+
+### A second model library
+
+- **Trigger:** a later phase asks whether the phase 5 result depends on the boosting library.
+- **Why:** LightGBM was fixed before phase 5 and never compared with another library. The interface for a second one exists (`statarb.models.backend`, chosen by `[model] library` in `config/models.toml`), so the comparison needs a backend, not a refactor.
+- **Action:** add XGBoost or CatBoost behind the backend interface, its licence read from the package's own metadata first. It qualifies only if a rebuilt model is byte-identical and it installs from a prebuilt wheel on the pinned Python; run the backend contract tests over it. Fix its own grid before any result, since its complexity settings differ from LightGBM's. Its paths are trials, and the comparison uses development data only.
+
 ### Point-in-time index membership
 
 - **Trigger:** a result on the S&P 500 candidates is extended or published, or a source of constituent history is found. Moved from the phase 7 review, which found that a result does still turn on it. Phase 8 ranks every listed stock, so the next strategy's decision record does not need it.
@@ -160,3 +184,9 @@ Deferred work, variants and open questions that do not belong in the current pha
 - **Trigger:** a published series with terms that allow automated use is found, as the [README](../README.md#reuse-it) asks readers, or the forward run's review, whichever comes first. Moved from the phase 6 review, since no phase needs it and it is the check a reader would ask for.
 - **Why:** every check on the engine so far runs on this project's own data and code. A published short-term reversal factor, built by others from other data over the same years, would show whether the decile book's P&L moves with it by year, a check on the engine and the data together that no internal test gives.
 - **Action:** find a published daily or monthly short-term reversal series, read its terms of use, and write a decision record before downloading it, since it is a new data source. Compare its returns by year with the raw-reversal decile book's gross P&L; do not use it in any signal.
+
+### exchange-calendars under pandas 4
+
+- **Trigger:** an upgrade of pandas to 4 or of exchange-calendars past 4.13.3, or a calendar that gives other sessions than before.
+- **Why:** exchange-calendars 4.13.3 builds a calendar with `.values` on a time-zone-aware Series, which pandas 3.1 deprecates with a `Pandas4Warning`. Under pandas 4 that call returns a `DatetimeArray` instead of a NumPy array, and whether the library's conversion to integer nanoseconds then gives the same values is not checked. Every calendar the project builds goes through `exchange_calendar` in `statarb.data.schema`, the forward runs' sessions included. The pinned pandas 3.1.1 is unaffected, and `uv.lock` means only a deliberate upgrade changes it. Reported upstream as [gerrymanoim/exchange_calendars#652](https://github.com/gerrymanoim/exchange_calendars/issues/652).
+- **Action:** before the upgrade, look for an exchange-calendars release that fixes it, read its licence from its own metadata, and check that it installs from wheels on the pinned Python. After any upgrade, check that the forward runs' window gives the same sessions, and drop the filter around `get_calendar` (`CALENDAR_VALUES` in `statarb.data.schema`) once the library no longer warns.
