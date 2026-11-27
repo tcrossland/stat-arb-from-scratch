@@ -14,3 +14,4 @@ Short records of decisions that change scope, data source or methodology: contex
 | [0008](0008-marketparquet-archive-as-a-paid-price-source.md) | MarketParquet's archive as a paid price source | accepted, its point 1's interface amended by 0009 | 2026-11-19 |
 | [0009](0009-rules-for-marketparquets-data.md) | Rules for MarketParquet's data | accepted | 2026-11-21 |
 | [0010](0010-momentum-forward-run.md) | A momentum forward run beside the reversal run | accepted, its item 6 amended 2026-11-26 | 2026-11-25 |
+| [0011](0011-listing-exchanges-and-auction-prices.md) | Listing exchanges from SEC EDGAR, and Alpaca's auction prices for measurement | accepted | 2026-11-27 |
