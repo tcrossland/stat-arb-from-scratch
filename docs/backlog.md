@@ -10,6 +10,10 @@ Deferred work, variants and open questions that do not belong in the current pha
 - Items are in two groups. Next holds the items planned to land by the next phase tag, under a heading for the event, review or tag they should land by, earliest first, and in the order to take them up within each heading. An item's own target says only what its heading does not. Later holds the rest, untargeted and ungrouped, each still revisited at its trigger.
 - An item's title is fixed once written: reviews and decision records refer to items by title.
 
+## Now
+
+- The measurement half of "Closes from the listing exchange's closing auctions": [the plan](plans/auction-closes.md).
+
 ## Next
 
 ### During the forward run
