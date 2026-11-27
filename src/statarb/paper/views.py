@@ -1,18 +1,24 @@
 """Phase 6 ledger explorer: tables over the ledger, for the local app in notebooks/ledger.py.
 
-Every function but `load` is a pure function of its arguments: ledger frames,
-as `statarb.paper.drift.read_ledger` returns them, and the sectors table.
-`load` reads the ledger, the sectors table of the snapshot in use and the
-run's sessions in `config/paper.toml`; nothing here writes. The explorer reads forward days by design, so nothing it computes
-enters an experiment log, a report or a decision, and it runs only locally:
-decision record 0003 forbids redistributing the data the ledger derives from.
+Every function but `ledgers` and `load` is a pure function of its arguments:
+ledger frames, as `statarb.paper.drift.read_ledger` returns them, and the
+sectors table. `load` reads one ledger, the sectors table of the snapshot its
+run has in use and the reversal run's sessions in `config/paper.toml`; nothing
+here writes. The ledgers are the reversal run's (`[paths] paper` of
+`config/data.toml`) and one per path of the momentum run (`[[runs]]` of
+`config/momentum_forward.toml`), whose days are the same sessions. The explorer
+reads forward days by design, so nothing it computes enters an experiment log,
+a report or a decision, and it runs only locally: decision record 0003 forbids
+redistributing the data the ledger derives from.
 
 Weights are per unit of capital, as in the ledger; a `_usd` column is a weight
 times `book_size`. A day's `holding` is the book after the fill at its open,
 and its `pnl` and `borrow` were earned by `held`, the book carried in. Trading
 costs are day-level, so attribution by name or sector covers P&L and borrow
 only. Under the optimiser `target` is NaN: the trades at the next open are
-known only once the next day is filled.
+known only once the next day is filled. Under the momentum run's decile sort
+`slope` is NaN and `expected_move` is NaN for stocks and zero for the hedges,
+since the sort ranks the signal itself (`calibrated` tells the two apart).
 """
 
 from __future__ import annotations
@@ -27,7 +33,7 @@ import pandas as pd
 from statarb.config import load_config, resolve_path
 from statarb.data.schema import DATE, TICKER, exchange_today
 from statarb.io import read_parquet
-from statarb.paper import ledger
+from statarb.paper import ledger, momentum
 from statarb.paper import sessions as sessions_
 from statarb.paper.config import Run, load_paper_config
 from statarb.paper.daily import COMPLETE, LEDGER, PROCESSED, calendar_for
@@ -36,6 +42,9 @@ from statarb.paper.drift import read_ledger
 NO_SECTOR = "no sector"      # names with no sector row on the day: the hedge ETFs
 COSTS = ("cost_spread", "cost_impact", "cost_commission")
 SIDES = {1.0: "long", -1.0: "short"}
+
+
+REVERSAL = "reversal"         # the reversal run's ledger; every other ledger is a momentum path, by its name
 
 
 @dataclass(frozen=True)
@@ -47,16 +56,42 @@ class Ledger:
     snapshot: str | None           # the processed snapshot the sectors come from; None if there is none
     problems: tuple[str, ...]      # `statarb.paper.ledger.check`: empty when the chain is intact
     run: Run | None = None         # `[run]` of the checkout's config/paper.toml; None if it has no such file
+    name: str = REVERSAL           # which ledger: REVERSAL or a momentum path's name
+    folder: Path | None = None     # the ledger's folder
 
 
-def load(root: Path) -> Ledger:
-    """The ledger of the checkout at `root`, with the sectors of its latest complete daily snapshot."""
-    paper = resolve_path(load_config("data", root)["paths"]["paper"], root)
+def _momentum(root: Path) -> momentum.MomentumConfig | None:
+    return momentum.load_momentum_config(root) if (root / "config" / f"{momentum.NAME}.toml").is_file() else None
+
+
+def ledgers(root: Path) -> tuple[str, ...]:
+    """The ledgers the checkout at `root` configures: REVERSAL, then each momentum path by name, in config order."""
+    cfg = _momentum(root)
+    return (REVERSAL, *(spec.name for spec in cfg.runs)) if cfg is not None else (REVERSAL,)
+
+
+def load(root: Path, name: str = REVERSAL) -> Ledger:
+    """A ledger of the checkout at `root`, with the sectors of its run's latest complete daily snapshot: the reversal
+    run's, or the momentum path called `name`. Both runs keep their processed snapshots beside their ledgers."""
+    if name == REVERSAL:
+        paper = resolve_path(load_config("data", root)["paths"]["paper"], root)
+        folder = paper / LEDGER
+    elif name in ledgers(root):
+        paper = momentum.paper_dir(root, _momentum(root))
+        folder = paper / name / momentum.LEDGER
+    else:
+        raise ValueError(f"no ledger {name!r} under {root}: the ledgers are {', '.join(ledgers(root))}")
     processed = paper / PROCESSED
     done = sorted(p for p in processed.iterdir() if (p / COMPLETE).exists()) if processed.exists() else []
     sectors = read_parquet(done[-1] / "sectors.parquet") if done else pd.DataFrame(columns=[TICKER, "sector", "valid_from", "valid_to"])
     run = load_paper_config(root).run if (root / "config" / "paper.toml").is_file() else None
-    return Ledger(read_ledger(paper / LEDGER), sectors, done[-1].name if done else None, tuple(ledger.check(paper / LEDGER)), run)
+    return Ledger(read_ledger(folder), sectors, done[-1].name if done else None, tuple(ledger.check(folder)), run, name, folder)
+
+
+def calibrated(frame: pd.DataFrame) -> bool:
+    """Whether the ledger records expected moves: some day has a finite slope. False under the decile sort, whose
+    expected moves are NaN for stocks and zero for the hedges, so neither says anything about the next open."""
+    return bool(np.isfinite(frame["slope"]).any())
 
 
 def due(run: Run | None, last_done: pd.Timestamp | None, now: dt.datetime) -> pd.DatetimeIndex | None:
@@ -197,11 +232,15 @@ def attribution(frame: pd.DataFrame, sectors: pd.DataFrame, by: str) -> pd.DataF
 
 def next_open(frame: pd.DataFrame) -> pd.DataFrame:
     """The latest day's decision for the next open: each name's expected move beside its holding, and the target
-    (NaN under the optimiser). Names with neither a holding nor a finite move are left out."""
+    (NaN under the optimiser). Names with no holding, no finite move and no target are left out. Sorted by expected
+    move, largest first, where the ledger is `calibrated`, else by target; a NaN sorts last, never as a zero."""
+    moves = calibrated(frame)
     last = frame.loc[frame[DATE] == frame[DATE].max()]
-    last = last.loc[(last["holding"] != 0) | np.isfinite(last["expected_move"])]
+    moved = np.isfinite(last["expected_move"]) if moves else False     # a hedge's zero under the decile sort is no move
+    last = last.loc[(last["holding"] != 0) | moved | (last["target"].fillna(0.0) != 0)]
     out = last[[TICKER, "holding", "expected_move", "target"]]
-    return out.iloc[np.argsort(-out["expected_move"].fillna(0).to_numpy(), kind="stable")].reset_index(drop=True)
+    key = "expected_move" if moves else "target"
+    return out.sort_values(key, ascending=False, na_position="last", kind="stable").reset_index(drop=True)
 
 
 def history(frame: pd.DataFrame, ticker: str) -> pd.DataFrame:

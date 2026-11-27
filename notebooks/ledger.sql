@@ -1,21 +1,30 @@
 -- Ledger explorer for the DuckDB command line: the views of statarb.paper.views, in SQL.
 --
 --     STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
+--     STATARB_LEDGER_ROOT=../stat-arb-forward STATARB_LEDGER=residual duckdb -init notebooks/ledger.sql
 --
--- STATARB_LEDGER_ROOT is the checkout whose ledger to read, by default the directory DuckDB is started in; the
--- ledger is taken to be in data/paper/ under it, the default of `[paths] paper`. It opens an in-memory database,
--- so nothing is written.
+-- STATARB_LEDGER_ROOT is the checkout whose ledgers to read, by default the directory DuckDB is started in.
+-- STATARB_LEDGER is the ledger: `reversal`, the default, in data/paper/ledger/, the default of `[paths] paper` of
+-- config/data.toml; or a momentum path by its name in `[[runs]]` of config/momentum_forward.toml, in
+-- data/paper-momentum/<name>/ledger/, the default of that file's `[paths] paper`. SQL cannot read either file, so
+-- tests/test_ledger_sql.py holds these folders to them. Each run's sectors come from its own processed snapshot.
+-- It opens an in-memory database, so nothing is written.
 --
 -- `FROM guide;` lists the views. Weights are per unit of capital and a `_usd` column is a weight times
 -- `book_size`, as in the ledger. tests/test_ledger_sql.py holds each view to the Python view of the same name.
 -- Local only: decision record 0003 forbids redistributing the data the ledger derives from.
 
--- `getenv` exists only in the command-line client; anything else sets the variable `paper` before loading this file.
-SET VARIABLE paper = coalesce(getvariable('paper'), coalesce(getenv('STATARB_LEDGER_ROOT'), '.') || '/data/paper');
+-- `getenv` exists only in the command-line client; anything else sets the variables `ledger_name` and `paper`, the
+-- run's folder, before loading this file.
+SET VARIABLE ledger_name = coalesce(getvariable('ledger_name'), nullif(getenv('STATARB_LEDGER'), ''), 'reversal');
+SET VARIABLE paper = coalesce(getvariable('paper'), coalesce(getenv('STATARB_LEDGER_ROOT'), '.')
+    || CASE WHEN getvariable('ledger_name') = 'reversal' THEN '/data/paper' ELSE '/data/paper-momentum' END);
 
--- Every ledger day, as stored (docs/data-model.md).
+-- Every ledger day, as stored (docs/data-model.md). A momentum path's ledger is in a folder of its name.
 CREATE OR REPLACE VIEW ledger AS
-SELECT * FROM read_parquet(getvariable('paper') || '/ledger/date=*.parquet', hive_partitioning = false);
+SELECT * FROM read_parquet(
+    getvariable('paper') || CASE WHEN getvariable('ledger_name') = 'reversal' THEN '' ELSE '/' || getvariable('ledger_name') END
+    || '/ledger/date=*.parquet', hive_partitioning = false);
 
 -- The sectors of the latest daily snapshot. The daily job keeps only the snapshot in use; SQL cannot see its
 -- COMPLETE marker, so do not query while the job is building one.
@@ -122,11 +131,17 @@ ORDER BY date;
 
 -- The latest day's decision for the next open: each name's expected move beside its holding. Under the optimiser
 -- `target` is null: it solves on the expected move at the next open, and its trades appear in the next ledger day.
+-- Under the momentum paths' decile sort no day has a slope, the expected move is null for stocks and zero for the
+-- hedges, and the target is the book the sort set: names follow the target then, and a hedge's zero is no move.
+-- A missing value sorts last, never as a zero.
 CREATE OR REPLACE VIEW next_open AS
+WITH calibrated AS (SELECT coalesce(bool_or(isfinite(slope)), false) AS moves FROM ledger)
 SELECT ticker, holding, expected_move, target
-FROM ledger
-WHERE date = (SELECT max(date) FROM ledger) AND (holding <> 0 OR isfinite(expected_move))
-ORDER BY coalesce(expected_move, 0) DESC, ticker;
+FROM ledger, calibrated
+WHERE date = (SELECT max(date) FROM ledger)
+  AND (holding <> 0 OR (moves AND coalesce(isfinite(expected_move), false)) OR coalesce(isfinite(target) AND target <> 0, false))
+ORDER BY CASE WHEN moves THEN (CASE WHEN isfinite(expected_move) THEN expected_move END)
+              ELSE (CASE WHEN isfinite(target) THEN target END) END DESC NULLS LAST, ticker;
 
 -- Every holding spell: a run of days a name is held on one side. `entry` is the open it was filled at, `exit` the
 -- open it was closed or flipped at (null while open), `days` the opens it was held after.
@@ -190,7 +205,7 @@ SELECT * FROM (VALUES
     ('pnl', 'dollars by day: gross, borrow, costs, net, turnover'),
     ('earned', 'P&L and borrow by name and day, for attribution'),
     ('history(''TICKER'')', 'one name, day by day'),
-    ('next_open', 'the expected moves behind the next open'),
+    ('next_open', 'the decision behind the next open'),
     ('spells', 'holding spells: entry, exit, days, P&L'),
     ('health', 'by day: grid, missing returns, status, commit, snapshot'),
     ('sectors', 'the snapshot''s dated sectors')

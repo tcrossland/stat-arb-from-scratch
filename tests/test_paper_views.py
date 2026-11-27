@@ -12,9 +12,20 @@ import pytest
 import statarb.io
 from statarb.config import repo_root
 from statarb.data.schema import DATE, TICKER
-from statarb.paper import ledger, views
+from statarb.paper import ledger, momentum, views
 from statarb.paper.config import Run, load_paper_config
-from synthetic_ledger import BOOK_SIZE, CHANGE, DATES, SECTORS, concat, frames, write
+from synthetic_ledger import (
+    BOOK_SIZE,
+    CHANGE,
+    DATES,
+    HEDGES,
+    SECTORS,
+    concat,
+    frames,
+    write,
+)
+
+PATHS = tuple(spec.name for spec in momentum.load_momentum_config(repo_root()).runs)   # the momentum paths, by name
 
 
 @pytest.fixture
@@ -28,6 +39,22 @@ def root(tmp_path):
     (tmp_path / "config" / "data.toml").write_text('[paths]\npaper = "data/paper"\n')
     write(tmp_path / "data" / "paper")
     return tmp_path
+
+
+@pytest.fixture
+def momentum_frame() -> pd.DataFrame:
+    return concat(frames(momentum=True))
+
+
+@pytest.fixture
+def both(root):
+    """A checkout with the reversal ledger and a ledger for each momentum path, as config/momentum_forward.toml names
+    them, each from its own seed."""
+    shutil.copy(repo_root() / "config" / "momentum_forward.toml", root / "config" / "momentum_forward.toml")
+    paper = momentum.paper_dir(root, momentum.load_momentum_config(root))
+    for seed, name in enumerate(PATHS, start=1):
+        write(paper, seed, path=name)
+    return root
 
 
 def _tree(path) -> dict[str, bytes]:
@@ -74,6 +101,88 @@ def test_load_reads_the_runs_sessions_where_the_checkout_has_them(root) -> None:
     assert views.load(root).run is None                    # no config/paper.toml: not a forward run's checkout
     shutil.copy(repo_root() / "config" / "paper.toml", root / "config" / "paper.toml")
     assert views.load(root).run == load_paper_config().run
+
+
+def test_the_ledgers_are_the_reversal_runs_then_each_momentum_path(root, both) -> None:
+    assert len(PATHS) >= 2
+    assert views.ledgers(both) == (views.REVERSAL, *PATHS)
+
+
+def test_a_checkout_without_the_momentum_run_has_only_the_reversal_ledger(root) -> None:
+    assert views.ledgers(root) == (views.REVERSAL,)
+    with pytest.raises(ValueError, match="reversal"):
+        views.load(root, PATHS[0])
+
+
+def test_load_reads_a_momentum_paths_ledger_and_its_runs_sectors(both) -> None:
+    paper = momentum.paper_dir(both, momentum.load_momentum_config(both))
+    for seed, name in enumerate(PATHS, start=1):
+        loaded = views.load(both, name)
+        pd.testing.assert_frame_equal(concat([loaded.frame]), concat(frames(seed, momentum=True)))
+        pd.testing.assert_frame_equal(loaded.sectors, SECTORS)
+        assert loaded.name == name and loaded.folder == paper / name / "ledger"
+        assert loaded.snapshot == "2026-01-02" and loaded.problems == ()
+    assert views.load(both).name == views.REVERSAL
+    pd.testing.assert_frame_equal(concat([views.load(both).frame]), concat(frames()))   # the reversal ledger is untouched
+
+
+def test_load_of_a_momentum_path_reads_only_its_ledger_and_sectors(both, monkeypatch) -> None:
+    read, original = [], statarb.io.pq.read_table
+    monkeypatch.setattr(statarb.io.pq, "read_table", lambda path, *a, **k: read.append(path) or original(path, *a, **k))
+    before = _tree(both)
+    views.load(both, PATHS[-1])
+    assert _tree(both) == before
+    paper = momentum.paper_dir(both, momentum.load_momentum_config(both))
+    assert {p.parent for p in read} == {paper / PATHS[-1] / "ledger", paper / "processed" / "2026-01-02"}
+
+
+def test_load_refuses_a_ledger_the_checkout_does_not_configure(both) -> None:
+    with pytest.raises(ValueError, match="no ledger 'momentum'"):
+        views.load(both, "momentum")
+
+
+def test_a_ledger_is_calibrated_when_it_records_a_slope(frame, momentum_frame) -> None:
+    assert views.calibrated(frame)
+    assert not views.calibrated(momentum_frame)
+    assert views.calibrated(frame.assign(slope=np.where(frame[DATE] == DATES[0], np.nan, frame["slope"])))
+
+
+def test_the_next_open_under_the_decile_sort_is_its_target(momentum_frame) -> None:
+    """With no expected moves the names follow the target, largest first; a hedge's zero move does not keep a name
+    the book neither holds nor targets, and a NaN move is never read as zero."""
+    n = views.next_open(momentum_frame)
+    last = momentum_frame.loc[momentum_frame[DATE] == DATES[-1]].set_index(TICKER)
+    kept = last.loc[(last["holding"] != 0) | (last["target"] != 0)]
+    assert set(n[TICKER]) == set(kept.index) and "DD" not in set(n[TICKER])
+    assert list(n["target"]) == sorted(n["target"], reverse=True)
+    stocks = n.loc[~n[TICKER].isin(HEDGES)]
+    assert stocks["expected_move"].isna().all() and n["target"].notna().all()
+
+
+def test_the_next_open_sorts_a_missing_move_last(frame) -> None:
+    last = frame[DATE] == DATES[-1]
+    gap = frame.assign(expected_move=np.where(last & (frame[TICKER] == "AA"), np.nan, frame["expected_move"]))
+    n = views.next_open(gap)
+    assert n[TICKER].iloc[-1] == "AA" and np.isnan(n["expected_move"].iloc[-1])
+    assert list(n["expected_move"].iloc[:-1]) == sorted(n["expected_move"].iloc[:-1], reverse=True)
+
+
+def test_the_views_carry_a_momentum_ledgers_missing_moves_and_slope_as_nan(momentum_frame) -> None:
+    held = views.book(momentum_frame, SECTORS, DATES[3])
+    assert held.loc[~held[TICKER].isin(HEDGES), "prior_expected_move"].isna().all()
+    assert (held.loc[held[TICKER].isin(HEDGES), "prior_expected_move"] == 0).all()
+    h = views.health(momentum_frame)
+    assert h["slope"].isna().all() and (h["status"] == "").all()
+    assert views.history(momentum_frame, "AA")["expected_move"].isna().all()
+    assert views.pnl(momentum_frame)["net_usd"].notna().all()
+
+
+def test_a_momentum_ledger_trades_and_earns_as_the_reversal_ledger_does(frame, momentum_frame) -> None:
+    """The two variants share returns and holdings, so every view that reads neither moves nor slope agrees."""
+    pd.testing.assert_frame_equal(views.trades(momentum_frame), views.trades(frame))
+    pd.testing.assert_frame_equal(views.pnl(momentum_frame), views.pnl(frame))
+    pd.testing.assert_frame_equal(views.spells(momentum_frame), views.spells(frame))
+    pd.testing.assert_frame_equal(views.attribution(momentum_frame, SECTORS, "sector"), views.attribution(frame, SECTORS, "sector"))
 
 
 RUN = Run(first_session=dt.date(2026, 11, 16), calendar="XNYS", run_time=dt.time(6, 0))

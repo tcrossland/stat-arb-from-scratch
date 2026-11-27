@@ -2,7 +2,9 @@
 
 Six days on five names. A holding of None keeps the drifted weight, so the name does not trade. The book is built
 to cover each kind of trade (open, close, flip, add, reduce), a sector change, a name joining the grid and a name
-with no sector (HX, standing in for a hedge ETF).
+with no sector (HX, standing in for a hedge ETF). With `momentum` the days are recorded as the momentum run's
+decile sort records them: no slope or solver status, an expected move that is NaN for stocks and zero for the hedge,
+and a target, the book the sort set for the next open, here the book after the day's own fill.
 """
 
 from __future__ import annotations
@@ -40,7 +42,10 @@ SECTORS = pd.DataFrame({
 })
 
 
-def frames(seed: int = 0) -> list[pd.DataFrame]:
+HEDGES = ("HX",)
+
+
+def frames(seed: int = 0, momentum: bool = False) -> list[pd.DataFrame]:
     """The ledger's days, chained as the daily job chains them."""
     rng = np.random.default_rng(seed)
     out, carry = [], ledger.Carry.flat(tuple(sorted(HOLDINGS[0])))
@@ -56,21 +61,25 @@ def frames(seed: int = 0) -> list[pd.DataFrame]:
         step = Step(returns=ret, pnl=held * ret, borrow=BORROW_RATE * np.clip(-held, 0.0, None), drifted=drifted,
                     holdings=holdings, trades=trades, missing=0)
         totals = ledger.DayTotals(cost_spread=1e-4 * traded, cost_impact=2e-4 * traded, cost_commission=5e-5 * traded,
-                                  slope=0.5, status="optimal")
+                                  slope=np.nan if momentum else 0.5, status="" if momentum else "optimal")
         moves = np.round(rng.normal(0.0, 0.003, len(tickers)), 5)
-        frame = ledger.day_frame(date, tickers, held, step, np.full(len(tickers), np.nan), moves, META, totals)
+        if momentum:
+            moves = np.array([0.0 if t in HEDGES else np.nan for t in tickers])
+        target = holdings.copy() if momentum else np.full(len(tickers), np.nan)
+        frame = ledger.day_frame(date, tickers, held, step, target, moves, META, totals)
         out.append(frame)
         carry = ledger.carry_of(frame)
     return out
 
 
-def write(paper: Path, seed: int = 0) -> list[pd.DataFrame]:
-    """Write the ledger under `paper`/ledger and the sectors as a complete processed snapshot, as the daily job does."""
-    days = frames(seed)
+def write(paper: Path, seed: int = 0, path: str | None = None) -> list[pd.DataFrame]:
+    """Write the ledger under `paper`/ledger and the sectors as a complete processed snapshot, as the daily job does.
+    With `path`, a momentum path's ledger instead, under `paper`/`path`/ledger, as the momentum job lays it out."""
+    days = frames(seed, momentum=path is not None)
     for frame in days:
-        ledger.write_day(paper / "ledger", frame)
+        ledger.write_day(paper / (path or "") / "ledger", frame)
     snapshot = paper / "processed" / META.snapshot
-    snapshot.mkdir(parents=True)
+    snapshot.mkdir(parents=True, exist_ok=True)
     SECTORS.to_parquet(snapshot / "sectors.parquet", index=False)
     (snapshot / "COMPLETE").touch()
     return days

@@ -238,26 +238,26 @@ In Claude Code, the project's `daily-check` skill ([`.claude/skills/daily-check/
 
 ### Each week
 
-After the drift report, commit the week's daily notes and the report in one pull request. Make the branch in a separate worktree, so the job's clone stays on `main`. The job ignores the two folders when it records whether the tree is clean, so the notes it has not committed do not mark later runs as dirty. Each command changes into the job's clone first, so it can run from any folder; from a development checkout, the same steps would branch from it and copy its notes instead.
+After the drift report, commit the week's daily notes of both runs and the report in one pull request: the reversal run's notes and drift report in `reports/phase-06/`, and the momentum run's notes in `reports/phase-08/forward/daily/` ([decision record 0010](decisions/0010-momentum-forward-run.md), item 9). Make the branch in a separate worktree, so the job's clone stays on `main`. Both jobs ignore the three folders when they record whether the tree is clean, so the notes not yet committed do not mark later runs as dirty. Each command changes into the job's clone first, so it can run from any folder; from a development checkout, the same steps would branch from it and copy its notes instead.
 
 ```bash
 cd /path/to/stat-arb-forward && git fetch && git worktree add ../stat-arb-week -b docs/week-2026-11-23 origin/main
 ```
 
 ```bash
-cd /path/to/stat-arb-forward && cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/
+cd /path/to/stat-arb-forward && cp -R reports/phase-06/daily reports/phase-06/drift ../stat-arb-week/reports/phase-06/ && cp -R reports/phase-08/forward/daily ../stat-arb-week/reports/phase-08/forward/
 ```
 
 ```bash
-cd /path/to/stat-arb-forward && git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift && git -C ../stat-arb-week commit -m "docs(phase-06): add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
+cd /path/to/stat-arb-forward && git -C ../stat-arb-week add reports/phase-06/daily reports/phase-06/drift reports/phase-08/forward/daily && git -C ../stat-arb-week commit -m "docs: add the week of 2026-11-23" && git -C ../stat-arb-week push -u origin HEAD
 ```
 
 Open the pull request, then remove the worktree with `cd /path/to/stat-arb-forward && git worktree remove ../stat-arb-week`.
 
-**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With neither job running, move the two folders aside, pull, and put back the notes `main` does not have yet. It is one command, so it can run from any folder: it changes into the clone first, and stops at the first step that fails. Run from a development checkout, the same steps would move that checkout's tracked notes instead. `mkdir` fails if `../stat-arb-aside` is left from an earlier pull; delete it first, once its notes match the clone's.
+**Pulling `main` into the job's clone.** Once weekly pull requests are merged, `main` holds notes that the clone has as untracked files, and git refuses a pull that would overwrite them. With no job running, neither the daily job, the drift report nor the momentum job, move the three folders aside, pull, and put back the notes `main` does not have yet. Only the momentum run's `daily` folder moves: the frozen records beside it in `reports/phase-08/forward/` are tracked. It is one command, so it can run from any folder: it changes into the clone first, and stops at the first step that fails. Run from a development checkout, the same steps would move that checkout's tracked notes instead. `mkdir` fails if `../stat-arb-aside` is left from an earlier pull; delete it first, once its notes match the clone's.
 
 ```bash
-cd /path/to/stat-arb-forward && mkdir ../stat-arb-aside && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/ && git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/phase-06/
+cd /path/to/stat-arb-forward && mkdir ../stat-arb-aside && mkdir -p ../stat-arb-aside/phase-06 ../stat-arb-aside/phase-08/forward && mv reports/phase-06/daily reports/phase-06/drift ../stat-arb-aside/phase-06/ && mv reports/phase-08/forward/daily ../stat-arb-aside/phase-08/forward/ && git pull --ff-only && rsync -a --ignore-existing ../stat-arb-aside/ reports/
 ```
 
 Then check that the config still matches the frozen record and that the frozen path still reproduces. A run by hand with no session due skips the reproduction check, so run both checks on their own, offline and without keys, with the raw store that holds the pinned snapshot:
@@ -280,12 +280,20 @@ uv sync --locked --group explore
 uv run --group explore marimo run notebooks/ledger.py -- --root ../stat-arb-forward
 ```
 
+It opens on the reversal run's ledger. The selector beside the title switches to either path of the momentum forward run ([decision record 0010](decisions/0010-momentum-forward-run.md)), listed by the names in `[[runs]]` of `config/momentum_forward.toml`; `--ledger <name>` after `--root` opens on one, such as `--ledger residual`. Both runs process the same sessions, so the header's sessions due are the reversal run's for every ledger. The decile sort the momentum paths use records no expected move, slope or solver status, so for them the explorer leaves those columns out, and the next open's tab lists the target, the book the sort set for that open.
+
 It serves on 127.0.0.1 and opens a browser tab: the book after any day's open, the trades and P&L over a window, attribution by ticker, sector or side, holding spells, one ticker's history, the expected moves behind the next open, and each day's health. Its header says whether the ledger is up to date or how many sessions the daily job would process if it ran now, by the job's own rule. It only reads. It runs in marimo's dark theme, set by `[tool.marimo.display] theme` in `pyproject.toml`; change it to `"light"` there and restart the app, and the charts follow. Keep what it shows on the machine: no screenshots or exported tables in the repository or anywhere public ([decision record 0003](decisions/0003-data-sources-alpaca-and-wikipedia.md)). `marimo edit` on the same file also checks marimo.io for a newer version once a day; set `MARIMO_SKIP_UPDATE_CHECK=1` to stop it. `marimo run` does not check.
 
 **From the command line.** The same views are in SQL for the [DuckDB](https://duckdb.org) command-line client (`brew install duckdb`). From the development checkout:
 
 ```bash
 STATARB_LEDGER_ROOT=../stat-arb-forward duckdb -init notebooks/ledger.sql
+```
+
+That opens the reversal run's ledger. `STATARB_LEDGER` opens a momentum path by its name in `config/momentum_forward.toml` instead:
+
+```bash
+STATARB_LEDGER_ROOT=../stat-arb-forward STATARB_LEDGER=residual duckdb -init notebooks/ledger.sql
 ```
 
 It lists its views on start (`FROM guide;` shows them again) and writes nothing: the database is in memory. If it waits five seconds on start and reports a timeout reading the terminal's background colour, the terminal does not answer DuckDB's query for it: add `-dark-mode` or `-light-mode` to the command. Some queries to start from:
@@ -297,7 +305,7 @@ SELECT sector, sum(net_usd) AS net FROM earned GROUP BY ALL ORDER BY abs(net) DE
 FROM history('SPY');                               -- one name, day by day
 ```
 
-`tests/test_ledger_sql.py` holds each SQL view to the Python view of the same name, so the two cannot drift apart.
+`tests/test_ledger_sql.py` holds each SQL view to the Python view of the same name, on a reversal and a momentum ledger, so the two cannot drift apart. It also checks that the ledger folders the SQL assumes are those the config files give, since SQL cannot read them.
 
 ### When a run refuses
 

@@ -1,36 +1,68 @@
 """notebooks/ledger.sql, the ledger explorer for the DuckDB command line, gives what `statarb.paper.views` gives.
 
-Two implementations of the same views, so each SQL view is held to the Python one on the synthetic ledger.
+Two implementations of the same views, so each SQL view is held to the Python one on the synthetic ledger, as
+the reversal run records it and as a momentum path does.
 """
 
 from __future__ import annotations
 
+import shutil
+
 import pandas as pd
 import pytest
 
-from statarb.config import repo_root
+from statarb.config import load_config, repo_root, resolve_path
 from statarb.data.schema import DATE, TICKER
-from statarb.paper import views
+from statarb.paper import momentum, views
 from synthetic_ledger import DATES, SECTORS, concat, frames, write
 
 duckdb = pytest.importorskip("duckdb")
 
+SQL = repo_root() / "notebooks" / "ledger.sql"
+PATHS = tuple(spec.name for spec in momentum.load_momentum_config(repo_root()).runs)
+
+
+@pytest.fixture(scope="module", params=[views.REVERSAL, PATHS[0]])
+def name(request) -> str:
+    return request.param
+
 
 @pytest.fixture(scope="module")
-def frame() -> pd.DataFrame:
-    return concat(frames())
+def frame(name) -> pd.DataFrame:
+    return concat(frames(momentum=name != views.REVERSAL))
 
 
 @pytest.fixture(scope="module")
-def sql(tmp_path_factory):
-    """A connection with the views loaded, reading a synthetic ledger."""
+def sql(tmp_path_factory, name):
+    """A connection with the views loaded, reading a synthetic ledger: the reversal run's, or a momentum path's."""
     paper = tmp_path_factory.mktemp("paper")
-    write(paper)
+    write(paper, path=None if name == views.REVERSAL else name)
     con = duckdb.connect()
     con.execute("CREATE MACRO getenv(name) AS NULL")          # the command-line client's function; see the file's head
     con.execute("SET VARIABLE paper = ?", [str(paper)])
-    con.execute((repo_root() / "notebooks" / "ledger.sql").read_text())
+    con.execute("SET VARIABLE ledger_name = ?", [name])
+    con.execute(SQL.read_text())
     yield con
+    con.close()
+
+
+@pytest.mark.parametrize("ledger", [views.REVERSAL, *PATHS])
+def test_the_command_line_finds_each_ledger_where_the_config_puts_it(tmp_path, ledger) -> None:
+    """From the environment alone, as the command-line client reads it, the SQL opens the ledger `views.load` opens:
+    its folders are those of `[paths] paper` in config/data.toml and config/momentum_forward.toml."""
+    (tmp_path / "config").mkdir()
+    for config in ("data.toml", "momentum_forward.toml"):
+        shutil.copy(repo_root() / "config" / config, tmp_path / "config" / config)
+    write(resolve_path(load_config("data", tmp_path)["paths"]["paper"], tmp_path))
+    for seed, path in enumerate(PATHS, start=1):
+        write(momentum.paper_dir(tmp_path, momentum.load_momentum_config(tmp_path)), seed, path=path)
+    env = {"STATARB_LEDGER_ROOT": str(tmp_path), "STATARB_LEDGER": "" if ledger == views.REVERSAL else ledger}
+    con = duckdb.connect()
+    con.execute("CREATE MACRO getenv(name) AS CASE " + " ".join(f"WHEN name = '{k}' THEN '{v}'" for k, v in env.items()) + " END")
+    con.execute(SQL.read_text())
+    loaded = views.load(tmp_path, ledger)
+    _same(con.execute("FROM ledger").df(), concat([loaded.frame]), [DATE, TICKER])
+    _same(con.execute("FROM sectors").df(), loaded.sectors, [TICKER, "valid_from"])
     con.close()
 
 
@@ -99,3 +131,8 @@ def test_history_next_open_and_spells(sql, frame) -> None:
     _same(sql.execute("FROM next_open").df(), views.next_open(frame), [TICKER])
     _same(sql.execute("FROM spells").df(), views.spells(frame), [TICKER, "entry"])
     assert sql.execute("SELECT count(*) FROM spells WHERE exit IS NULL").fetchone() == (4,)
+
+
+def test_next_open_is_in_the_python_views_order(sql, frame) -> None:
+    """By expected move where the ledger has one, else by target, largest first."""
+    assert list(sql.execute("SELECT ticker FROM next_open").df()[TICKER]) == list(views.next_open(frame)[TICKER])
