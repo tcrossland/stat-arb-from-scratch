@@ -10,6 +10,10 @@ Deferred work, variants and open questions: anything not being built now.
 - The list is walked at each phase review, and whenever a trigger arrives or the backlog is triaged. An item leaves by being taken up in a brief or a plan, turned into a decision record if it changes scope, data source or methodology, retriggered, or deleted. The review, or the commit that changes the backlog, says which.
 - An item's title is fixed once written: reviews and decision records refer to items by title.
 
+## Now
+
+- The measurement half of "Closes from the listing exchange's closing auctions": [the plan](plans/auction-closes.md).
+
 ## Next
 
 ### During the forward run

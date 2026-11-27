@@ -1,0 +1,55 @@
+# Alpaca's auction prints, for measuring how often the listing exchange's auction open and close
+# differ from the bar's (docs/plans/auction-closes.md). Measurement only: no build or frozen record
+# reads this file. Loaded by statarb.data.auctions.parse_settings.
+
+[download]
+start = 2016-01-01
+# The last date requested, inclusive. It must fall before the forward run's first session
+# (first_session in config/paper.toml, decision record 0007 item 4); the adapter refuses one that does not.
+last = 2026-11-13
+# The download date of the bar snapshot pinned in config/data.toml, so a symbol names the same entity
+# as it did for the bars.
+asof = 2026-11-16
+pause_seconds = 0.3   # between tickers, on top of the client's own pacing
+retries = 3
+
+[snapshot]
+# The auction snapshot the report reads, by download date and digest (from its manifest). Both are
+# empty until the first download; the report refuses to run until they are set.
+date = ""
+digest = ""
+
+[compare]
+# Half the smallest sub-dollar tick: a price further than this from the bar's differs, so float
+# rounding never counts as a difference.
+tolerance = 0.00005
+# The listing check flags a ticker and year whose largest closing print is on another exchange than
+# the listed one on at least this share of its days.
+flag_share = 0.5
+
+# Each listing exchange of config/listings.toml, with Alpaca's code for it (`x` in a print) and words
+# one of which Alpaca's own name for the code contains. The report checks both against the exchange
+# table kept in the snapshot and refuses a mismatch.
+[exchanges.nyse]
+code = "N"
+names = ["New York Stock Exchange"]
+
+[exchanges.nasdaq]
+code = "Q"
+names = ["Nasdaq"]
+
+[exchanges.arca]
+code = "P"
+names = ["Arca"]
+
+[exchanges.american]
+code = "A"
+names = ["American", "AMEX"]
+
+[exchanges.bzx]
+code = "Z"
+names = ["BZX", "BATS"]
+
+[exchanges.iex]
+code = "V"
+names = ["IEX", "Investors"]

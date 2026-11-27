@@ -74,6 +74,7 @@ Each phase adds a row for every value it computes: what the value uses, and when
 | 5 | Calibrated forecast on *t* | the forecast on *t*, and phase 3's slope from forecast-outcome pairs whose 5-day residual outcome is known by the close of *t* | after the close of *t* |
 | 8 | Total-return momentum on *t* | the total returns on the 252 trading days ending *t* − 21, every one of them present, compounded; scored from the stock's first residual on | after the close of *t* − 21, or of the stock's first residual if that is later, as the score on *t* |
 | 8 | Residual momentum on *t* | the residuals on the 252 trading days ending *t* − 21, every one of them present: their sum over their standard deviation over those days | after the close of *t* − 21, as the score on *t* |
+| 8 | Listing exchange's auction prices on *t* (measurement only) | the opening and closing auctions of *t* on the exchange `config/listings.toml` lists the ticker on, read from a list made after the sample from dated, sourced transfers | the open of *t* for the opening auction and the close of *t* for the closing auction; nothing decides on them yet |
 
 Notes for phase 0:
 
