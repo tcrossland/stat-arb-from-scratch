@@ -1,13 +1,13 @@
 # Backlog
 
-Deferred work, variants and open questions that do not belong in the current phase brief.
+Deferred work, variants and open questions: anything not being built now.
 
 ## Rules
 
-- Every item names a trigger (the phase or event at which it should be revisited), why it matters, and the action to take then.
-- Each phase review walks this list. An item is either moved into the next phase brief, turned into a decision record in `docs/decisions/` if it changes scope, data source or methodology, or deleted. The review says which.
-- Work for the current phase goes in its brief, not here.
-- Items are in two groups. Next holds the items planned to land by the next phase tag, under a heading for the event, review or tag they should land by, earliest first, and in the order to take them up within each heading. An item's own target says only what its heading does not. Later holds the rest, untargeted and ungrouped, each still revisited at its trigger.
+- Every item names a trigger (the event, date or review at which it should be revisited), why it matters, and the action to take then.
+- Work being built lives in its phase brief or its plan in `docs/plans/`, not here. A Now section, above Next, names the plan being built and links to it; it is removed when the plan's status says done.
+- Next holds the items planned soon, under a heading for the event, date, review or tag they should land by, earliest first, and in the order to take them up within each heading. An item's own target says only what its heading does not. Later holds the rest, untargeted and ungrouped.
+- The list is walked at each phase review, and whenever a trigger arrives or the backlog is triaged. An item leaves by being taken up in a brief or a plan, turned into a decision record if it changes scope, data source or methodology, retriggered, or deleted. The review, or the commit that changes the backlog, says which.
 - An item's title is fixed once written: reviews and decision records refer to items by title.
 
 ## Next

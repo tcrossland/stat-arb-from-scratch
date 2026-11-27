@@ -16,7 +16,7 @@ A research project: build a simplified, daily-frequency version of a cross-secti
 |---|---|---|
 | `docs/phases/phase-NN/` | each phase's `brief.md` and `review.md` | a phase starts or ends |
 | `docs/decisions/` | decision records (ADRs), indexed in its `README.md` | scope, data source or methodology changes |
-| `docs/backlog.md` | deferred work, each item with a trigger, why and action, grouped Next and Later, Next under a heading for the event each item should land by | work belongs to a later phase |
+| `docs/backlog.md` | deferred work, each item with a trigger, why and action: Now links the plan being built, Next is under a heading for the event each item should land by, Later holds the rest | work is deferred, a trigger arrives, or an item is taken up |
 | `docs/plans/` | a plan for each piece of work large enough to need one, with a status line: purpose, constraints, design, steps | work needs a plan before it is built, or planned work is built or dropped |
 | `docs/architecture.md` | packages, runners, config files, what each reads and writes, external libraries | a module, runner, config file or library is added or renamed |
 | `docs/data-model.md` | stored tables, columns, keys and join rules | a stored table is added or changed |
@@ -43,7 +43,7 @@ The architecture and data model documents are empty until the first module lands
 - Decisions that change scope, data source or methodology go in `docs/decisions/NNNN-title.md` (short ADR: context, decision, consequences), with a line in the index.
 - Keep the reference docs in the table above current in the same change as the code.
 - Each number lives in one place: the phase review, or the generated report the review quotes. The README, the overview and every other page link to it rather than copy it, so a rerun that moves a number changes one file.
-- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief, turn it into a decision record, or delete it, and say which in the review.
+- Each phase starts by revising its brief with what earlier phases found, and ends with `docs/phases/phase-NN/review.md`: what was built, what the numbers showed, what surprised us, what carries forward. Confirm the reference docs are current. Then walk `docs/backlog.md`: move each item whose trigger has arrived into the next brief or a plan, retrigger it, turn it into a decision record, or delete it, and say which in the review.
 - A phase's pull request is merged with a merge commit, never squashed or rebased, so its commits keep the hashes the experiment logs record. Once it is merged, tag the merge commit `phase-NN`, annotated `phase-NN: <phase title>`, so the tag is on `main`'s own line, includes any change made in review, and gives the project as `main` held it when the phase ended, whatever else was merged while the phase ran. Never tag before the merge. The tags `phase-00` to `phase-07` are on each pull request's last commit, the rule until phase 8, and stay there.
 - Anything another phase depends on lives in `src/statarb/` with tests, not in a notebook.
 - A runner whose paths are trials is tried on synthetic fixtures. Its first run on real data is the logged one, from a clean tree, so no result is seen before it is logged and no setting can follow one.
