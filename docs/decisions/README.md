@@ -6,7 +6,7 @@ Short records of decisions that change scope, data source or methodology: contex
 |---|---|---|---|
 | [0001](0001-simulation-only-free-daily-data.md) | Simulation only, free daily data | accepted, its free-data rule amended by 0008 | 2026-11-16 |
 | [0002](0002-plan-revisions-before-phase-0.md) | Plan revisions before phase 0 | accepted | 2026-11-16 |
-| [0003](0003-data-sources-alpaca-and-wikipedia.md) | Data sources: Alpaca for prices, Wikipedia for the candidate list | accepted | 2026-11-16 |
+| [0003](0003-data-sources-alpaca-and-wikipedia.md) | Data sources: Alpaca for prices, Wikipedia for the candidate list | accepted, amended 2026-11-26 on the rebuild tolerance | 2026-11-16 |
 | [0004](0004-rules-for-alpacas-data.md) | Rules for Alpaca's data | accepted | 2026-11-16 |
 | [0005](0005-spread-as-a-stated-assumption.md) | The spread is a stated assumption, not an estimate | accepted | 2026-11-16 |
 | [0006](0006-partial-adjustment-in-phase-5.md) | Partial adjustment enters phase 5, before the holdout read | accepted | 2026-11-17 |
